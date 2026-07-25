@@ -1,0 +1,84 @@
+name: Probe MySQL connect
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload and run DB probe
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+          G5_MYSQL_HOST: ${{ secrets.G5_MYSQL_HOST }}
+          G5_MYSQL_USER: ${{ secrets.G5_MYSQL_USER }}
+          G5_MYSQL_PASSWORD: ${{ secrets.G5_MYSQL_PASSWORD }}
+          G5_MYSQL_DB: ${{ secrets.G5_MYSQL_DB }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          def q(v: str) -> str:
+              return "'" + v.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+          hosts = [
+              os.environ["G5_MYSQL_HOST"],
+              "localhost",
+              "127.0.0.1",
+          ]
+          user = os.environ["G5_MYSQL_USER"]
+          password = os.environ["G5_MYSQL_PASSWORD"]
+          db = os.environ["G5_MYSQL_DB"]
+          host_php = "array(" + ", ".join(q(h) for h in hosts) + ")"
+          Path("probe.php").write_text(
+              "\n".join(
+                  [
+                      "<?php",
+                      "header('Content-Type: text/plain; charset=utf-8');",
+                      "mysqli_report(MYSQLI_REPORT_OFF);",
+                      f"$user = {q(user)};",
+                      f"$pass = {q(password)};",
+                      f"$db = {q(db)};",
+                      f"$hosts = {host_php};",
+                      "echo 'PHP ' . PHP_VERSION . PHP_EOL;",
+                      "echo 'mysqli=' . (extension_loaded('mysqli') ? 'yes' : 'no') . PHP_EOL;",
+                      "foreach ($hosts as $host) {",
+                      "  $m = @mysqli_connect($host, $user, $pass, $db);",
+                      "  if ($m) {",
+                      "    echo \"OK host=$host db=$db\\n\";",
+                      "    mysqli_close($m);",
+                      "  } else {",
+                      "    echo 'FAIL host=' . $host . ' errno=' . mysqli_connect_errno() . ' error=' . mysqli_connect_error() . PHP_EOL;",
+                      "  }",
+                      "}",
+                      "if (is_file(__DIR__ . '/dbconfig.php')) {",
+                      "  define('_GNUBOARD_', true);",
+                      "  include __DIR__ . '/dbconfig.php';",
+                      "  echo 'dbconfig HOST=' . G5_MYSQL_HOST . ' USER=' . G5_MYSQL_USER . ' DB=' . G5_MYSQL_DB . ' PASSLEN=' . strlen(G5_MYSQL_PASSWORD) . PHP_EOL;",
+                      "}",
+                  ]
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          print("wrote probe.php")
+          PY
+
+          curl --fail --show-error --silent \
+            --ftp-create-dirs \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T probe.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/data/_db_probe.php"
+
+          echo "=== HTTP PROBE ==="
+          curl -sS "https://onoffcpa.iwinv.net/data/_db_probe.php" || true
+          echo
+
+          curl --silent --show-error \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -Q "DELE /public_html/data/_db_probe.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
