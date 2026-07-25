@@ -15,8 +15,11 @@ jobs:
         run: |
           ROOT=".deploy/branding"
           rm -rf "$ROOT"
+          # 주의: state 동기화 특성상 이전 번들에 있던 경로를 빼면 서버에서 삭제됨.
+          # 반드시 기존 번들 파일들의 합집합을 유지할 것.
           FILES=(
             "_site.config.php"
+            "inc/linkconnect-spa-bootstrap.php"
             "cps/index.php"
             "extend/linkconnect-spa.extend.php"
             "go/lp/index.php"
@@ -24,14 +27,17 @@ jobs:
             "plugin/onoff-builder-bridge/lib/home.php"
             "plugin/linkconnect/config.php"
             "plugin/linkconnect/pages/cps.php"
-            "plugin/linkconnect/layout/header.php"
-            "plugin/linkconnect/layout/footer.php"
             "plugin/linkconnect/inc/ai.php"
             "plugin/linkconnect/inc/campaign.php"
+            "plugin/linkconnect/inc/db.php"
+            "plugin/linkconnect/inc/email_notify.php"
             "plugin/linkconnect/inc/inquiry.php"
+            "plugin/linkconnect/inc/link.php"
             "plugin/linkconnect/inc/partner_analytics.php"
             "plugin/linkconnect/inc/sample_data.php"
             "plugin/linkconnect/inc/settings.php"
+            "plugin/linkconnect/inc/wallet.php"
+            "plugin/linkconnect/inc/views/admin/dashboard.php"
             "plugin/linkconnect/inc/views/admin/settings.php"
             "plugin/linkconnect/inc/views/public/home.php"
             "plugin/linkconnect/api/campaigns.php"
@@ -47,6 +53,9 @@ jobs:
             mkdir -p "$ROOT/$(dirname "$file")"
             cp "$file" "$ROOT/$file"
           done
+          mkdir -p "$ROOT/plugin/linkconnect" "$ROOT/skin/member"
+          cp -R plugin/linkconnect/layout "$ROOT/plugin/linkconnect/"
+          cp -R skin/member/onoff "$ROOT/skin/member/"
           mkdir -p \
             "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect" \
             "$ROOT/plugin/onoff-builder-bridge/data/imports"
