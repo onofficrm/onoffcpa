@@ -1,0 +1,62 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: onoffcpa-ftp-deploy
+  cancel-in-progress: false
+
+jobs:
+  ftp-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Clean junk files before upload
+        run: |
+          find . -name '._*' -delete 2>/dev/null || true
+          find . -name '.DS_Store' -delete 2>/dev/null || true
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          parallel: 1
+          protocol: ftp
+          local-dir: ./
+          server-dir: /public_html/
+          state-name: onoffcpa-deploy-v1
+          log-level: minimal
+          timeout: 600000
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/.DS_Store
+            **/.vscode/**
+            **/.idea/**
+            **/._*
+            _backup_transfer_*/
+            **/_backup_transfer_*/
+            _BUILDER_INPUT/**
+            .deploy/**
+            data/**
+            cache/**
+            session/**
+            tmp/**
+            node_modules/**
+            **/node_modules/**
+            *.log
+            .env
+            .env.*
+            linkconnect-deploy-v*
+            onoffcpa-deploy-v*
