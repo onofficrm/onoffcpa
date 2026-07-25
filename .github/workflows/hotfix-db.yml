@@ -1,0 +1,53 @@
+name: Hotfix DB connect files
+
+on:
+  workflow_dispatch:
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare dbconfig from secret
+        env:
+          DBCONFIG_B64: ${{ secrets.DBCONFIG_B64 }}
+        run: |
+          echo "$DBCONFIG_B64" | base64 --decode > data/dbconfig.php
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("data/dbconfig.php")
+          text = p.read_text(encoding="utf-8").replace("\r\n", "\n")
+          text = text.replace(
+              "include_once(__DIR__ . '/dbconfig.local.php');",
+              "// include_once(__DIR__ . '/dbconfig.local.php'); // disabled on server deploy",
+          )
+          p.write_text(text, encoding="utf-8")
+          PY
+          php -l data/dbconfig.php
+          php -l plugin/linkconnect/inc/db.php
+          php -l plugin/linkconnect/config.php
+          grep -n "LC_MYSQL_DB" data/dbconfig.php | head -5
+
+      - name: Upload critical files via FTP
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+        run: |
+          upload() {
+            local src="$1"
+            local dest="$2"
+            echo "→ $dest"
+            curl --fail --show-error --silent \
+              --ftp-create-dirs \
+              --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+              -T "$src" \
+              "ftp://${FTP_SERVER}:${FTP_PORT}${dest}"
+          }
+          upload data/dbconfig.php /public_html/data/dbconfig.php
+          upload plugin/linkconnect/inc/db.php /public_html/plugin/linkconnect/inc/db.php
+          upload plugin/linkconnect/config.php /public_html/plugin/linkconnect/config.php
+          echo "Hotfix uploaded"
