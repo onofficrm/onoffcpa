@@ -48,6 +48,7 @@ $lead_ref_id = (int) ($lead['lead_ref_id'] ?? 0);
 // 로컬이 관리 플랫폼이면 로컬 conversion 을 생성/연결(광고주가 온오프CPA에서 승인/반려 가능).
 $local_cv_id = 0;
 $local_conv_msg = '';
+$local_conv_ok = true;
 if ($lead_ref_id > 0 && function_exists('lc_mp_ensure_local_conversion_for_lead')) {
     $leads_table = lc_mp_db_table('lead_refs');
     $ref_row = sql_fetch(" SELECT * FROM `{$leads_table}` WHERE lead_ref_id = '{$lead_ref_id}' LIMIT 1 ");
@@ -56,6 +57,22 @@ if ($lead_ref_id > 0 && function_exists('lc_mp_ensure_local_conversion_for_lead'
         $local_conv_msg = (string) ($conv['message'] ?? '');
         if (!empty($conv['ok'])) {
             $local_cv_id = (int) ($conv['cvId'] ?? 0);
+        } else {
+            $local_conv_ok = false;
+            // 관리 플랫폼에서 로컬 conversion 생성 실패는 치명 — 광고주 목록에 안 보임
+            if ($local_conv_msg !== 'local not management — ref only'
+                && $local_conv_msg !== 'disabled'
+                && empty($inbox['duplicate'])) {
+                lc_mp_audit('inbound.local_conversion_failed', array(
+                    'lead_ref_id' => $lead_ref_id,
+                    'message' => $local_conv_msg,
+                ));
+                lc_api_error(
+                    'lead stored but local conversion failed: ' . $local_conv_msg,
+                    'LOCAL_CONVERSION_FAILED',
+                    422
+                );
+            }
         }
     }
 }

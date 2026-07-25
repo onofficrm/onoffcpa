@@ -495,14 +495,18 @@ if (!function_exists('lc_conversion_update_status')) {
         }
 
         if ($new_status === LC_STATUS_APPROVED) {
-            $deduct = lc_wallet_deduct_for_conversion(
-                $mt_id,
-                $cv_id,
-                (int) $conversion['cv_price'],
-                $conversion['cv_code'] . ' 승인 차감'
-            );
-            if (!$deduct['ok']) {
-                return $deduct;
+            // 원격 ACK(원본 플랫폼): 광고주 지갑 차감은 관리 플랫폼에서 이미 수행.
+            // 여기서 다시 차감하면 이중 과금이 되므로 건너뛰고, 파트너 적립만 수행.
+            if (!$mp_remote_ack) {
+                $deduct = lc_wallet_deduct_for_conversion(
+                    $mt_id,
+                    $cv_id,
+                    (int) $conversion['cv_price'],
+                    $conversion['cv_code'] . ' 승인 차감'
+                );
+                if (!$deduct['ok']) {
+                    return $deduct;
+                }
             }
 
             if (function_exists('lc_partner_credit_for_conversion')) {
@@ -1332,7 +1336,7 @@ if (!function_exists('lc_conversion_list_for_inspection')) {
         $sql = " SELECT cv.*, c.cp_name, p.pt_code, p.pt_name, m.mt_company
             FROM `{$cv_table}` cv
             INNER JOIN `{$cp_table}` c ON c.cp_id = cv.cp_id
-            INNER JOIN `{$pt_table}` p ON p.pt_id = cv.pt_id
+            LEFT JOIN `{$pt_table}` p ON p.pt_id = cv.pt_id
             LEFT JOIN `{$mt_table}` m ON m.mt_id = c.mt_id
             WHERE {$where}
             ORDER BY cv.cv_id DESC
