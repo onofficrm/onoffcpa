@@ -82,7 +82,13 @@ if (!function_exists('lc_mp_resolve_onoffcpa_base_url')) {
             }
         }
 
-        return $candidates[0];
+        // 전부 실패하면 레거시(작동 중인) URL로 폴백 — 신규 도메인을 강제하지 않음
+        $legacy = defined('LC_ONOFFCPA_LEGACY_URL') ? rtrim((string) LC_ONOFFCPA_LEGACY_URL, '/') : '';
+        if ($legacy !== '') {
+            return $legacy;
+        }
+
+        return !empty($candidates) ? $candidates[count($candidates) - 1] : 'https://onoffcpa.iwinv.net';
     }
 }
 

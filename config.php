@@ -23,8 +23,8 @@ date_default_timezone_set("Asia/Seoul");
 보안서버주소가 없다면 공란으로 두시면 되며 보안서버주소 뒤에 / 는 붙이지 않습니다.
 입력 예) https://www.domain.com:443/gnuboard5
 */
-define('G5_DOMAIN', '');
-define('G5_HTTPS_DOMAIN', '');
+define('G5_DOMAIN', 'https://onoffcpa.icrm.co.kr');
+define('G5_HTTPS_DOMAIN', 'https://onoffcpa.icrm.co.kr');
 
 // 그누보드 디버그바 설정입니다, 실제 서버운영시 false 로 설정해 주세요.
 define('G5_DEBUG', false);

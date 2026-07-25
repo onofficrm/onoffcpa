@@ -70,7 +70,7 @@ $site_config = array(
     'map_placeholder_desc'      => '_site.config.php에서 google_maps_api_key 값을 입력하면 지도가 표시됩니다.',
     /* iCRM final_url (lib/icrm.lib.php, /icrm/final-url.php) — 사이트 복사마다 토큰만 다름, 도메인은 G5_URL 자동 */
     'icrm_builtin'              => true,
-    'icrm_site_base_url'        => '',  /* 비우면 G5_DOMAIN/G5_URL. CDN 등 예외 시만 https://고객도메인 */
+    'icrm_site_base_url'        => 'https://onoffcpa.icrm.co.kr',  /* 정식 공개 도메인 */
     'icrm_secret_token'         => '',  /* 비우면 data/icrm.config.php(자동 생성) 사용 */
     'icrm_allowed_ips'          => '',  /* iCRM 서버 IP, 쉼표 구분 (token 대신 가능) */
     'icrm_css_only_when_markup' => false, /* true: 본문에 icrm-* 있을 때만 icrm-template.css 로드 */

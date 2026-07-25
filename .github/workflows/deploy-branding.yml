@@ -18,6 +18,7 @@ jobs:
           # 주의: state 동기화 특성상 이전 번들에 있던 경로를 빼면 서버에서 삭제됨.
           # 반드시 기존 번들 파일들의 합집합을 유지할 것.
           FILES=(
+            "config.php"
             "_site.config.php"
             "inc/linkconnect-spa-bootstrap.php"
             "cps/index.php"
