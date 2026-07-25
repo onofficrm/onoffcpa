@@ -39,6 +39,7 @@ jobs:
             "plugin/linkconnect/api/platform/remote_status.php"
             "plugin/linkconnect/admin/api/platform.php"
             "plugin/linkconnect/cron/platform_sync_outbox.php"
+            "plugin/linkconnect/install/seed_personal_rehab_mp.php"
             "plugin/linkconnect/pages/cps.php"
             "plugin/linkconnect/inc/ai.php"
             "plugin/linkconnect/inc/campaign.php"
@@ -147,6 +148,15 @@ jobs:
           ));
           echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
           EOF
+          cat > seed_mp_run.php << 'EOF'
+          <?php
+          header('Content-Type: application/json; charset=utf-8');
+          require_once __DIR__ . '/plugin/linkconnect/_common.php';
+          if (!function_exists('lc_mp_seed_personal_rehab_pair')) {
+              require_once G5_PLUGIN_PATH . '/linkconnect/install/seed_personal_rehab_mp.php';
+          }
+          echo json_encode(lc_mp_seed_personal_rehab_pair(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+          EOF
           curl --fail --show-error --silent \
             --ftp-create-dirs \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
@@ -157,11 +167,22 @@ jobs:
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -T apply_rehab.php \
             "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/apply_rehab.php"
+          curl --fail --show-error --silent \
+            --ftp-create-dirs \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T seed_mp_run.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/seed_mp_run.php"
           echo "=== RENAME ==="
           curl -sS "https://onoffcpa.iwinv.net/rename_site.php" || true
           echo
           echo "=== APPLY PERSONAL REHAB ==="
           curl -sS "https://onoffcpa.iwinv.net/apply_rehab.php" || true
+          echo
+          echo "=== SEED MP ADVERTISERS ==="
+          curl -sS "https://onoffcpa.iwinv.net/seed_mp_run.php" || true
+          echo
+          echo "=== HEALTH ==="
+          curl -sS "https://onoffcpa.iwinv.net/plugin/linkconnect/api/platform/health.php" || true
           echo
           curl --silent --show-error \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
@@ -170,6 +191,10 @@ jobs:
           curl --silent --show-error \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -Q "DELE /public_html/apply_rehab.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
+          curl --silent --show-error \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -Q "DELE /public_html/seed_mp_run.php" \
             "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
           echo "=== CAMPAIGNS ==="
           curl -sS "https://onoffcpa.iwinv.net/plugin/linkconnect/api/campaigns.php?type=cpa" | head -c 1200

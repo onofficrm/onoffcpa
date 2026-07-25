@@ -1215,6 +1215,15 @@ if (!function_exists('lc_conversion_create')) {
             lc_abuse_on_conversion_created($cv_id, $payload, $duplicate, $abuse_score);
         }
 
+        // 다중 플랫폼: 원본 플랫폼이면 관리 플랫폼으로 유입 푸시 (플래그 OFF 시 no-op)
+        if (function_exists('lc_mp_on_local_conversion_created')) {
+            $mt_for_mp = 0;
+            if (isset($campaign['mt_id'])) {
+                $mt_for_mp = (int) $campaign['mt_id'];
+            }
+            lc_mp_on_local_conversion_created($cv_id, $mt_for_mp);
+        }
+
         return array(
             'ok'         => true,
             'message'    => '상담 신청이 접수되었습니다.',

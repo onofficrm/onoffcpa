@@ -190,15 +190,25 @@ if (!function_exists('lc_mp_db_seed_platforms')) {
         $seeds = array(
             array(
                 'code' => lc_mp_local_platform_code(),
-                'name' => '온오프CPA',
+                'name' => (lc_mp_local_platform_code() === 'LINKCONNECT') ? '링크커넥트' : '온오프CPA',
                 'local' => 1,
             ),
-            array(
+        );
+        // 상대 플랫폼 시드
+        $local = lc_mp_local_platform_code();
+        if ($local === 'ONOFFCPA') {
+            $seeds[] = array(
                 'code' => defined('LC_PLATFORM_LINKCONNECT') ? LC_PLATFORM_LINKCONNECT : 'LINKCONNECT',
                 'name' => '링크커넥트',
                 'local' => 0,
-            ),
-        );
+            );
+        } else {
+            $seeds[] = array(
+                'code' => defined('LC_PLATFORM_ONOFFCPA') ? LC_PLATFORM_ONOFFCPA : 'ONOFFCPA',
+                'name' => '온오프CPA',
+                'local' => 0,
+            );
+        }
 
         foreach ($seeds as $seed) {
             $code = lc_sql_escape($seed['code']);
@@ -207,9 +217,9 @@ if (!function_exists('lc_mp_db_seed_platforms')) {
                 continue;
             }
             $name = lc_sql_escape($seed['name']);
-            $local = (int) $seed['local'];
+            $is_local = (int) $seed['local'];
             lc_sql_query(" INSERT INTO `{$table}` (`platform_code`, `platform_name`, `is_local`, `status`)
-                VALUES ('{$code}', '{$name}', {$local}, 'active') ", false);
+                VALUES ('{$code}', '{$name}', {$is_local}, 'active') ", false);
         }
     }
 }

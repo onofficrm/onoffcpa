@@ -83,6 +83,17 @@ if (!function_exists('lc_mp_upsert_lead_ref_from_inbound')) {
         $json = lc_sql_escape(json_encode($payload, JSON_UNESCAPED_UNICODE));
         $group_id = (int) ($payload['groupId'] ?? $payload['group_id'] ?? 0);
         $local_mt_id = (int) ($payload['localMtId'] ?? $payload['local_mt_id'] ?? 0);
+        // 원격 groupId 는 DB마다 다르므로 groupCode 로 로컬 그룹을 재해석
+        if ($group_id <= 0) {
+            $gcode = trim((string) ($payload['groupCode'] ?? $payload['group_code'] ?? ''));
+            if ($gcode !== '' && function_exists('lc_mp_db_table') && lc_db_table_exists(lc_mp_db_table('advertiser_groups'))) {
+                $g = sql_fetch(" SELECT group_id FROM `" . lc_mp_db_table('advertiser_groups') . "`
+                    WHERE group_code = '" . lc_sql_escape($gcode) . "' LIMIT 1 ");
+                if (is_array($g)) {
+                    $group_id = (int) $g['group_id'];
+                }
+            }
+        }
 
         $existing = sql_fetch(" SELECT * FROM `{$leads}`
             WHERE source_platform_id = '{$platform_id}' AND external_lead_id = '{$ext_esc}' LIMIT 1 ");
@@ -131,16 +142,20 @@ if (!function_exists('lc_mp_resolve_local_campaign_for_lead')) {
         $cp_id = (int) ($payload['localCampaignId'] ?? $payload['local_cp_id'] ?? 0);
         if ($cp_id > 0) {
             $row = sql_fetch(" SELECT cp_id, mt_id FROM `{$cp_table}` WHERE cp_id = '{$cp_id}' LIMIT 1 ");
-            if (is_array($row) && (int) $row['mt_id'] === (int) $local_mt_id) {
+            if (is_array($row) && ((int) $local_mt_id <= 0 || (int) $row['mt_id'] === (int) $local_mt_id)) {
                 return (int) $row['cp_id'];
             }
         }
 
-        $code = trim((string) ($payload['localCampaignCode'] ?? $payload['local_cp_code'] ?? ''));
+        $code = trim((string) ($payload['localCampaignCode'] ?? $payload['local_cp_code'] ?? $payload['externalCampaignId'] ?? $payload['external_campaign_id'] ?? ''));
         if ($code !== '') {
             $code_esc = lc_sql_escape($code);
-            $row = sql_fetch(" SELECT cp_id FROM `{$cp_table}`
-                WHERE cp_code = '{$code_esc}' AND mt_id = '" . (int) $local_mt_id . "' LIMIT 1 ");
+            if ((int) $local_mt_id > 0) {
+                $row = sql_fetch(" SELECT cp_id FROM `{$cp_table}`
+                    WHERE cp_code = '{$code_esc}' AND mt_id = '" . (int) $local_mt_id . "' LIMIT 1 ");
+            } else {
+                $row = sql_fetch(" SELECT cp_id FROM `{$cp_table}` WHERE cp_code = '{$code_esc}' LIMIT 1 ");
+            }
             if (is_array($row) && !empty($row['cp_id'])) {
                 return (int) $row['cp_id'];
             }
@@ -215,6 +230,21 @@ if (!function_exists('lc_mp_ensure_local_conversion_for_lead')) {
                 }
             }
         }
+        $cp_id = lc_mp_resolve_local_campaign_for_lead($local_mt_id, $payload);
+        // mt 미지정 시 캠페인 코드/ID 로 먼저 찾고, 그 캠페인의 mt_id 사용
+        if ($cp_id <= 0 && $local_mt_id <= 0) {
+            $cp_id = lc_mp_resolve_local_campaign_for_lead(0, $payload);
+        }
+        if ($cp_id > 0 && $local_mt_id <= 0) {
+            $cp_probe = sql_fetch(" SELECT mt_id FROM `" . lc_table('campaigns') . "` WHERE cp_id = '{$cp_id}' LIMIT 1 ");
+            if (is_array($cp_probe)) {
+                $local_mt_id = (int) ($cp_probe['mt_id'] ?? 0);
+            }
+        }
+        if ($cp_id <= 0) {
+            // mt 만 있고 캠페인이 여러 개면 실패 — 위에서 이미 시도함
+            $cp_id = lc_mp_resolve_local_campaign_for_lead($local_mt_id, $payload);
+        }
         if ($local_mt_id <= 0) {
             return array('ok' => false, 'message' => 'local_mt_id unresolved');
         }
@@ -224,7 +254,6 @@ if (!function_exists('lc_mp_ensure_local_conversion_for_lead')) {
             return array('ok' => false, 'message' => 'local not management — ref only');
         }
 
-        $cp_id = lc_mp_resolve_local_campaign_for_lead($local_mt_id, $payload);
         if ($cp_id <= 0) {
             return array('ok' => false, 'message' => 'local campaign unresolved');
         }
@@ -539,5 +568,80 @@ if (!function_exists('lc_mp_on_local_conversion_status_changed')) {
         }
 
         lc_mp_enqueue_status_change((int) $ref['lead_ref_id'], $new_status, $comment, $mt_id);
+    }
+}
+
+if (!function_exists('lc_mp_on_local_conversion_created')) {
+    /**
+     * 로컬에서 신규 DB 접수 후 호출.
+     * - 로컬이 관리 플랫폼이면 no-op (원본도 로컬이거나 이미 inbound 로 들어옴)
+     * - 로컬이 원본이고 관리가 원격이면 → 관리 플랫폼으로 inbound_lead 푸시
+     */
+    function lc_mp_on_local_conversion_created($cv_id, $mt_id = 0)
+    {
+        if (!lc_mp_enabled()) {
+            return;
+        }
+        $cv_id = (int) $cv_id;
+        $mt_id = (int) $mt_id;
+        if ($cv_id <= 0) {
+            return;
+        }
+
+        $conversion = function_exists('lc_conversion_get_by_id') ? lc_conversion_get_by_id($cv_id) : null;
+        if (!is_array($conversion)) {
+            return;
+        }
+        if ($mt_id <= 0) {
+            $cp = sql_fetch(" SELECT mt_id FROM `" . lc_table('campaigns') . "` WHERE cp_id = '" . (int) $conversion['cp_id'] . "' LIMIT 1 ");
+            $mt_id = is_array($cp) ? (int) $cp['mt_id'] : 0;
+        }
+        if ($mt_id <= 0) {
+            return;
+        }
+
+        // 관리 플랫폼이 로컬이면 원격으로 보내지 않음
+        if (lc_mp_local_is_management_for_mt($mt_id)) {
+            return;
+        }
+
+        $group = lc_mp_find_group_by_local_mt($mt_id);
+        if (!$group) {
+            return;
+        }
+        $mgmt = lc_mp_get_management_platform((int) $group['group_id']);
+        if (!$mgmt || !empty($mgmt['is_local'])) {
+            return;
+        }
+
+        $cp_row = sql_fetch(" SELECT cp_code, cp_id FROM `" . lc_table('campaigns') . "` WHERE cp_id = '" . (int) $conversion['cp_id'] . "' LIMIT 1 ");
+        $payload = array(
+            'sourcePlatform'     => lc_mp_local_platform_code(),
+            'eventType'          => 'lead.upsert',
+            'externalLeadId'     => (string) ($conversion['cv_code'] ?? ''),
+            'externalCampaignId' => is_array($cp_row) ? (string) ($cp_row['cp_code'] ?? '') : '',
+            'localCampaignCode'  => is_array($cp_row) ? (string) ($cp_row['cp_code'] ?? '') : '',
+            'status'             => 'pending',
+            'name'               => (string) ($conversion['cv_name'] ?? ''),
+            'phone'              => (string) ($conversion['cv_phone'] ?? ''),
+            'email'              => (string) ($conversion['cv_email'] ?? ''),
+            'region'             => (string) ($conversion['cv_region'] ?? ''),
+            'inquiry'            => (string) ($conversion['cv_inquiry'] ?? ''),
+            'groupCode'          => (string) ($group['group_code'] ?? ''),
+            'version'            => 1,
+            'idempotencyKey'     => lc_mp_local_platform_code() . ':' . (string) ($conversion['cv_code'] ?? '') . ':1',
+        );
+
+        if (!function_exists('lc_mp_adapter_push_inbound_lead')) {
+            return;
+        }
+        $push = lc_mp_adapter_push_inbound_lead($mgmt, $payload);
+        lc_mp_audit('outbound.inbound_lead', array(
+            'cv_id' => $cv_id,
+            'mt_id' => $mt_id,
+            'target' => (string) ($mgmt['platform_code'] ?? ''),
+            'ok' => !empty($push['ok']),
+            'message' => (string) ($push['message'] ?? ''),
+        ));
     }
 }

@@ -128,11 +128,11 @@ define('LC_FINAL_REJECTED', 'rejected');
 /* ── 다중 플랫폼 광고주 DB 거버넌스 ── */
 /**
  * 다중 플랫폼(링크커넥트 등) DB 통합 관리.
- * 기본 false — ON 하기 전에는 스키마 생성·웹훅·동기화·승인훅이 전부 동작하지 않습니다.
- * 링크커넥트 단독 운영 환경에서는 절대 true 로 두지 마세요.
+ * 개인회생 광고주(banktupt/dasibom) 카나리: true.
+ * 끄려면 false 로 되돌리면 엔드포인트 404·훅 no-op.
  */
 if (!defined('LC_MULTI_PLATFORM_ENABLED')) {
-    define('LC_MULTI_PLATFORM_ENABLED', false);
+    define('LC_MULTI_PLATFORM_ENABLED', true);
 }
 /** 이 인스턴스의 플랫폼 코드 (온오프CPA 배포본) */
 if (!defined('LC_PLATFORM_CODE')) {
