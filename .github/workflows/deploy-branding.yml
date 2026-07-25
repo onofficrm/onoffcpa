@@ -11,26 +11,46 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare branding bundle
+      - name: Prepare CPA-only hotfix bundle
         run: |
           ROOT=".deploy/branding"
           rm -rf "$ROOT"
-          mkdir -p "$ROOT"/{inc,plugin/linkconnect/{inc/views/admin,inc/views/public,layout},plugin/onoff-builder-bridge/{imports,data/imports},skin/member}
-
-          cp _site.config.php "$ROOT/"
-          cp inc/linkconnect-spa-bootstrap.php "$ROOT/inc/"
-          cp plugin/linkconnect/config.php "$ROOT/plugin/linkconnect/"
-          for f in settings.php db.php ai.php email_notify.php inquiry.php link.php wallet.php; do
-            cp "plugin/linkconnect/inc/$f" "$ROOT/plugin/linkconnect/inc/"
+          FILES=(
+            "_site.config.php"
+            "cps/index.php"
+            "extend/linkconnect-spa.extend.php"
+            "go/lp/index.php"
+            "skin/_inc/onoff-platform.php"
+            "plugin/onoff-builder-bridge/lib/home.php"
+            "plugin/linkconnect/config.php"
+            "plugin/linkconnect/pages/cps.php"
+            "plugin/linkconnect/layout/header.php"
+            "plugin/linkconnect/layout/footer.php"
+            "plugin/linkconnect/inc/ai.php"
+            "plugin/linkconnect/inc/campaign.php"
+            "plugin/linkconnect/inc/inquiry.php"
+            "plugin/linkconnect/inc/partner_analytics.php"
+            "plugin/linkconnect/inc/sample_data.php"
+            "plugin/linkconnect/inc/settings.php"
+            "plugin/linkconnect/inc/views/admin/settings.php"
+            "plugin/linkconnect/inc/views/public/home.php"
+            "plugin/linkconnect/api/campaigns.php"
+            "plugin/linkconnect/api/lp_health.php"
+            "plugin/linkconnect/api/lp_postback.php"
+            "plugin/linkconnect/partner/api/campaigns.php"
+            "plugin/linkconnect/partner/api/linkprice.php"
+            "plugin/linkconnect/admin/api/linkprice.php"
+            "plugin/linkconnect/cron/linkprice_sync_merchants.php"
+            "plugin/linkconnect/cron/linkprice_sync_conversions.php"
+          )
+          for file in "${FILES[@]}"; do
+            mkdir -p "$ROOT/$(dirname "$file")"
+            cp "$file" "$ROOT/$file"
           done
-          cp plugin/linkconnect/inc/views/admin/dashboard.php "$ROOT/plugin/linkconnect/inc/views/admin/"
-          cp plugin/linkconnect/inc/views/public/home.php "$ROOT/plugin/linkconnect/inc/views/public/"
-          cp -R plugin/linkconnect/layout "$ROOT/plugin/linkconnect/"
           rsync -a --exclude '._*' --exclude '.DS_Store' \
             plugin/onoff-builder-bridge/imports/linkconnect/ \
             "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/"
           cp plugin/onoff-builder-bridge/data/imports/linkconnect.json "$ROOT/plugin/onoff-builder-bridge/data/imports/"
-          cp -R skin/member/onoff "$ROOT/skin/member/"
           find "$ROOT" -name '._*' -delete 2>/dev/null || true
           grep -q 'OnOff CPA' "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html"
           echo "Bundle files: $(find "$ROOT" -type f | wc -l)"
