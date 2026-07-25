@@ -1,0 +1,77 @@
+name: Setup MP cron token
+
+# 다중 플랫폼 outbox 크론용 토큰을 서버 DB(lc_settings.mpCronToken)에 심는다.
+# 스케줄러(mp-outbox-cron.yml)가 같은 시크릿을 사용하므로 값이 항상 일치한다.
+# 토큰을 교체하려면 MP_CRON_TOKEN 시크릿을 바꾼 뒤 이 워크플로를 다시 실행할 것.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Set mpCronToken in DB and verify endpoint
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+          MP_CRON_TOKEN: ${{ secrets.MP_CRON_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MP_CRON_TOKEN}" ]; then
+            echo "MP_CRON_TOKEN secret is empty"; exit 1
+          fi
+
+          cat > set_mp_cron_token.php << 'EOF'
+          <?php
+          header('Content-Type: application/json; charset=utf-8');
+          require_once __DIR__ . '/plugin/linkconnect/_common.php';
+          $token = '__MP_CRON_TOKEN__';
+          if (!function_exists('lc_settings_save_row')) {
+              echo json_encode(array('ok' => false, 'error' => 'settings unavailable'));
+              exit;
+          }
+          $saved = lc_settings_save_row('mpCronToken', $token);
+          $now = (string) lc_settings_get('mpCronToken', '');
+          echo json_encode(array(
+              'ok' => !empty($saved['ok']) && $now === $token,
+              'saved' => $saved,
+              'tokenSet' => $now !== '',
+              'tokenLen' => strlen($now),
+              'mpEnabled' => function_exists('lc_mp_enabled') ? lc_mp_enabled() : null,
+          ), JSON_UNESCAPED_UNICODE);
+          EOF
+          # 토큰은 시크릿에서 주입 — 워크플로 로그에는 마스킹되어 남는다.
+          python3 - << 'PY'
+          import os
+          p = 'set_mp_cron_token.php'
+          s = open(p, encoding='utf-8').read()
+          open(p, 'w', encoding='utf-8').write(s.replace('__MP_CRON_TOKEN__', os.environ['MP_CRON_TOKEN']))
+          PY
+
+          curl --fail --show-error --silent \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T set_mp_cron_token.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/set_mp_cron_token.php"
+
+          echo "=== SET TOKEN ==="
+          curl -sS "https://onoffcpa.iwinv.net/set_mp_cron_token.php" || true
+          echo
+
+          # 서버에서 즉시 제거 (토큰이 담긴 파일을 남기지 않는다)
+          curl --silent --show-error \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -Q "DELE /public_html/set_mp_cron_token.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
+
+          echo "=== CRON ENDPOINT (with token) ==="
+          curl -sS --max-time 60 \
+            -H "X-LC-Cron-Token: ${MP_CRON_TOKEN}" \
+            "https://onoffcpa.iwinv.net/plugin/linkconnect/cron/platform_sync_outbox.php"
+          echo
+          echo "=== CRON ENDPOINT (no token — must be 403) ==="
+          curl -sS -o /dev/null -w '%{http_code}\n' \
+            "https://onoffcpa.iwinv.net/plugin/linkconnect/cron/platform_sync_outbox.php"

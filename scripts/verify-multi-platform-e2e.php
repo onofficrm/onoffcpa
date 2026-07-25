@@ -277,6 +277,87 @@ check('pure-local approve ok', !empty($updp['ok']));
 $ob_after = (int) (sql_fetch(" SELECT COUNT(*) c FROM `{$outbox_t}` ")['c'] ?? 0);
 check('pure-local creates NO outbox', $ob_after === $ob_before, "before={$ob_before} after={$ob_after}");
 
+echo "\n=== 시나리오 F: outbox 워커 — inbound_lead 분기 / 재시도 / dead 상한 ===\n";
+$LC_PID = (int) $lc['platform_id'];
+
+/* F1. inbound_lead 커맨드가 status 어댑터가 아닌 inbound_lead 어댑터로 나가는지 (mock 수신 기동) */
+/* exec 접두어: proc_terminate 가 sh 래퍼가 아닌 php 프로세스를 직접 종료하도록 */
+$srv2 = proc_open('exec php -S 127.0.0.1:8791 ' . escapeshellarg($stub_dir . '/router.php') . ' 2>/dev/null',
+    array(0 => array('pipe', 'r'), 1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes2);
+usleep(700000);
+
+$lead_payload = array(
+    'sourcePlatform' => 'ONOFFCPA',
+    'eventType' => 'lead.upsert',
+    'externalLeadId' => 'CV-MP-F1',
+    'externalCampaignId' => 'CPA-OWNER',
+    'status' => 'pending',
+    'name' => '유입테스트',
+    'phone' => '010-7777-8888',
+    'idempotencyKey' => 'ONOFFCPA:CV-MP-F1:1',
+);
+$enq = lc_mp_outbox_enqueue_inbound_lead($LC_PID, $lead_payload);
+check('inbound_lead outbox enqueued', !empty($enq['ok']) && (int) $enq['outbox_id'] > 0, json_encode($enq));
+
+/* 즉시 처리되도록 백오프 해제 */
+lc_sql_query("UPDATE `{$outbox_t}` SET next_attempt_at = NOW() WHERE outbox_id = '" . (int) $enq['outbox_id'] . "'");
+$procF = lc_mp_process_outbox_once(10);
+$obF = sql_fetch(" SELECT * FROM `{$outbox_t}` WHERE outbox_id = '" . (int) $enq['outbox_id'] . "' ");
+check('inbound_lead pushed via inbound adapter (done)',
+    is_array($obF) && $obF['status'] === 'done',
+    'status=' . ($obF['status'] ?? '?') . ' err=' . ($obF['last_error'] ?? ''));
+check('inbound_lead row command preserved', is_array($obF) && $obF['command'] === 'inbound_lead');
+
+/* F2. 동일 idempotencyKey 재적재 차단 */
+$enq_dup = lc_mp_outbox_enqueue_inbound_lead($LC_PID, $lead_payload);
+check('inbound_lead enqueue idempotent',
+    !empty($enq_dup['ok']) && $enq_dup['message'] === 'already queued'
+        && (int) $enq_dup['outbox_id'] === (int) $enq['outbox_id'], json_encode($enq_dup));
+
+if (is_resource($srv2)) { proc_terminate($srv2); proc_close($srv2); }
+
+/* F3. 수신측 도달 불가 → 실패 시 backoff 예약 (무한 즉시 재시도 금지)
+   mock 서버 종료에 의존하지 않고, 아무도 듣지 않는 포트로 대상 주소를 바꿔 확실히 실패시킨다. */
+lc_sql_query("UPDATE `{$plat}` SET api_base_url='http://127.0.0.1:8799' WHERE platform_id = '{$LC_PID}'");
+$lead_payload2 = $lead_payload;
+$lead_payload2['externalLeadId'] = 'CV-MP-F3';
+$lead_payload2['idempotencyKey'] = 'ONOFFCPA:CV-MP-F3:1';
+$enq2 = lc_mp_outbox_enqueue_inbound_lead($LC_PID, $lead_payload2);
+lc_sql_query("UPDATE `{$outbox_t}` SET next_attempt_at = NOW() WHERE outbox_id = '" . (int) $enq2['outbox_id'] . "'");
+lc_mp_process_outbox_once(10);
+$obF3 = sql_fetch(" SELECT * FROM `{$outbox_t}` WHERE outbox_id = '" . (int) $enq2['outbox_id'] . "' ");
+check('push failure marks failed with backoff',
+    is_array($obF3) && $obF3['status'] === 'failed' && (int) $obF3['attempts'] === 1 && !empty($obF3['next_attempt_at']),
+    'status=' . ($obF3['status'] ?? '?') . ' attempts=' . ($obF3['attempts'] ?? '?') . ' next=' . ($obF3['next_attempt_at'] ?? 'NULL'));
+
+/* F4. 재시도 상한 도달 → dead 로 내려가고 이후 재선택 대상에서 제외 */
+lc_sql_query("UPDATE `{$outbox_t}` SET attempts = '" . (LC_MP_OUTBOX_MAX_ATTEMPTS - 1) . "', next_attempt_at = NOW()
+    WHERE outbox_id = '" . (int) $enq2['outbox_id'] . "'");
+$procF4 = lc_mp_process_outbox_once(10);
+$obF4 = sql_fetch(" SELECT * FROM `{$outbox_t}` WHERE outbox_id = '" . (int) $enq2['outbox_id'] . "' ");
+check('retry cap reached → dead', is_array($obF4) && $obF4['status'] === 'dead',
+    'status=' . ($obF4['status'] ?? '?') . ' attempts=' . ($obF4['attempts'] ?? '?'));
+check('worker reports dead count', (int) ($procF4['dead'] ?? 0) >= 1, json_encode($procF4));
+
+$procF5 = lc_mp_process_outbox_once(10);
+$obF5 = sql_fetch(" SELECT attempts FROM `{$outbox_t}` WHERE outbox_id = '" . (int) $enq2['outbox_id'] . "' ");
+check('dead row not retried again',
+    (int) ($obF5['attempts'] ?? 0) === (int) ($obF4['attempts'] ?? -1),
+    'attempts stayed ' . ($obF5['attempts'] ?? '?'));
+
+lc_sql_query("UPDATE `{$plat}` SET api_base_url='http://127.0.0.1:8791' WHERE platform_id = '{$LC_PID}'");
+
+/* F5. target 플랫폼이 사라진 행도 backoff 를 받아 즉시 루프하지 않음 */
+lc_sql_query("INSERT INTO `{$outbox_t}`
+    (`target_platform_id`, `lead_ref_id`, `command`, `idempotency_key`, `payload_json`, `status`, `next_attempt_at`)
+    VALUES ('99999','0','status_change','orphan:1','{}','pending', NOW())");
+$orphan_id = (int) lc_sql_insert_id();
+lc_mp_process_outbox_once(10);
+$obF6 = sql_fetch(" SELECT * FROM `{$outbox_t}` WHERE outbox_id = '{$orphan_id}' ");
+check('missing platform row gets backoff (no tight loop)',
+    is_array($obF6) && !empty($obF6['next_attempt_at']) && (int) $obF6['attempts'] === 1,
+    'attempts=' . ($obF6['attempts'] ?? '?') . ' next=' . ($obF6['next_attempt_at'] ?? 'NULL'));
+
 /* ── 요약 ── */
 $failed = array_filter($RESULTS, function ($r) { return !$r['ok']; });
 echo "\n========================================\n";

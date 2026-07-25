@@ -7,6 +7,11 @@ if (!defined('_GNUBOARD_')) {
     exit;
 }
 
+// outbox 재시도 상한 (초과 시 dead 처리 후 관리자 알림)
+if (!defined('LC_MP_OUTBOX_MAX_ATTEMPTS')) {
+    define('LC_MP_OUTBOX_MAX_ATTEMPTS', 12);
+}
+
 if (!function_exists('lc_mp_verify_webhook_secret')) {
     function lc_mp_verify_webhook_secret(array $platform)
     {
@@ -324,6 +329,18 @@ if (!function_exists('lc_mp_ensure_local_conversion_for_lead')) {
             'status' => $status_local,
         ));
 
+        // 미러 유입도 자체 접수와 동일하게 광고주/관리자 알림을 발송한다.
+        // (lc_conversion_create 를 우회하므로 여기서 직접 호출)
+        if (function_exists('lc_notification_emit_conversion')) {
+            lc_notification_emit_conversion(array(
+                'cv_id'   => $cv_id,
+                'cv_code' => $cv_code,
+                'cp_name' => is_array($cp_row) ? (string) ($cp_row['cp_name'] ?? '캠페인') : '캠페인',
+                'pt_id'   => 0,
+                'mt_id'   => $local_mt_id,
+            ), 'received');
+        }
+
         return array('ok' => true, 'message' => 'created', 'cvId' => $cv_id, 'created' => true);
     }
 }
@@ -487,22 +504,41 @@ if (!function_exists('lc_mp_process_outbox_once')) {
             LIMIT {$limit} ", false);
 
         $processed = 0;
+        $failed = 0;
+        $failed_dead = 0;
         if (!$result) {
-            return array('ok' => true, 'message' => 'none', 'processed' => 0);
+            return array('ok' => true, 'message' => 'none', 'processed' => 0, 'failed' => 0, 'dead' => 0);
         }
 
         while ($row = sql_fetch_array($result)) {
             $platform = lc_mp_get_platform_by_id((int) $row['target_platform_id']);
             if (!$platform) {
-                lc_sql_query(" UPDATE `{$outbox}` SET status='failed', last_error='platform missing', attempts=attempts+1, updated_at=NOW()
+                // next_attempt_at 를 반드시 채워 다음 실행에서 즉시 재선택되는 것을 막는다.
+                $miss_attempts = (int) $row['attempts'] + 1;
+                $miss_status = ($miss_attempts >= LC_MP_OUTBOX_MAX_ATTEMPTS) ? 'dead' : 'failed';
+                $miss_delay = min(3600, 60 * $miss_attempts);
+                lc_sql_query(" UPDATE `{$outbox}` SET status='{$miss_status}', last_error='platform missing',
+                    attempts='{$miss_attempts}',
+                    next_attempt_at = DATE_ADD(NOW(), INTERVAL {$miss_delay} SECOND), updated_at=NOW()
                     WHERE outbox_id='" . (int) $row['outbox_id'] . "' ", false);
+                if ($miss_status === 'dead') {
+                    $failed_dead++;
+                }
+                $failed++;
                 continue;
             }
             $payload = json_decode((string) ($row['payload_json'] ?? ''), true);
             if (!is_array($payload)) {
                 $payload = array();
             }
-            $push = lc_mp_adapter_push_status($platform, $payload);
+            $command = trim((string) ($row['command'] ?? 'status_change'));
+            if ($command === 'inbound_lead') {
+                $push = function_exists('lc_mp_adapter_push_inbound_lead')
+                    ? lc_mp_adapter_push_inbound_lead($platform, $payload)
+                    : array('ok' => false, 'message' => 'inbound_lead adapter missing');
+            } else {
+                $push = lc_mp_adapter_push_status($platform, $payload);
+            }
             $attempts = (int) $row['attempts'] + 1;
             if (!empty($push['ok'])) {
                 lc_sql_query(" UPDATE `{$outbox}` SET status='done', attempts='{$attempts}', last_error='', updated_at=NOW()
@@ -514,18 +550,114 @@ if (!function_exists('lc_mp_process_outbox_once')) {
                 $processed++;
             } else {
                 $err = lc_sql_escape(substr((string) ($push['message'] ?? 'failed'), 0, 480));
-                $delay = min(3600, 30 * $attempts);
-                lc_sql_query(" UPDATE `{$outbox}` SET status='failed', attempts='{$attempts}', last_error='{$err}',
-                    next_attempt_at = DATE_ADD(NOW(), INTERVAL {$delay} SECOND), updated_at=NOW()
-                    WHERE outbox_id='" . (int) $row['outbox_id'] . "' ", false);
+                // 재시도 상한 초과분은 dead 로 내려 무한 재시도를 막고 운영자 확인 대상으로 남긴다.
+                $dead = ($attempts >= LC_MP_OUTBOX_MAX_ATTEMPTS);
+                if ($dead) {
+                    lc_sql_query(" UPDATE `{$outbox}` SET status='dead', attempts='{$attempts}', last_error='{$err}',
+                        next_attempt_at = NULL, updated_at=NOW()
+                        WHERE outbox_id='" . (int) $row['outbox_id'] . "' ", false);
+                    lc_mp_audit('outbox.dead', array(
+                        'outbox_id' => (int) $row['outbox_id'],
+                        'command' => $command,
+                        'attempts' => $attempts,
+                        'error' => (string) ($push['message'] ?? 'failed'),
+                    ));
+                    $failed_dead++;
+                } else {
+                    $delay = min(3600, 30 * $attempts);
+                    lc_sql_query(" UPDATE `{$outbox}` SET status='failed', attempts='{$attempts}', last_error='{$err}',
+                        next_attempt_at = DATE_ADD(NOW(), INTERVAL {$delay} SECOND), updated_at=NOW()
+                        WHERE outbox_id='" . (int) $row['outbox_id'] . "' ", false);
+                }
                 if (lc_db_table_exists($leads) && (int) $row['lead_ref_id'] > 0) {
                     lc_sql_query(" UPDATE `{$leads}` SET sync_status='failed', last_error='{$err}', updated_at=NOW()
                         WHERE lead_ref_id='" . (int) $row['lead_ref_id'] . "' ", false);
                 }
+                $failed++;
             }
         }
 
-        return array('ok' => true, 'message' => 'done', 'processed' => $processed);
+        if ($failed_dead > 0) {
+            lc_mp_notify_admin_outbox_dead($failed_dead);
+        }
+
+        return array(
+            'ok' => true,
+            'message' => 'done',
+            'processed' => $processed,
+            'failed' => $failed,
+            'dead' => $failed_dead,
+        );
+    }
+}
+
+if (!function_exists('lc_mp_notify_admin_outbox_dead')) {
+    /**
+     * 재시도 상한을 넘겨 포기한 동기화 건을 관리자에게 알린다.
+     * 이번 실행에서 새로 dead 가 된 건수만 대상이라 반복 알림이 쌓이지 않는다.
+     */
+    function lc_mp_notify_admin_outbox_dead($count)
+    {
+        $count = (int) $count;
+        if ($count <= 0 || !function_exists('lc_notification_create')) {
+            return;
+        }
+        lc_notification_create(array(
+            'center'   => 'admin',
+            'userId'   => 0,
+            'type'     => 'system',
+            'priority' => 'critical',
+            'title'    => '플랫폼 동기화 실패',
+            'body'     => $count . '건이 재시도 한도를 초과했습니다. 수동 확인이 필요합니다.',
+            'link'     => '/admin/platform',
+            'refType'  => 'platform_outbox',
+            'refId'    => 0,
+        ));
+    }
+}
+
+if (!function_exists('lc_mp_outbox_enqueue_inbound_lead')) {
+    /**
+     * 신규 리드의 관리 플랫폼 푸시를 재시도 큐에 적재한다.
+     * idempotency_key UNIQUE 로 중복 적재는 자동 차단된다.
+     *
+     * @return array{ok:bool,message:string,outbox_id?:int}
+     */
+    function lc_mp_outbox_enqueue_inbound_lead($target_platform_id, array $payload)
+    {
+        if (!lc_mp_enabled()) {
+            return array('ok' => false, 'message' => 'disabled');
+        }
+        $outbox = lc_mp_db_table('sync_outbox');
+        if (!lc_db_table_exists($outbox)) {
+            return array('ok' => false, 'message' => 'outbox missing');
+        }
+        $target_platform_id = (int) $target_platform_id;
+        $idem = trim((string) ($payload['idempotencyKey'] ?? ''));
+        if ($target_platform_id <= 0 || $idem === '') {
+            return array('ok' => false, 'message' => 'target/idempotencyKey required');
+        }
+
+        $idem_esc = lc_sql_escape($idem);
+        $exists = sql_fetch(" SELECT outbox_id FROM `{$outbox}` WHERE idempotency_key = '{$idem_esc}' LIMIT 1 ");
+        if (is_array($exists) && !empty($exists['outbox_id'])) {
+            return array('ok' => true, 'message' => 'already queued', 'outbox_id' => (int) $exists['outbox_id']);
+        }
+
+        $json = lc_sql_escape(json_encode($payload, JSON_UNESCAPED_UNICODE));
+        lc_sql_query(" INSERT INTO `{$outbox}`
+            (`target_platform_id`, `lead_ref_id`, `command`, `idempotency_key`, `payload_json`, `status`, `next_attempt_at`)
+            VALUES ('{$target_platform_id}', '0', 'inbound_lead', '{$idem_esc}', '{$json}', 'pending',
+                DATE_ADD(NOW(), INTERVAL 30 SECOND)) ", false);
+        $oid = function_exists('sql_insert_id') ? (int) sql_insert_id() : 0;
+
+        lc_mp_audit('outbox.enqueue_inbound_lead', array(
+            'outbox_id' => $oid,
+            'target_platform_id' => $target_platform_id,
+            'idempotency_key' => $idem,
+        ));
+
+        return array('ok' => true, 'message' => 'queued', 'outbox_id' => $oid);
     }
 }
 
@@ -643,5 +775,11 @@ if (!function_exists('lc_mp_on_local_conversion_created')) {
             'ok' => !empty($push['ok']),
             'message' => (string) ($push['message'] ?? ''),
         ));
+
+        // 즉시 푸시가 실패하면 큐에 넘겨 크론이 재시도하도록 한다.
+        // 리드가 관리 플랫폼에 끝내 도달하지 못하는 상황을 막는 안전망.
+        if (empty($push['ok']) && function_exists('lc_mp_outbox_enqueue_inbound_lead')) {
+            lc_mp_outbox_enqueue_inbound_lead((int) $mgmt['platform_id'], $payload);
+        }
     }
 }

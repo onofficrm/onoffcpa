@@ -88,6 +88,7 @@ if (!function_exists('lc_settings_defaults')) {
             'lpCronToken'           => '',
             'lpPostbackIpEnabled'   => '0',
             'lpPostbackIpAllowlist' => '',
+            'mpCronToken'           => '',
         );
     }
 }
@@ -149,7 +150,7 @@ if (!function_exists('lc_settings_get_bool')) {
 if (!function_exists('lc_settings_secret_keys')) {
     function lc_settings_secret_keys()
     {
-        return array('geminiApiKey', 'openaiApiKey', 'callApiKey', 'callApiSecret', 'callWebhookToken', 'lpAuthKey', 'lpPostbackSecret');
+        return array('geminiApiKey', 'openaiApiKey', 'callApiKey', 'callApiSecret', 'callWebhookToken', 'lpAuthKey', 'lpPostbackSecret', 'mpCronToken');
     }
 }
 
