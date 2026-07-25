@@ -9,19 +9,38 @@ jobs:
     steps:
       - name: Build dbconfig.php from secrets
         env:
+          DBCONFIG_B64: ${{ secrets.DBCONFIG_B64 }}
           G5_MYSQL_HOST: ${{ secrets.G5_MYSQL_HOST }}
           G5_MYSQL_USER: ${{ secrets.G5_MYSQL_USER }}
           G5_MYSQL_PASSWORD: ${{ secrets.G5_MYSQL_PASSWORD }}
           G5_MYSQL_DB: ${{ secrets.G5_MYSQL_DB }}
         run: |
-          missing=0
-          [ -z "$G5_MYSQL_HOST" ] && echo "::error::G5_MYSQL_HOST missing" && missing=1
-          [ -z "$G5_MYSQL_USER" ] && echo "::error::G5_MYSQL_USER missing" && missing=1
-          [ -z "$G5_MYSQL_PASSWORD" ] && echo "::error::G5_MYSQL_PASSWORD missing" && missing=1
-          [ -z "$G5_MYSQL_DB" ] && echo "::error::G5_MYSQL_DB missing" && missing=1
-          [ "$missing" -eq 1 ] && exit 1
           mkdir -p data
-          python3 - <<'PY'
+          if [ -n "$DBCONFIG_B64" ]; then
+            echo "$DBCONFIG_B64" | base64 --decode > data/dbconfig.php
+            # 서버에서는 local override 금지 (로컬 개발용만)
+            python3 - <<'PY'
+          from pathlib import Path
+          p = Path("data/dbconfig.php")
+          text = p.read_text(encoding="utf-8")
+          # strip Windows CRLF
+          text = text.replace("\r\n", "\n")
+          # neutralize local include so server never picks up stale dbconfig.local.php
+          text = text.replace(
+              "include_once(__DIR__ . '/dbconfig.local.php');",
+              "// include_once(__DIR__ . '/dbconfig.local.php'); // disabled on server deploy",
+          )
+          p.write_text(text, encoding="utf-8")
+          print("Prepared dbconfig.php from DBCONFIG_B64")
+          PY
+          else
+            missing=0
+            [ -z "$G5_MYSQL_HOST" ] && echo "::error::G5_MYSQL_HOST missing" && missing=1
+            [ -z "$G5_MYSQL_USER" ] && echo "::error::G5_MYSQL_USER missing" && missing=1
+            [ -z "$G5_MYSQL_PASSWORD" ] && echo "::error::G5_MYSQL_PASSWORD missing" && missing=1
+            [ -z "$G5_MYSQL_DB" ] && echo "::error::G5_MYSQL_DB missing" && missing=1
+            [ "$missing" -eq 1 ] && exit 1
+            python3 - <<'PY'
           import os
           from pathlib import Path
 
@@ -34,8 +53,7 @@ jobs:
           db = php_str(os.environ["G5_MYSQL_DB"])
           Path("data/dbconfig.php").write_text(
               "<?php\n"
-              "if (!defined('_GNUBOARD_')) exit;\n"
-              "\n"
+              "if (!defined('_GNUBOARD_')) exit;\n\n"
               "if (!defined('G5_MYSQL_HOST')) {\n"
               f"    define('G5_MYSQL_HOST', {host});\n"
               "}\n"
@@ -50,13 +68,21 @@ jobs:
               "}\n"
               "if (!defined('G5_MYSQL_SET_MODE')) {\n"
               "    define('G5_MYSQL_SET_MODE', true);\n"
-              "}\n",
+              "}\n"
+              "define('G5_TABLE_PREFIX', 'g5_');\n",
               encoding="utf-8",
           )
-          print("Wrote data/dbconfig.php")
+          print("Wrote minimal dbconfig.php")
           PY
+          fi
+          # sanity: constants present, no local include active
+          grep -q "G5_MYSQL_USER" data/dbconfig.php
+          ! grep -q "^[[:space:]]*include_once(__DIR__ . '/dbconfig.local.php');" data/dbconfig.php
+          php -l data/dbconfig.php
+          # print host/user/db only (never password)
+          php -r "define('_GNUBOARD_',true); include 'data/dbconfig.php'; echo G5_MYSQL_HOST,'|',G5_MYSQL_USER,'|',G5_MYSQL_DB,PHP_EOL;"
 
-      - name: Upload via FTP
+      - name: Probe FTP layout and upload
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
@@ -69,9 +95,47 @@ jobs:
           [ -z "$FTP_PASSWORD" ] && echo "::error::FTP_PASSWORD missing" && missing=1
           [ -z "$FTP_PORT" ] && echo "::error::FTP_PORT missing" && missing=1
           [ "$missing" -eq 1 ] && exit 1
-          curl --fail --show-error --silent \
-            --ftp-create-dirs \
+
+          echo "=== FTP LIST / ==="
+          curl --silent --show-error --list-only \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
-            -T data/dbconfig.php \
-            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/data/dbconfig.php"
-          echo "Uploaded /public_html/data/dbconfig.php"
+            "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
+
+          echo "=== FTP LIST /public_html/ ==="
+          curl --silent --show-error --list-only \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/" || true
+
+          echo "=== FTP LIST /public_html/data/ ==="
+          curl --silent --show-error --list-only \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/data/" || true
+
+          echo "=== FTP LIST /data/ ==="
+          curl --silent --show-error --list-only \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/data/" || true
+
+          # Upload to both candidate roots (iwinv accounts vary)
+          for TARGET in \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/data/dbconfig.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/data/dbconfig.php"
+          do
+            echo "Uploading to $TARGET"
+            curl --fail --show-error --silent \
+              --ftp-create-dirs \
+              --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+              -T data/dbconfig.php \
+              "$TARGET" && echo "OK: $TARGET" || echo "SKIP/FAIL: $TARGET"
+          done
+
+          # Best-effort remove stale local override
+          for TARGET in \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/data/dbconfig.local.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/data/dbconfig.local.php"
+          do
+            echo "DELE attempt: $TARGET"
+            curl --silent --show-error --quote "DELE ${TARGET#ftp://${FTP_SERVER}:${FTP_PORT}}" \
+              --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+              "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
+          done
