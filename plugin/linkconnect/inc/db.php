@@ -1083,6 +1083,14 @@ if (!function_exists('lc_db_run_migrations')) {
             }
         }
 
+        // ── 다중 플랫폼 (플래그 OFF 시 내부에서 schema skipped) ──
+        if (function_exists('lc_mp_db_ensure_schema')) {
+            $mp = lc_mp_db_ensure_schema();
+            if (empty($mp['ok'])) {
+                return $mp;
+            }
+        }
+
         return array('ok' => true, 'message' => '마이그레이션 완료');
     }
 }

@@ -125,6 +125,24 @@ define('LC_CALL_REC_REQ_REJECTED', 'rejected');
 define('LC_FINAL_APPROVED', 'approved');
 define('LC_FINAL_REJECTED', 'rejected');
 
+/* ── 다중 플랫폼 광고주 DB 거버넌스 ── */
+/**
+ * 다중 플랫폼(링크커넥트 등) DB 통합 관리.
+ * 기본 false — ON 하기 전에는 스키마 생성·웹훅·동기화·승인훅이 전부 동작하지 않습니다.
+ * 링크커넥트 단독 운영 환경에서는 절대 true 로 두지 마세요.
+ */
+if (!defined('LC_MULTI_PLATFORM_ENABLED')) {
+    define('LC_MULTI_PLATFORM_ENABLED', false);
+}
+/** 이 인스턴스의 플랫폼 코드 (온오프CPA 배포본) */
+if (!defined('LC_PLATFORM_CODE')) {
+    define('LC_PLATFORM_CODE', 'ONOFFCPA');
+}
+/** 원격 링크커넥트 플랫폼 코드 (어댑터 식별용) */
+if (!defined('LC_PLATFORM_LINKCONNECT')) {
+    define('LC_PLATFORM_LINKCONNECT', 'LINKCONNECT');
+}
+
 /* ── 링크프라이스 CPS (외부 네트워크, CPA와 분리) ── */
 /**
  * CPS 취급 여부. 온오프CPA는 CPA 전용이므로 false.

@@ -200,6 +200,28 @@ if (is_file(LC_PLUGIN_PATH . '/inc/linkprice.php')) {
 if (is_file(LC_PLUGIN_PATH . '/inc/landing.php')) {
     require_once LC_PLUGIN_PATH . '/inc/landing.php';
 }
+/* 다중 플랫폼 — 플래그 OFF 시 함수들은 no-op. 기존 경로에 영향 없음 */
+if (is_file(LC_PLUGIN_PATH . '/inc/platform.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/platform.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/platform_db.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/platform_db.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/platform_policy.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/platform_policy.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/platform_adapter.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/platform_adapter.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/platform_sync.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/platform_sync.php';
+}
+/* 플래그 ON 일 때만 스키마 생성 — migrations 시점보다 늦게 로드되므로 여기서 한 번 더 호출 */
+if (function_exists('lc_mp_enabled') && lc_mp_enabled()
+    && function_exists('lc_db_installed') && lc_db_installed()
+    && function_exists('lc_mp_db_ensure_schema')) {
+    lc_mp_db_ensure_schema();
+}
 
 if (function_exists('lc_link_enforce_tracking_host_gate')) {
     lc_link_enforce_tracking_host_gate();

@@ -471,6 +471,16 @@ if (!function_exists('lc_conversion_update_status')) {
             return array('ok' => false, 'message' => '접근 권한이 없습니다.');
         }
 
+        // 다중 플랫폼: 로컬이 관리 플랫폼이 아닌 광고주는 상태 변경 차단
+        // (플래그 OFF / 미등록 광고주는 lc_mp_local_is_management_for_mt=true → 기존과 동일)
+        // 단, 인증된 관리 플랫폼이 웹훅으로 보낸 원격 ACK($opts['mp_remote_ack'])는 게이트 우회.
+        $mp_remote_ack = !empty($opts['mp_remote_ack']);
+        if (!$mp_remote_ack
+            && function_exists('lc_mp_local_is_management_for_mt')
+            && !lc_mp_local_is_management_for_mt($mt_id)) {
+            return array('ok' => false, 'message' => '이 광고주의 DB는 지정된 관리 플랫폼에서만 처리할 수 있습니다.');
+        }
+
         if (!empty($conversion['cv_final_locked'])) {
             return array('ok' => false, 'message' => '관리자 최종확정으로 잠긴 디비입니다.');
         }
@@ -552,6 +562,12 @@ if (!function_exists('lc_conversion_update_status')) {
                     'refId'   => (int) $cv_id,
                 ));
             }
+        }
+
+        // 다중 플랫폼 동기화 훅 — 플래그 OFF / 순수 로컬 DB 면 내부에서 즉시 return
+        // 원격 ACK($opts['mp_no_sync'])는 역전송 루프 방지를 위해 훅을 건너뛴다.
+        if (empty($opts['mp_no_sync']) && function_exists('lc_mp_on_local_conversion_status_changed')) {
+            lc_mp_on_local_conversion_status_changed($cv_id, $mt_id, $new_status, $comment);
         }
 
         return array(
