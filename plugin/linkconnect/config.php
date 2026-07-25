@@ -75,8 +75,14 @@ if (!defined('ADVERTISER_CONTRACT_GRACE_UNTIL')) {
 /* ── LinkConnect 전용 DB (그누보드 기본 DB와 분리) ── */
 if (!defined('LC_MYSQL_DB')) {
     if (function_exists('g5site_cfg')) {
-        $lc_db_name = g5site_cfg('linkconnect_db_name', 'linkconnect');
+        $lc_db_name = g5site_cfg('linkconnect_db_name', '');
     } else {
+        $lc_db_name = '';
+    }
+    if ($lc_db_name === '' && defined('G5_MYSQL_DB') && (string) G5_MYSQL_DB !== '') {
+        $lc_db_name = (string) G5_MYSQL_DB;
+    }
+    if ($lc_db_name === '') {
         $lc_db_name = 'linkconnect';
     }
     define('LC_MYSQL_DB', $lc_db_name);

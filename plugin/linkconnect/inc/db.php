@@ -47,7 +47,7 @@ if (!function_exists('lc_mysql_credentials')) {
         return array(
             'host' => (defined('LC_MYSQL_HOST') && (string) LC_MYSQL_HOST !== '') ? (string) LC_MYSQL_HOST : G5_MYSQL_HOST,
             'user' => (defined('LC_MYSQL_USER') && (string) LC_MYSQL_USER !== '') ? (string) LC_MYSQL_USER : G5_MYSQL_USER,
-            'pass' => defined('LC_MYSQL_PASSWORD') ? (string) LC_MYSQL_PASSWORD : G5_MYSQL_PASSWORD,
+            'pass' => (defined('LC_MYSQL_PASSWORD') && (string) LC_MYSQL_PASSWORD !== '') ? (string) LC_MYSQL_PASSWORD : G5_MYSQL_PASSWORD,
             'db'   => lc_mysql_db_name(),
         );
     }
