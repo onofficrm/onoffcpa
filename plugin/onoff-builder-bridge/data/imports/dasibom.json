@@ -1,0 +1,19 @@
+{
+  "id": "dasibom",
+  "name": "다시봄 개인회생·파산 CPA 랜딩",
+  "type": "vite-dist",
+  "enabled": true,
+  "needs_build": false,
+  "mode": "standalone",
+  "import_path": "/plugin/onoff-builder-bridge/imports/dasibom",
+  "entry_file": "index.html",
+  "entry": "index.html",
+  "seo_title": "개인회생무료상담 | 다시봄 개인회생센터 검사출신 변호사",
+  "seo_description": "개인회생무료상담이 필요하신가요? 다시봄 개인회생센터 검사출신 변호사가 소득·채무·재산 상황을 확인하고 개인회생·개인파산 해결 방향을 무료로 안내합니다.",
+  "seo_keywords": "개인회생무료상담, 개인회생 무료상담, 개인회생상담, 개인파산 상담, 다시봄 개인회생센터",
+  "seo_canonical": "https://air911.co.kr/",
+  "seo_og_image": "https://air911.co.kr/plugin/onoff-builder-bridge/imports/dasibom/og-image.jpg",
+  "memo": "CPA 캠페인 cp_landing_url 예: /merchant/dasibom/?lkCode={code} · 독립도메인 air911.co.kr",
+  "created_at": "2026-07-19 00:00:00",
+  "updated_at": "2026-07-22 00:00:00"
+}

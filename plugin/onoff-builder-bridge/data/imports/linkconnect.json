@@ -1,0 +1,15 @@
+{
+  "id": "linkconnect",
+  "name": "LinkConnect 메인",
+  "type": "vite-dist",
+  "enabled": true,
+  "needs_build": false,
+  "mode": "standalone",
+  "import_path": "/plugin/onoff-builder-bridge/imports/linkconnect",
+  "entry_file": "index.html",
+  "entry": "index.html",
+  "seo_title": "LinkConnect",
+  "seo_description": "CPA/CPS 제휴마케팅 플랫폼",
+  "created_at": "2026-07-06 23:37:00",
+  "updated_at": "2026-07-07 01:10:00"
+}

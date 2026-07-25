@@ -1,0 +1,16 @@
+{
+  "id": "banktupt",
+  "name": "개인회생·파산·채권추심 CPA 랜딩",
+  "type": "vite-dist",
+  "enabled": true,
+  "needs_build": false,
+  "mode": "standalone",
+  "import_path": "/plugin/onoff-builder-bridge/imports/banktupt",
+  "entry_file": "index.html",
+  "entry": "index.html",
+  "seo_title": "개인회생·개인파산·채권추심 상담센터",
+  "seo_description": "개인회생, 개인파산, 채권추심 정보 및 무료 상담 신청",
+  "memo": "CPA 캠페인 cp_landing_url 예: /plugin/onoff-builder-bridge/page.php?id=banktupt&lkCode={code}",
+  "created_at": "2026-07-09 22:30:00",
+  "updated_at": "2026-07-09 22:30:00"
+}

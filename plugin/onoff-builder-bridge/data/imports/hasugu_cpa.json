@@ -1,0 +1,14 @@
+{
+  "id": "hasugu_cpa",
+  "name": "하수구·배관 CPA 랜딩",
+  "path": "hasugu_cpa",
+  "entry": "index.html",
+  "enabled": true,
+  "needs_build": false,
+  "mode": "standalone",
+  "seo_title": "하수구막힘·싱크대막힘 전문상담",
+  "seo_description": "하수구막힘, 싱크대막힘, 변기막힘, 악취와 역류 문제를 상담하세요.",
+  "import_path": "/plugin/onoff-builder-bridge/imports/hasugu_cpa",
+  "created_at": "2026-07-22 00:00:00",
+  "memo": "CPA 캠페인 cp_landing_url 예: /merchant/hasugu_cpa/?lkCode={code} (광고주 미연결)"
+}

@@ -1,0 +1,145 @@
+{
+    "description": "DO NOT DELETE THIS FILE. This file is used to keep track of which files have been synced in the most recent deployment. If you delete this file a resync will need to be done (which can take a while) - read more: https://github.com/SamKirkland/FTP-Deploy-Action",
+    "version": "1.0.0",
+    "generatedTime": 1783590398657,
+    "data": [
+        {
+            "type": "folder",
+            "name": "about"
+        },
+        {
+            "type": "folder",
+            "name": "assets"
+        },
+        {
+            "type": "file",
+            "name": "hero_dashboard_mockup.png",
+            "size": 131836,
+            "hash": "15784569b7007531d7de1644fd5c12a83222d9168f06d2aed463576579ca792e"
+        },
+        {
+            "type": "file",
+            "name": "index.html",
+            "size": 493,
+            "hash": "ed72d91391faa831629e0ec85f92836c4ddb476e32b4b6e9fe467ffddd46ee00"
+        },
+        {
+            "type": "folder",
+            "name": "webtoon"
+        },
+        {
+            "type": "file",
+            "name": "about/about_ecosystem.png",
+            "size": 1439903,
+            "hash": "1e5b597d1a700c342acdb88999e73e2ec7cf8274f858953ddc4a3858f493e50c"
+        },
+        {
+            "type": "file",
+            "name": "about/about_hero.png",
+            "size": 1448336,
+            "hash": "1e1480bd28d6578b42b29f88410de06e72e86d775c34fac10a9935951af77d0e"
+        },
+        {
+            "type": "file",
+            "name": "assets/index-CkltCXfH.js",
+            "size": 1363098,
+            "hash": "a948508cb962746cf0b165d07fb060a8bdbf3dacf1ecbe8aa686136eb67dc331"
+        },
+        {
+            "type": "file",
+            "name": "assets/index-DVbk032l.css",
+            "size": 121722,
+            "hash": "4de0c55b29df058f123e89b00a82c377e74f66003105e4d1eb58e0ea8eaeb326"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep1-p1.png",
+            "size": 2578691,
+            "hash": "a95f59193d01198c4dcbe20059bfcc7ecb2079607ed92c734c6ed8921a033052"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep1-p2.png",
+            "size": 2175889,
+            "hash": "8a081a433af2f7e6fbe0a911b05cedf69263fe1daea48e5b1204718e66fc262e"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep1-p3.png",
+            "size": 2607463,
+            "hash": "142503516d81558545c259cbe1e8f8b797efa57b1272c1ab6672a9f64a32261d"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep2-p1.png",
+            "size": 2218364,
+            "hash": "f7c29594531490347f7adb28fd8fef09806c09989e68eaa9965eaa2d38b382cb"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep2-p2.png",
+            "size": 2243935,
+            "hash": "1ccc3079a270367147d721ebc0cbf12c6b882de54632dcb978c1e6cce67e89e2"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep2-p3.png",
+            "size": 2583040,
+            "hash": "76c328a888e943a4958d51962c29624fe794f194529ab8e12c126f0fb69dc4c8"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep3-p1.png",
+            "size": 2174694,
+            "hash": "57d46e03f36db964e8726762c05c38c7dec78987e0d6cef4f130321b569fbbf5"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep3-p2.png",
+            "size": 2384319,
+            "hash": "753a3995e99b2de3fb904bbb0a2e3f35941f787c852ba1da633625f4a83db999"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep3-p3.png",
+            "size": 2331926,
+            "hash": "a7bf2132136ab3262574ccb6d7e19987127b94103e57c81d4c27477158f6866e"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep4-p1.png",
+            "size": 2531622,
+            "hash": "d1d12174c119134476e23a4659cb57fe45ab21194297dba0ca89e83f751ef790"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep4-p2.png",
+            "size": 2795603,
+            "hash": "791cc54e06911f0117a044a6da29be191783597b22bf29fe63c494732f144427"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep5-p1.png",
+            "size": 2451596,
+            "hash": "017402c9b152bfb96ca0a18b28c30d9c50421186825e2637a23ce87b9656c100"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep5-p2.png",
+            "size": 2460466,
+            "hash": "822d5ec9f539e3bf2a7f4f2cd41aa99e0c5d6661611c44e52ab1613c8a52aac3"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep6-p1.png",
+            "size": 2443600,
+            "hash": "a6555aa98b839c2b569e011230eae992e256e532fb6ada92ad56fc5842e5363f"
+        },
+        {
+            "type": "file",
+            "name": "webtoon/ep6-p2.png",
+            "size": 2767977,
+            "hash": "7b071002f40b4fcb1d21015266e8996c17919c56da18719538d02a0c272afd10"
+        }
+    ]
+}

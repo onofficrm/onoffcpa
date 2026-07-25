@@ -1,0 +1,25 @@
+{
+    "description": "DO NOT DELETE THIS FILE. This file is used to keep track of which files have been synced in the most recent deployment. If you delete this file a resync will need to be done (which can take a while) - read more: https://github.com/SamKirkland/FTP-Deploy-Action",
+    "version": "1.0.0",
+    "generatedTime": 1783591141221,
+    "data": [
+        {
+            "type": "file",
+            "name": "linkconnect-spa-bootstrap.php",
+            "size": 1795,
+            "hash": "ccd8ddb668f965da2363afa206889d21e35aefcf9d844b307179deb34ea852fc"
+        },
+        {
+            "type": "file",
+            "name": "linkconnect-spa-stub.htaccess",
+            "size": 158,
+            "hash": "f3a08744a77da78c3d1875ba004e2b1c072a20f5aa9342fc0cf4c9db9658dd30"
+        },
+        {
+            "type": "file",
+            "name": "onoff-builder-home.php",
+            "size": 11565,
+            "hash": "a9c91a8297b6360fd7ae2ea28e3b0b140dd43933350098bedd15194c38a45696"
+        }
+    ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "링크커넥트 - 제휴마케팅 플랫폼",
+  "description": "광고주와 어필리에이트 파트너를 연결하는 성과형 제휴마케팅 플랫폼 메인페이지 시안",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

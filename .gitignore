@@ -1,0 +1,46 @@
+# macOS
+._*
+.DS_Store
+
+# DB·민감 설정
+data/dbconfig.php
+data/dbconfig.local.php
+data/icrm.config.php
+data/seo-meta.config.php
+data/onoff-builder.config.php
+data/icrm-update.config.php
+
+# 런타임·업로드 (서버/FTP에서 별도 관리)
+data/cache/
+data/session/
+data/file/
+data/log/
+data/tmp/
+data/member_image/
+data/icrm-member/
+data/lc_contracts/
+data/linkconnect/
+data/seo-meta/
+data/icrm-update-last-check.txt
+
+# 빌더 임시 입력
+_BUILDER_INPUT/
+
+# CI deploy staging
+.deploy/
+
+# Node·환경
+node_modules/
+.env
+.env.*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.log
+
+# 배포 상태
+.onoff-update-state.json
+.onoff-builder-deploy-state.json

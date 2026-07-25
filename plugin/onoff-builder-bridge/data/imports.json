@@ -1,0 +1,58 @@
+[
+  {
+    "id": "sample-landing",
+    "name": "[샘플] 랜딩 페이지 (비활성)",
+    "path": "sample-landing",
+    "entry": "index.html",
+    "enabled": false,
+    "created_at": "2026-01-01 00:00:00"
+  },
+  {
+    "id": "linkconnect",
+    "name": "LinkConnect 메인",
+    "path": "linkconnect",
+    "entry": "index.html",
+    "enabled": true,
+    "needs_build": false,
+    "mode": "standalone",
+    "seo_title": "LinkConnect",
+    "seo_description": "CPA/CPS 제휴마케팅 플랫폼",
+    "created_at": "2026-07-06 23:37:00"
+  },
+  {
+    "id": "banktupt",
+    "name": "개인회생·파산·채권추심 CPA 랜딩",
+    "path": "banktupt",
+    "entry": "index.html",
+    "enabled": true,
+    "needs_build": false,
+    "mode": "standalone",
+    "seo_title": "개인회생·개인파산·채권추심 상담센터",
+    "seo_description": "개인회생, 개인파산, 채권추심 정보 및 무료 상담 신청",
+    "created_at": "2026-07-09 22:30:00"
+  },
+    {
+        "id": "dasibom",
+        "name": "다시봄 개인회생·파산 CPA 랜딩",
+        "path": "dasibom",
+        "entry": "index.html",
+        "enabled": true,
+        "needs_build": false,
+        "mode": "standalone",
+        "seo_title": "개인회생무료상담 | 다시봄 개인회생센터 검사출신 변호사",
+        "seo_description": "개인회생무료상담이 필요하신가요? 다시봄 개인회생센터 검사출신 변호사가 소득·채무·재산 상황을 확인하고 개인회생·개인파산 해결 방향을 무료로 안내합니다.",
+        "created_at": "2026-07-19 00:00:00"
+    },
+    {
+        "id": "hasugu_cpa",
+        "name": "하수구·배관 CPA 랜딩",
+        "path": "hasugu_cpa",
+        "entry": "index.html",
+        "enabled": true,
+        "needs_build": false,
+        "mode": "standalone",
+        "seo_title": "하수구막힘·싱크대막힘 전문상담",
+        "seo_description": "하수구막힘, 싱크대막힘, 변기막힘, 악취와 역류 문제 상담",
+        "created_at": "2026-07-22 00:00:00"
+    }
+]
