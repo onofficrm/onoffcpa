@@ -29,6 +29,8 @@ jobs:
             "plugin/linkconnect/pages/cps.php"
             "plugin/linkconnect/inc/ai.php"
             "plugin/linkconnect/inc/campaign.php"
+            "plugin/linkconnect/inc/campaign_banktupt.php"
+            "plugin/linkconnect/inc/campaign_dasibom.php"
             "plugin/linkconnect/inc/db.php"
             "plugin/linkconnect/inc/email_notify.php"
             "plugin/linkconnect/inc/inquiry.php"
@@ -37,6 +39,9 @@ jobs:
             "plugin/linkconnect/inc/sample_data.php"
             "plugin/linkconnect/inc/settings.php"
             "plugin/linkconnect/inc/wallet.php"
+            "plugin/linkconnect/install/apply_personal_rehab_campaigns.php"
+            "merchant/banktupt/index.php"
+            "merchant/dasibom/index.php"
             "plugin/linkconnect/inc/views/admin/dashboard.php"
             "plugin/linkconnect/inc/views/admin/settings.php"
             "plugin/linkconnect/inc/views/public/home.php"
@@ -82,7 +87,7 @@ jobs:
           log-level: minimal
           timeout: 600000
 
-      - name: Update DB siteName and verify
+      - name: Update DB and apply personal rehab campaigns
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
@@ -115,18 +120,44 @@ jobs:
           echo 'OK siteName=' . lc_settings_get('siteName', '') . "\n";
           echo 'OK g5site=' . (function_exists('g5site_cfg') ? g5site_cfg('site_name', '') : '') . "\n";
           EOF
+          cat > apply_rehab.php << 'EOF'
+          <?php
+          header('Content-Type: application/json; charset=utf-8');
+          require_once __DIR__ . '/plugin/linkconnect/_common.php';
+          if (!function_exists('lc_campaign_apply_personal_rehab_pair')) {
+              echo json_encode(array('ok' => false, 'error' => 'apply function missing'), JSON_UNESCAPED_UNICODE);
+              exit;
+          }
+          $result = lc_campaign_apply_personal_rehab_pair(array(
+              'banktupt_cp_id' => 6,
+              'dasibom_cp_id' => 11,
+          ));
+          echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+          EOF
           curl --fail --show-error --silent \
             --ftp-create-dirs \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -T rename_site.php \
             "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/rename_site.php"
+          curl --fail --show-error --silent \
+            --ftp-create-dirs \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T apply_rehab.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/apply_rehab.php"
           echo "=== RENAME ==="
           curl -sS "https://onoffcpa.iwinv.net/rename_site.php" || true
+          echo
+          echo "=== APPLY PERSONAL REHAB ==="
+          curl -sS "https://onoffcpa.iwinv.net/apply_rehab.php" || true
           echo
           curl --silent --show-error \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -Q "DELE /public_html/rename_site.php" \
             "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
-          echo "=== HOME ==="
-          curl -sS "https://onoffcpa.iwinv.net/" | head -c 600
+          curl --silent --show-error \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -Q "DELE /public_html/apply_rehab.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
+          echo "=== CAMPAIGNS ==="
+          curl -sS "https://onoffcpa.iwinv.net/plugin/linkconnect/api/campaigns.php?type=cpa" | head -c 1200
           echo

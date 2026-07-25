@@ -47,12 +47,43 @@ if (!function_exists('lc_dasibom_landing_url')) {
     }
 }
 
+if (!function_exists('lc_campaign_find_dasibom')) {
+    /**
+     * 기존 다시봄(dasibom) 개인회생 캠페인 조회.
+     *
+     * @return array<string,mixed>|null
+     */
+    function lc_campaign_find_dasibom()
+    {
+        if (!lc_db_installed()) {
+            return null;
+        }
+        $table = lc_table('campaigns');
+        $code_esc = lc_sql_escape('CPA-DASIBOM');
+        $row = lc_sql_fetch(" SELECT * FROM `{$table}` WHERE cp_code = '{$code_esc}' LIMIT 1 ");
+        if ($row) {
+            return $row;
+        }
+        $row = lc_sql_fetch(" SELECT * FROM `{$table}`
+            WHERE cp_landing_url LIKE '%/merchant/dasibom/%'
+            ORDER BY cp_id ASC LIMIT 1 ");
+        if ($row) {
+            return $row;
+        }
+        $row = lc_sql_fetch(" SELECT * FROM `{$table}`
+            WHERE cp_name LIKE '%다시봄%' OR cp_name LIKE '%개인회생 개인파산%'
+            ORDER BY cp_id ASC LIMIT 1 ");
+        return $row ?: null;
+    }
+}
+
 if (!function_exists('lc_campaign_ensure_dasibom')) {
     /**
      * 다시봄 CPA 상품을 생성/갱신한다. 다른 캠페인은 종료하지 않음.
+     * 기존 단가·상품명은 유지하고, 랜딩/트래킹/채널/설명 등 계약 표기 필드를 채운다.
      *
-     * @param array{advertiser_mb_id?:string,mt_id?:int} $options
-     * @return array{ok:bool,message:string,cpId?:int,created?:bool}
+     * @param array{advertiser_mb_id?:string,mt_id?:int,keep_cp_id?:int,preserve_price?:bool,preserve_title?:bool} $options
+     * @return array{ok:bool,message:string,cpId?:int,created?:bool,landingUrl?:string}
      */
     function lc_campaign_ensure_dasibom(array $options = array())
     {
@@ -64,6 +95,8 @@ if (!function_exists('lc_campaign_ensure_dasibom')) {
         $landing = lc_dasibom_landing_url();
         $tracking_base = 'https://air911.co.kr';
         $table = lc_table('campaigns');
+        $preserve_price = !array_key_exists('preserve_price', $options) || !empty($options['preserve_price']);
+        $preserve_title = !array_key_exists('preserve_title', $options) || !empty($options['preserve_title']);
 
         $mt_id = isset($options['mt_id']) ? (int) $options['mt_id'] : 0;
         if ($mt_id <= 0) {
@@ -74,19 +107,45 @@ if (!function_exists('lc_campaign_ensure_dasibom')) {
             }
         }
 
+        $keep = null;
+        $keep_cp_id = isset($options['keep_cp_id']) ? (int) $options['keep_cp_id'] : 0;
+        if ($keep_cp_id > 0) {
+            $keep = lc_sql_fetch(" SELECT * FROM `{$table}` WHERE cp_id = '{$keep_cp_id}' LIMIT 1 ");
+        }
+        if (!$keep) {
+            $keep = lc_campaign_find_dasibom();
+        }
+
         $code_esc = lc_sql_escape((string) $def['code']);
-        $keep = lc_sql_fetch(" SELECT * FROM `{$table}` WHERE cp_code = '{$code_esc}' LIMIT 1 ");
 
         if ($keep) {
             $cp_id = (int) $keep['cp_id'];
             $next_mt = $mt_id > 0 ? $mt_id : (int) $keep['mt_id'];
+            $next_price = $preserve_price && (int) ($keep['cp_price'] ?? 0) > 0
+                ? (int) $keep['cp_price']
+                : (int) $def['price'];
+            $next_title = $preserve_title && trim((string) ($keep['cp_name'] ?? '')) !== ''
+                ? (string) $keep['cp_name']
+                : (string) $def['title'];
+            $next_badge = trim((string) ($keep['cp_badge'] ?? '')) !== ''
+                ? (string) $keep['cp_badge']
+                : (string) $def['badge'];
+            $next_recommended = isset($keep['cp_recommended'])
+                ? (int) $keep['cp_recommended']
+                : (!empty($def['recommended']) ? 1 : 0);
+            // 기존 코드(CPA-00011 등)가 있으면 유지 — 파트너 링크/계약 참조 안정성
+            $next_code = trim((string) ($keep['cp_code'] ?? ''));
+            if ($next_code === '') {
+                $next_code = (string) $def['code'];
+            }
+
             lc_sql_query(" UPDATE `{$table}` SET
                 mt_id = '{$next_mt}',
-                cp_code = '{$code_esc}',
-                cp_name = '" . lc_sql_escape((string) $def['title']) . "',
+                cp_code = '" . lc_sql_escape($next_code) . "',
+                cp_name = '" . lc_sql_escape($next_title) . "',
                 cp_category = '" . lc_sql_escape((string) $def['category']) . "',
                 cp_type = 'cpa',
-                cp_price = '" . (int) $def['price'] . "',
+                cp_price = '{$next_price}',
                 cp_approval_rate = '" . lc_sql_escape((string) $def['approval_rate']) . "',
                 cp_avg_time = '" . lc_sql_escape((string) $def['avg_time']) . "',
                 cp_allowed_channels = '" . lc_sql_escape((string) $def['allowed_channels']) . "',
@@ -94,17 +153,21 @@ if (!function_exists('lc_campaign_ensure_dasibom')) {
                 cp_description = '" . lc_sql_escape((string) $def['description']) . "',
                 cp_landing_url = '" . lc_sql_escape($landing) . "',
                 cp_tracking_base_url = '" . lc_sql_escape($tracking_base) . "',
-                cp_status = '" . lc_sql_escape((string) $def['status']) . "',
-                cp_badge = '" . lc_sql_escape((string) $def['badge']) . "',
-                cp_recommended = '" . (!empty($def['recommended']) ? 1 : 0) . "',
+                cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "',
+                cp_badge = '" . lc_sql_escape($next_badge) . "',
+                cp_recommended = '{$next_recommended}',
                 cp_updated_at = NOW()
                 WHERE cp_id = '{$cp_id}' ", false);
 
             return array(
-                'ok'      => true,
-                'message' => '다시봄 캠페인을 갱신했습니다.',
-                'cpId'    => $cp_id,
-                'created' => false,
+                'ok'         => true,
+                'message'    => '다시봄 캠페인을 갱신했습니다.',
+                'cpId'       => $cp_id,
+                'created'    => false,
+                'landingUrl' => $landing,
+                'price'      => $next_price,
+                'title'      => $next_title,
+                'code'       => $next_code,
             );
         }
 
@@ -153,10 +216,52 @@ if (!function_exists('lc_campaign_ensure_dasibom')) {
             WHERE cp_id = '{$cp_id}' ", false);
 
         return array(
-            'ok'      => true,
-            'message' => '다시봄 캠페인을 생성했습니다.',
-            'cpId'    => $cp_id,
-            'created' => true,
+            'ok'         => true,
+            'message'    => '다시봄 캠페인을 생성했습니다.',
+            'cpId'       => $cp_id,
+            'created'    => true,
+            'landingUrl' => $landing,
+            'price'      => (int) $def['price'],
+            'title'      => (string) $def['title'],
+            'code'       => (string) $def['code'],
+        );
+    }
+}
+
+if (!function_exists('lc_campaign_apply_personal_rehab_pair')) {
+    /**
+     * 온오프CPA용: 기존 개인회생 CPA 2개(banktupt + dasibom) 랜딩·계약 표기 일괄 적용.
+     * 다른 캠페인은 종료하지 않으며, 등록된 단가/상품명은 유지한다.
+     *
+     * @param array{banktupt_cp_id?:int,dasibom_cp_id?:int} $options
+     * @return array{ok:bool,message:string,banktupt?:array,dasibom?:array}
+     */
+    function lc_campaign_apply_personal_rehab_pair(array $options = array())
+    {
+        $banktupt_opts = array('preserve_price' => true, 'preserve_title' => true);
+        $dasibom_opts = array('preserve_price' => true, 'preserve_title' => true);
+        if (!empty($options['banktupt_cp_id'])) {
+            $banktupt_opts['keep_cp_id'] = (int) $options['banktupt_cp_id'];
+        }
+        if (!empty($options['dasibom_cp_id'])) {
+            $dasibom_opts['keep_cp_id'] = (int) $options['dasibom_cp_id'];
+        }
+
+        $banktupt = function_exists('lc_campaign_ensure_banktupt')
+            ? lc_campaign_ensure_banktupt($banktupt_opts)
+            : array('ok' => false, 'message' => 'lc_campaign_ensure_banktupt 없음');
+        $dasibom = function_exists('lc_campaign_ensure_dasibom')
+            ? lc_campaign_ensure_dasibom($dasibom_opts)
+            : array('ok' => false, 'message' => 'lc_campaign_ensure_dasibom 없음');
+
+        $ok = !empty($banktupt['ok']) && !empty($dasibom['ok']);
+        return array(
+            'ok'       => $ok,
+            'message'  => $ok
+                ? '개인회생 CPA 2개 랜딩·계약 표기를 적용했습니다.'
+                : '일부 캠페인 적용에 실패했습니다.',
+            'banktupt' => $banktupt,
+            'dasibom'  => $dasibom,
         );
     }
 }
