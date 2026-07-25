@@ -62,7 +62,7 @@ export const characterMeta: Record<
     accent: 'text-sky-700',
   },
   guide: {
-    label: '링크커넥트',
+    label: '온오프CPA',
     bg: 'bg-indigo-100',
     border: 'border-indigo-300',
     role: '안내자',
@@ -96,7 +96,7 @@ export const episodes: WebtoonEpisode[] = [
         characters: [{ id: 'guide', x: 50, y: 66, scale: 1.2, mood: 'happy' }],
         bubble: {
           align: 'center',
-          speaker: '링크커넥트',
+          speaker: '온오프CPA',
           speakerColor: 'text-indigo-700',
           text: '걱정 마세요! 성과가 났을 때만 보상하는 광고 방식이 있어요. 바로 제휴 마케팅입니다',
           highlight: '성과가 났을 때만 보상',
@@ -112,7 +112,7 @@ export const episodes: WebtoonEpisode[] = [
         ],
         bubble: {
           align: 'center',
-          speaker: '링크커넥트',
+          speaker: '온오프CPA',
           speakerColor: 'text-indigo-700',
           text: '파트너가 고객을 소개하고, 실제 성과(구매·상담)가 생기면 광고주가 보상해요!',
         },
@@ -159,7 +159,7 @@ export const episodes: WebtoonEpisode[] = [
         characters: [{ id: 'partner', x: 50, y: 66, scale: 1.15, mood: 'excited' }],
         bubble: {
           align: 'center',
-          speaker: '링크커넥트',
+          speaker: '온오프CPA',
           speakerColor: 'text-indigo-700',
           text: '상담 신청 1건 = 10,000원! CPA는 고객의 "행동"이 완료되면 수익이 발생해요.',
           highlight: 'CPA = Cost Per Action (행동형)',
@@ -202,7 +202,7 @@ export const episodes: WebtoonEpisode[] = [
         characters: [{ id: 'partner', x: 50, y: 66, scale: 1.15, mood: 'excited' }],
         bubble: {
           align: 'center',
-          speaker: '링크커넥트',
+          speaker: '온오프CPA',
           speakerColor: 'text-indigo-700',
           text: '50,000원 × 수수료 10% = 5,000원! CPS는 "구매"가 완료되면 수익이 발생해요.',
           highlight: 'CPS = Cost Per Sale (판매형)',
@@ -221,7 +221,7 @@ export const episodes: WebtoonEpisode[] = [
         characters: [{ id: 'guide', x: 50, y: 70, scale: 1.1, mood: 'neutral' }],
         bubble: {
           align: 'center',
-          speaker: '링크커넥트',
+          speaker: '온오프CPA',
           speakerColor: 'text-indigo-700',
           text: '같은 제휴 마케팅이지만, 수익이 발생하는 순간이 달라요!',
         },
@@ -272,7 +272,7 @@ export const episodes: WebtoonEpisode[] = [
         ],
         bubble: {
           align: 'center',
-          speaker: '링크커넥트',
+          speaker: '온오프CPA',
           speakerColor: 'text-indigo-700',
           text: '제휴 마케팅은 실제 성과가 있을 때만 비용을 지불해요. 파트너들이 대신 홍보하고, 광고비 효율도 한눈에 확인!',
           highlight: '성과 중심 · 예산 낭비 ZERO',
@@ -307,7 +307,7 @@ export const episodes: WebtoonEpisode[] = [
         ],
         bubble: {
           align: 'center',
-          speaker: '링크커넥트',
+          speaker: '온오프CPA',
           speakerColor: 'text-indigo-700',
           text: '가입비 0원! 원하는 캠페인을 골라 링크 하나로 성과를 추적하고, 실시간으로 수익을 확인하세요',
           highlight: '자본금 없이 시작 · 실시간 수익 확인',

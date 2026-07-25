@@ -1481,7 +1481,7 @@ if (!function_exists('lc_merchant_contract_send_signed_emails')) {
             include_once G5_LIB_PATH . '/mailer.lib.php';
         }
         if (!function_exists('mailer')) {
-            error_log('[LinkConnect Contract] mailer unavailable for mt_id=' . (int) $mt_id);
+            error_log('[OnOff CPA Contract] mailer unavailable for mt_id=' . (int) $mt_id);
             return false;
         }
 
@@ -1493,7 +1493,7 @@ if (!function_exists('lc_merchant_contract_send_signed_emails')) {
         $signed_at = (string) ($contract['mc_signed_at'] ?? '');
         $download = LC_PLUGIN_URL . '/merchant/contract-download.php';
 
-        $from_name = function_exists('lc_site_name') ? lc_site_name() : 'LinkConnect';
+        $from_name = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
         $from_email = !empty($config['cf_admin_email']) ? (string) $config['cf_admin_email'] : lc_contact_email();
         $admin_email = lc_contact_email();
 
@@ -1513,7 +1513,7 @@ if (!function_exists('lc_merchant_contract_send_signed_emails')) {
                     $sent = true;
                 }
             } catch (Throwable $e) {
-                error_log('[LinkConnect Contract] merchant mail failed: ' . $e->getMessage());
+                error_log('[OnOff CPA Contract] merchant mail failed: ' . $e->getMessage());
             }
         }
         if ($admin_email !== '' && filter_var($admin_email, FILTER_VALIDATE_EMAIL)) {
@@ -1522,7 +1522,7 @@ if (!function_exists('lc_merchant_contract_send_signed_emails')) {
                     $sent = true;
                 }
             } catch (Throwable $e) {
-                error_log('[LinkConnect Contract] admin mail failed: ' . $e->getMessage());
+                error_log('[OnOff CPA Contract] admin mail failed: ' . $e->getMessage());
             }
         }
 

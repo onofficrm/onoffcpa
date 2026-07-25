@@ -6,7 +6,7 @@
  * - 김사장: 40대 남성, 짙은 정장, 갈색 머리, 쇼핑몰 사장
  * - 홍보왕 민지: 20대 여성, 민트/에메랄드 톤, 스마트폰·노트북
  * - 손님: 30대 성인, 캐주얼, 쇼핑백
- * - 링크커넥트: 인디고 로봇 마스코트, 가슴에 체인 링크 아이콘, 안테나
+ * - 온오프CPA: 인디고 로봇 마스코트, 가슴에 체인 링크 아이콘, 안테나
  */
 
 export interface IllustrationBrief {
@@ -41,9 +41,9 @@ export const illustrationBriefs: IllustrationBrief[] = [
     id: 'ep1-p2',
     episode: 1,
     panel: 2,
-    title: '링크커넥트 등장',
-    composition: '링크커넥트 로봇 마스코트 중앙, 반짝이 효과. 친근한 포즈, 한 손 들어 인사.',
-    characters: ['링크커넥트 (밝은 표정, 안테나 반짝)'],
+    title: '온오프CPA 등장',
+    composition: '온오프CPA 로봇 마스코트 중앙, 반짝이 효과. 친근한 포즈, 한 손 들어 인사.',
+    characters: ['온오프CPA (밝은 표정, 안테나 반짝)'],
     background: '부드러운 인디고-보라 그라데이션, 별/스파클',
     mood: '희망 · 안내',
     colorPalette: 'indigo, violet, cyan sparkle',
@@ -134,7 +134,7 @@ export const illustrationBriefs: IllustrationBrief[] = [
     panel: 3,
     title: 'CPS 수수료',
     composition: '민지 + 수수료 % 개념 (파이/코인). 10% 느낌의 작은 차트 없이 아이콘만.',
-    characters: ['홍보왕 민지', '링크커넥트 (작게)'],
+    characters: ['홍보왕 민지', '온오프CPA (작게)'],
     background: 'cyan-indigo 그라데이션',
     mood: '수수료 · 설명',
     colorPalette: 'cyan, indigo, gold',
@@ -146,8 +146,8 @@ export const illustrationBriefs: IllustrationBrief[] = [
     episode: 4,
     panel: 1,
     title: 'CPA vs CPS 소개',
-    composition: '링크커넥트가 두 갈래 길 가리킴. 좌우 분기 느낌.',
-    characters: ['링크커넥트'],
+    composition: '온오프CPA가 두 갈래 길 가리킴. 좌우 분기 느낌.',
+    characters: ['온오프CPA'],
     background: '슬레이트 그레이, Y자 갈림길',
     mood: '비교 시작',
     colorPalette: 'slate, white',
@@ -185,8 +185,8 @@ export const illustrationBriefs: IllustrationBrief[] = [
     episode: 5,
     panel: 2,
     title: '성과형 광고 안심',
-    composition: '김사장 + 링크커넥트. 대시보드/그래프 상승. 밝은 표정.',
-    characters: ['김사장 (happy)', '링크커넥트'],
+    composition: '김사장 + 온오프CPA. 대시보드/그래프 상승. 밝은 표정.',
+    characters: ['김사장 (happy)', '온오프CPA'],
     background: 'cyan-emerald, 성과 그래프',
     mood: '안심 · Win',
     colorPalette: 'cyan, emerald',
@@ -211,8 +211,8 @@ export const illustrationBriefs: IllustrationBrief[] = [
     episode: 6,
     panel: 2,
     title: 'Win-Win 마무리',
-    composition: '4캐릭터 함께 (김사장, 민지, 손님, 링크커넥트). 하이파이브/밝은 미래.',
-    characters: ['김사장', '홍보왕 민지', '손님', '링크커넥트'],
+    composition: '4캐릭터 함께 (김사장, 민지, 손님, 온오프CPA). 하이파이브/밝은 미래.',
+    characters: ['김사장', '홍보왕 민지', '손님', '온오프CPA'],
     background: 'indigo-violet celebration, confetti',
     mood: 'Happy Ending',
     colorPalette: 'indigo, emerald, gold confetti',

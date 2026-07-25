@@ -114,7 +114,7 @@ export function Header() {
           {/* 로고 */}
           <Link to="/" className="flex items-center gap-2 shrink-0 mr-6">
             <LinkIcon className="w-7 h-7 text-cyan-400" />
-            <span className="text-xl xl:text-2xl font-bold text-white tracking-tight">링크커넥트</span>
+            <span className="text-xl xl:text-2xl font-bold text-white tracking-tight">온오프CPA</span>
           </Link>
 
           {/* 메인 메뉴 */}

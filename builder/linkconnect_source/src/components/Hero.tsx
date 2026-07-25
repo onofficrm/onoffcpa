@@ -22,7 +22,7 @@ export function Hero() {
 
             <p className="text-lg text-slate-400 leading-relaxed max-w-xl">
               CPA DB 캠페인과 CPS 구매 캠페인을 한곳에서 확인하고,
-              실시간 성과와 정산 내역까지 링크커넥트에서 관리하세요.
+              실시간 성과와 정산 내역까지 온오프CPA에서 관리하세요.
             </p>
 
             <div className="flex flex-wrap items-center gap-4">
@@ -48,7 +48,7 @@ export function Hero() {
             <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10">
               <img
                 src={heroDashboardImage}
-                alt="LinkConnect Dashboard Preview"
+                alt="OnOff CPA Dashboard Preview"
                 className="w-full h-auto object-cover"
               />
             </div>

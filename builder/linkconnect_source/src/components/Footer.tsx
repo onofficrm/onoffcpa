@@ -13,7 +13,7 @@ export function Footer() {
             <Link to="/" className="flex items-center gap-2 mb-6">
               <LinkIcon className="w-6 h-6 text-emerald-400" />
               <span className="text-xl font-bold text-white tracking-tight">
-                링크커넥트
+                온오프CPA
               </span>
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed max-w-md mb-6">
@@ -21,8 +21,8 @@ export function Footer() {
               최고의 전환율과 투명한 정산 시스템을 제공합니다.
             </p>
             <div className="text-slate-500 text-sm">
-              <p>이메일: support@linkconnect.com</p>
-              <p>고객센터: 1588-0000 (평일 10:00 ~ 17:00)</p>
+              <p>이메일: help@onoffcpa.com</p>
+              <p>고객센터: 070-8098-6824 (평일 10:00 ~ 17:00)</p>
             </div>
           </div>
 
@@ -64,7 +64,7 @@ export function Footer() {
         </div>
 
         <div className="pt-8 border-t border-white/5 text-center text-sm text-slate-600">
-          © {new Date().getFullYear()} LinkConnect. All rights reserved.
+          © {new Date().getFullYear()} OnOff CPA. All rights reserved.
         </div>
       </div>
     </footer>

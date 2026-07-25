@@ -572,7 +572,7 @@ if (!function_exists('lc_wallet_send_recharge_notices')) {
         }
 
         $vars = array(
-            '{site}'      => function_exists('lc_settings_get') ? lc_settings_get('siteName', '링크커넥트') : '링크커넥트',
+            '{site}'      => function_exists('lc_settings_get') ? lc_settings_get('siteName', '온오프CPA') : '온오프CPA',
             '{company}'   => $company,
             '{balance}'   => $balance_fmt,
             '{threshold}' => $threshold_fmt,

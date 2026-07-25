@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$ROOT/builder/linkconnect_source/dist"
+PUBLIC="$ROOT/builder/linkconnect_source/public"
 DEST="$ROOT/plugin/onoff-builder-bridge/imports/linkconnect"
 
 if [[ ! -d "$SRC" ]]; then
@@ -12,10 +13,20 @@ if [[ ! -d "$SRC" ]]; then
 fi
 
 mkdir -p "$DEST/assets"
+# Built assets (hashed JS/CSS + index.html) — replace
 rsync -a --delete \
   --exclude '._*' \
   --exclude '.DS_Store' \
-  "$SRC/" "$DEST/"
+  "$SRC/assets/" "$DEST/assets/"
+cp "$SRC/index.html" "$DEST/index.html"
+
+# Static public assets (favicon, about images, webtoon) — merge, never wipe extras
+if [[ -d "$PUBLIC" ]]; then
+  rsync -a \
+    --exclude '._*' \
+    --exclude '.DS_Store' \
+    "$PUBLIC/" "$DEST/"
+fi
 
 echo "Synced: $SRC -> $DEST"
 ls -la "$DEST/assets"

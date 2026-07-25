@@ -39,8 +39,8 @@ if (!function_exists('lc_link_main_site_hosts')) {
             }
         }
         // 운영 메인 도메인 별칭
-        $hosts[] = 'linkconnect.co.kr';
-        $hosts[] = 'www.linkconnect.co.kr';
+        $hosts[] = 'onoffcpa.iwinv.net';
+        $hosts[] = 'www.onoffcpa.iwinv.net';
 
         return array_values(array_unique(array_filter($hosts)));
     }
@@ -216,7 +216,7 @@ if (!function_exists('lc_link_enforce_tracking_host_gate')) {
 
 if (!function_exists('lc_link_apply_tracking_host')) {
     /**
-     * 메인 사이트(링크커넥트) 랜딩 URL을 독립 도메인 호스트로 바꿉니다.
+     * 메인 사이트(온오프CPA) 랜딩 URL을 독립 도메인 호스트로 바꿉니다.
      * 외부 광고주 도메인은 그대로 둡니다.
      */
     function lc_link_apply_tracking_host($url, $tracking_base_url = null)
@@ -291,8 +291,8 @@ if (!function_exists('lc_link_landing_seo_replace')) {
         $template = trim((string) $template);
         $campaign_name = trim((string) $campaign_name);
         $site = function_exists('lc_settings_get')
-            ? trim((string) lc_settings_get('siteName', '링크커넥트'))
-            : '링크커넥트';
+            ? trim((string) lc_settings_get('siteName', '온오프CPA'))
+            : '온오프CPA';
 
         return str_replace(
             array('{campaign}', '{site}'),

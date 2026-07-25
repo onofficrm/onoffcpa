@@ -26,7 +26,7 @@ $lc_company_nav_active = in_array($lc_active_nav, array('home', 'affiliate', 'no
         <path d="M10 13a5 5 0 0 1 7.07 0l1.41 1.41a5 5 0 0 1-7.07 7.07l-.71-.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         <path d="M14 11a5 5 0 0 1-7.07 0L5.52 9.59a5 5 0 0 1 7.07-7.07l.71.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      <span class="lc-brand__text">링크커넥트</span>
+      <span class="lc-brand__text"><?php echo lc_h(lc_site_name()); ?></span>
     </a>
 
     <nav class="lc-nav lc-nav--desktop" data-lc-nav aria-label="주요 메뉴">

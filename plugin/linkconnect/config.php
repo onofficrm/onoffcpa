@@ -214,13 +214,13 @@ if (!function_exists('lc_site_name')) {
     function lc_site_name()
     {
         if (function_exists('g5site_cfg')) {
-            $name = g5site_cfg('site_name', 'LinkConnect');
+            $name = g5site_cfg('site_name', '온오프CPA');
             if ($name !== '') {
                 return $name;
             }
         }
 
-        return 'LinkConnect';
+        return '온오프CPA';
     }
 }
 
@@ -252,7 +252,7 @@ if (!function_exists('lc_contact_email')) {
             }
         }
 
-        return 'support2580_@linkconnect.co.kr';
+        return 'help@onoffcpa.com';
     }
 }
 

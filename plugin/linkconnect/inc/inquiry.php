@@ -93,7 +93,7 @@ if (!function_exists('lc_inquiry_format_advertiser_apply_body')) {
     function lc_inquiry_format_advertiser_apply_body(array $fields)
     {
         $lines = array(
-            '<링크커넥트 광고주 입점 신청>',
+            '<온오프CPA 광고주 입점 신청>',
             '업체명: ' . trim((string) ($fields['companyName'] ?? '')),
             '담당자명: ' . trim((string) ($fields['contactName'] ?? '')),
             '연락처: ' . trim((string) ($fields['contactPhone'] ?? '')),
@@ -296,7 +296,7 @@ if (!function_exists('lc_inquiry_create_advertiser_apply')) {
             WHERE iq_id = '{$iq_id}' ", false);
 
         $inquiry = lc_inquiry_get_by_id($iq_id);
-        // 사업자등록증 첨부 완료 후 support2580_@linkconnect.co.kr 로 알림
+        // 사업자등록증 첨부 완료 후 support2580_@onoffcpa.iwinv.net 로 알림
         $mail_sent = false;
         if (is_array($inquiry)) {
             $mail_sent = lc_inquiry_notify_admin_new($inquiry);
@@ -374,7 +374,7 @@ if (!function_exists('lc_inquiry_admin_recipient_email')) {
      */
     function lc_inquiry_admin_recipient_email()
     {
-        return 'support2580_@linkconnect.co.kr';
+        return 'support2580_@onoffcpa.iwinv.net';
     }
 }
 
@@ -404,14 +404,14 @@ if (!function_exists('lc_inquiry_send_admin_email')) {
 
         global $config;
 
-        $from_name = function_exists('lc_site_name') ? lc_site_name() : 'LinkConnect';
+        $from_name = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
         $admin_email = lc_inquiry_admin_recipient_email();
         // 입점/문의 알림은 운영 메일 도메인으로 From/To 통일 (발송 실패 감소)
         $from_email = $admin_email;
         if (!empty($config['cf_admin_email']) && filter_var((string) $config['cf_admin_email'], FILTER_VALIDATE_EMAIL)) {
             // 그누보드 관리자 메일이 같은 도메인이면 From으로 사용
             $cf = (string) $config['cf_admin_email'];
-            if (stripos($cf, '@linkconnect.co.kr') !== false) {
+            if (stripos($cf, '@onoffcpa.iwinv.net') !== false) {
                 $from_email = $cf;
             }
         }
@@ -470,7 +470,7 @@ if (!function_exists('lc_inquiry_send_admin_email')) {
         try {
             return (bool) @mailer($from_name, $from_email, $admin_email, $subject, $html, 1);
         } catch (Throwable $e) {
-            error_log('[LinkConnect Inquiry] admin mail failed: ' . $e->getMessage());
+            error_log('[OnOff CPA Inquiry] admin mail failed: ' . $e->getMessage());
             return false;
         }
     }
@@ -490,7 +490,7 @@ if (!function_exists('lc_inquiry_send_reply_email')) {
 
         global $config;
 
-        $from_name = function_exists('lc_site_name') ? lc_site_name() : 'LinkConnect';
+        $from_name = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
         $from_email = !empty($config['cf_admin_email']) ? (string) $config['cf_admin_email'] : (function_exists('lc_contact_email') ? lc_contact_email() : '');
         if ($from_email === '' || !filter_var($from_email, FILTER_VALIDATE_EMAIL)) {
             return false;
@@ -521,7 +521,7 @@ if (!function_exists('lc_inquiry_send_reply_email')) {
         try {
             return (bool) @mailer($from_name, $from_email, $to, $subject, $html, 1);
         } catch (Throwable $e) {
-            error_log('[LinkConnect Inquiry] reply mail failed: ' . $e->getMessage());
+            error_log('[OnOff CPA Inquiry] reply mail failed: ' . $e->getMessage());
             return false;
         }
     }
@@ -553,7 +553,7 @@ if (!function_exists('lc_inquiry_notify_admin_new')) {
 
         $mail_ok = lc_inquiry_send_admin_email($inquiry);
         if (!$mail_ok) {
-            error_log('[LinkConnect Inquiry] admin email failed for ' . (string) ($inquiry['iq_code'] ?? '') . ' → ' . lc_inquiry_admin_recipient_email());
+            error_log('[OnOff CPA Inquiry] admin email failed for ' . (string) ($inquiry['iq_code'] ?? '') . ' → ' . lc_inquiry_admin_recipient_email());
         }
 
         return (bool) $mail_ok;

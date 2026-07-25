@@ -87,8 +87,8 @@ if (!function_exists('lc_merchant_contract_generate_signed_pdf')) {
         $contract_html = (string) ($data['contract_html'] ?? '');
 
         $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator('LinkConnect');
-        $pdf->SetAuthor('LinkConnect');
+        $pdf->SetCreator('OnOff CPA');
+        $pdf->SetAuthor('OnOff CPA');
         $pdf->SetTitle('CPA 광고 제휴 계약서');
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);

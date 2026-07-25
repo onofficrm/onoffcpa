@@ -8,29 +8,29 @@ if (!defined('_GNUBOARD_')) {
 }
 
 $site_config = array(
-    'site_name'           => 'LinkConnect',
+    'site_name'           => '온오프CPA',
     'site_desc'           => 'CPA/CPS 제휴마케팅 플랫폼',
-    'company_name'        => '회사명',
+    'company_name'        => '온오프CPA',
     'ceo_name'            => '대표자명',
     'business_no'         => '000-00-00000',
-    'phone'               => '010-0000-0000',
+    'phone'               => '070-8098-6824',
     'kakao_url'           => '#',
-    'email'               => 'help@example.com',
+    'email'               => 'help@onoffcpa.com',
     'address'             => '주소를 입력하세요',
     'primary_color'       => '#2563eb',
     'secondary_color'     => '#64748b',
     'logo_path'           => '/img/logo/logo.svg',
-    /* 회원 스킨 강제 적용 (DB cf_member_skin 무관) — onoff = LinkConnect 톤 회원 페이지 */
+    /* 회원 스킨 강제 적용 (DB cf_member_skin 무관) — onoff = 온오프CPA 톤 회원 페이지 */
     'platform_member_skin' => 'onoff',
     'og_image'            => '/img/common/og-image.jpg',
     /* SEO (components/seo-meta.php) */
-    'seo_title'           => '',
-    'seo_description'     => '',
-    'main_keyword'        => '',
+    'seo_title'           => '온오프CPA',
+    'seo_description'     => '클릭을 수익으로, DB를 성과로 연결하는 CPA/CPS 제휴마케팅 플랫폼',
+    'main_keyword'        => '온오프CPA,CPA,CPS,제휴마케팅',
     'sub_keywords'        => '',
     'robots'              => 'index,follow',
     'consultation_text'   => '상담문의',
-    'footer_desc'         => '고객의 성장을 돕는 웹사이트 제작 베이스입니다.',
+    'footer_desc'         => '클릭을 수익으로, DB를 성과로 연결하는 제휴마케팅 플랫폼입니다.',
     /* 문의 폼 → inquiry 게시판 (proc/inquiry-submit.php) */
     'inquiry_bo_table'        => 'inquiry',
     'inquiry_notify_enabled'  => true,
@@ -112,8 +112,8 @@ $site_config = array(
     'icrm_hub_geo_button'       => true,
     /* onoff-builder-bridge — 루트 / 를 빌더 페이지로 (project_id) */
     'home_builder_bridge_id'    => 'linkconnect',
-    /* LinkConnect 전용 DB명 (그누보드 data/dbconfig.php DB와 분리) */
-    'linkconnect_db_name'       => 'linkconnect',
+    /* LinkConnect 전용 DB명 — 온오프CPA는 그누보드 DB와 동일 */
+    'linkconnect_db_name'       => 'onoffcpa',
     /* 원격 DB 설치 토큰 — 비우면 비활성. 설정 시 install.php?token=값&action=run 으로 CLI 대체 가능 */
     'linkconnect_install_token' => '',
     /* 데모 시드 토큰 — 비우면 install 토큰으로 대체. seed_demo.php 원격 호출용 */

@@ -10,7 +10,7 @@ export function CenterSelect() {
   return (
     <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <div className="text-center mb-10">
-        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">링크커넥트 센터 바로가기</h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 tracking-tight">온오프CPA 센터 바로가기</h1>
         <p className="text-lg text-slate-600">로그인 후 이용하실 센터를 선택해주세요.</p>
       </div>
 

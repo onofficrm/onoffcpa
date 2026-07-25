@@ -2,7 +2,7 @@
 if (!defined('_GNUBOARD_')) {
     exit;
 }
-lc_ui_admin_intro('링크커넥트 CPA 운영 현황과 주요 이슈를 한눈에 확인하세요. (샘플 UI)');
+lc_ui_admin_intro('온오프CPA 운영 현황과 주요 이슈를 한눈에 확인하세요. (샘플 UI)');
 
 lc_ui_admin_summary_grid(lc_sample_admin_dashboard_stats(), '8');
 

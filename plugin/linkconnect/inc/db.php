@@ -542,7 +542,7 @@ if (!function_exists('lc_db_run_schema')) {
 
         return array(
             'ok'      => true,
-            'message' => 'LinkConnect DB 스키마가 설치되었습니다.',
+            'message' => 'OnOff CPA DB 스키마가 설치되었습니다.',
             'tables'  => $tables,
         );
     }

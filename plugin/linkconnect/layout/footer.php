@@ -17,7 +17,7 @@ if (!isset($lc_show_footer) || !$lc_show_footer) {
             <path d="M10 13a5 5 0 0 1 7.07 0l1.41 1.41a5 5 0 0 1-7.07 7.07l-.71-.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <path d="M14 11a5 5 0 0 1-7.07 0L5.52 9.59a5 5 0 0 1 7.07-7.07l.71.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
-          <span class="lc-brand__text">링크커넥트</span>
+          <span class="lc-brand__text"><?php echo lc_h(lc_site_name()); ?></span>
         </a>
         <p class="lc-footer__desc">클릭을 수익으로, DB를 성과로 연결하는 제휴마케팅 플랫폼입니다. 최고의 전환율과 투명한 정산 시스템을 제공합니다.</p>
         <p class="lc-footer__contact">

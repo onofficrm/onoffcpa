@@ -16,7 +16,7 @@ export function AiGuideChat({ page = '', role = '' }: AiGuideChatProps) {
   const [statusMsg, setStatusMsg] = useState('');
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', text: '안녕하세요! 링크커넥트 AI 가이드입니다. CPA, 정산, 이벤트, 파트너/광고주 이용 방법을 물어보세요.' },
+    { role: 'assistant', text: '안녕하세요! 온오프CPA AI 가이드입니다. CPA, 정산, 이벤트, 파트너/광고주 이용 방법을 물어보세요.' },
   ]);
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -83,7 +83,7 @@ export function AiGuideChat({ page = '', role = '' }: AiGuideChatProps) {
               <div className="flex items-center gap-2">
                 <Bot size={20} className="text-cyan-400" />
                 <div>
-                  <div className="font-bold text-sm">링크커넥트 AI 가이드</div>
+                  <div className="font-bold text-sm">온오프CPA AI 가이드</div>
                   <div className="text-[11px] text-slate-300">{available ? 'Gemini 연동' : 'API 키 미설정'}</div>
                 </div>
               </div>

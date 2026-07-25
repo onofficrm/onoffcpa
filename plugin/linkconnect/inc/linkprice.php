@@ -1,6 +1,6 @@
 <?php
 /**
- * LinkConnect × 링크프라이스 CPS (외부 네트워크 모듈)
+ * OnOff CPA × 링크프라이스 CPS (외부 네트워크 모듈)
  *
  * CPA 전환/지갑/캠페인과 완전 분리.
  * 역할 분리:
@@ -746,7 +746,7 @@ if (!function_exists('lc_lp_admin_simulate_postback')) {
             'merchant_id'        => (string) $merchant['merchant_code'],
             'order_code'         => 'lc_test_' . date('YmdHis') . '_' . mt_rand(100, 999),
             'product_code'       => 'lc_test_product',
-            'product_name'       => 'LinkConnect E2E Test Product',
+            'product_name'       => 'OnOff CPA E2E Test Product',
             'category_code'      => 'test',
             'item_count'         => 1,
             'price'              => (int) ($options['price'] ?? 50000),
@@ -951,7 +951,7 @@ if (!function_exists('lc_lp_client_request')) {
 
         while ($attempt <= $retries) {
             $attempt++;
-            $headers = array('Accept: application/json', 'User-Agent: LinkConnect-LP/1.0');
+            $headers = array('Accept: application/json', 'User-Agent: OnOff CPA-LP/1.0');
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -2168,7 +2168,7 @@ if (!function_exists('lc_lp_merchants_list')) {
 }
 
 if (!function_exists('lc_lp_public_brand_copy')) {
-    /** 파트너·공개 문구에서 외부망 브랜드명을 링크커넥트로 치환 */
+    /** 파트너·공개 문구에서 외부망 브랜드명을 온오프CPA로 치환 */
     function lc_lp_public_brand_copy($text)
     {
         $text = (string) $text;
@@ -2177,11 +2177,11 @@ if (!function_exists('lc_lp_public_brand_copy')) {
         }
 
         $pairs = array(
-            '링크프라이스' => '링크커넥트',
-            'LinkPrice'   => '링크커넥트',
-            'Linkprice'   => '링크커넥트',
-            'linkprice'   => '링크커넥트',
-            'LINKPRICE'   => '링크커넥트',
+            '링크프라이스' => '온오프CPA',
+            'LinkPrice'   => '온오프CPA',
+            'Linkprice'   => '온오프CPA',
+            'linkprice'   => '온오프CPA',
+            'LINKPRICE'   => '온오프CPA',
         );
 
         return strtr($text, $pairs);
@@ -4582,7 +4582,7 @@ if (!function_exists('lc_lp_order_settle_hint')) {
             return '취소 처리 — 수익에서 제외됩니다.';
         }
         if ($s === LC_LP_ORDER_REVIEW || $s === LC_LP_ORDER_HOLD) {
-            return '정산 대기 — 광고주·링크커넥트 검수 후 확정됩니다.';
+            return '정산 대기 — 광고주·온오프CPA 검수 후 확정됩니다.';
         }
         if ($s === LC_LP_ORDER_UNMATCHED) {
             return '미매칭 — 관리자 확인이 필요합니다.';

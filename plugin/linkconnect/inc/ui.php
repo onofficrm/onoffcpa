@@ -1125,7 +1125,7 @@ if (!function_exists('lc_ui_super_admin_banner')) {
     <div class="lc-admin-banner__icon" aria-hidden="true"><?php echo lc_ui_super_admin_icon(); ?></div>
     <div class="lc-admin-banner__body">
       <p class="lc-admin-banner__title">최고관리자 모드로 접속 중입니다.</p>
-      <p class="lc-admin-banner__desc">링크커넥트 관리자센터에서 파트너, 광고주, 디비, 정산, API를 관리할 수 있습니다.</p>
+      <p class="lc-admin-banner__desc">온오프CPA 관리자센터에서 파트너, 광고주, 디비, 정산, API를 관리할 수 있습니다.</p>
     </div>
     <a class="lc-btn lc-btn--admin lc-btn--sm lc-admin-banner__cta" href="<?php echo lc_h(LC_URL_ADMIN_DASHBOARD); ?>">
       <?php echo lc_ui_super_admin_icon(); ?>

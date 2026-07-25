@@ -1,0 +1,100 @@
+name: Deploy branding hotfix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-branding:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare branding bundle
+        run: |
+          ROOT=".deploy/branding"
+          rm -rf "$ROOT"
+          mkdir -p "$ROOT"/{inc,plugin/linkconnect/{inc/views/admin,inc/views/public,layout},plugin/onoff-builder-bridge/{imports,data/imports},skin/member}
+
+          cp _site.config.php "$ROOT/"
+          cp inc/linkconnect-spa-bootstrap.php "$ROOT/inc/"
+          cp plugin/linkconnect/config.php "$ROOT/plugin/linkconnect/"
+          for f in settings.php db.php ai.php email_notify.php inquiry.php link.php wallet.php; do
+            cp "plugin/linkconnect/inc/$f" "$ROOT/plugin/linkconnect/inc/"
+          done
+          cp plugin/linkconnect/inc/views/admin/dashboard.php "$ROOT/plugin/linkconnect/inc/views/admin/"
+          cp plugin/linkconnect/inc/views/public/home.php "$ROOT/plugin/linkconnect/inc/views/public/"
+          cp -R plugin/linkconnect/layout "$ROOT/plugin/linkconnect/"
+          rsync -a --exclude '._*' --exclude '.DS_Store' \
+            plugin/onoff-builder-bridge/imports/linkconnect/ \
+            "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/"
+          cp plugin/onoff-builder-bridge/data/imports/linkconnect.json "$ROOT/plugin/onoff-builder-bridge/data/imports/"
+          cp -R skin/member/onoff "$ROOT/skin/member/"
+          find "$ROOT" -name '._*' -delete 2>/dev/null || true
+          grep -q 'OnOff CPA' "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html"
+          echo "Bundle files: $(find "$ROOT" -type f | wc -l)"
+
+      - name: FTP upload branding bundle
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          parallel: 1
+          protocol: ftp
+          local-dir: .deploy/branding/
+          server-dir: /public_html/
+          state-name: onoffcpa-branding-v1
+          log-level: minimal
+          timeout: 600000
+
+      - name: Update DB siteName and verify
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+        run: |
+          cat > rename_site.php << 'EOF'
+          <?php
+          include_once __DIR__ . '/common.php';
+          include_once G5_PLUGIN_PATH . '/linkconnect/config.php';
+          include_once G5_PLUGIN_PATH . '/linkconnect/inc/settings.php';
+          $updates = array(
+              'siteName' => '온오프CPA',
+              'adminEmail' => 'help@onoffcpa.com',
+              'supportEmail' => 'help@onoffcpa.com',
+          );
+          foreach ($updates as $k => $v) {
+              $cur = (string) lc_settings_get($k, '');
+              $need = ($k === 'siteName' && $cur !== $v)
+                  || $cur === ''
+                  || stripos($cur, 'linkconnect') !== false
+                  || strpos($cur, '링크커넥트') !== false;
+              if ($need) {
+                  $r = lc_settings_save_row($k, $v);
+                  echo $k . ': [' . $cur . '] -> [' . $v . '] ' . json_encode($r, JSON_UNESCAPED_UNICODE) . "\n";
+              } else {
+                  echo $k . ': keep [' . $cur . "]\n";
+              }
+          }
+          echo 'OK siteName=' . lc_settings_get('siteName', '') . "\n";
+          echo 'OK g5site=' . (function_exists('g5site_cfg') ? g5site_cfg('site_name', '') : '') . "\n";
+          EOF
+          curl --fail --show-error --silent \
+            --ftp-create-dirs \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T rename_site.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/rename_site.php"
+          echo "=== RENAME ==="
+          curl -sS "https://onoffcpa.iwinv.net/rename_site.php" || true
+          echo
+          curl --silent --show-error \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -Q "DELE /public_html/rename_site.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
+          echo "=== HOME ==="
+          curl -sS "https://onoffcpa.iwinv.net/" | head -c 600
+          echo

@@ -303,7 +303,7 @@ if (!function_exists('lc_ai_require_ready')) {
 if (!function_exists('lc_ai_guide_system_prompt')) {
     function lc_ai_guide_system_prompt(array $context = array())
     {
-        $site = (string) lc_settings_get('siteName', '링크커넥트');
+        $site = (string) lc_settings_get('siteName', '온오프CPA');
         $phone = (string) lc_settings_get('supportPhone', '');
 
         $lines = array(

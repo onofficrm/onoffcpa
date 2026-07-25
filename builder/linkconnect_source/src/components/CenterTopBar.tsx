@@ -54,7 +54,7 @@ export function CenterTopBar({ center }: CenterTopBarProps) {
             <span className="text-white font-black text-sm">LC</span>
           </div>
           <span className="hidden sm:inline">
-            링크커넥트{' '}
+            온오프CPA{' '}
             <span className={`text-xs font-medium ml-1 px-1.5 py-0.5 rounded-md border ${config.badgeClass}`}>
               {config.badge}
             </span>

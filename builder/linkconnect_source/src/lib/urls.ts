@@ -1,6 +1,6 @@
 import { getLcAuth } from './auth';
 
-/** GNUBoard LinkConnect 플러그인 경로 (운영·관리 화면) */
+/** GNUBoard OnOff CPA 플러그인 경로 (운영·관리 화면) */
 export const LC_PLUGIN_BASE = '/plugin/linkconnect';
 
 /** GNUBoard 게시판 기본 경로 (PHP 주입 전 폴백) */

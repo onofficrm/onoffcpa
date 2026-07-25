@@ -133,7 +133,7 @@ if (!function_exists('lc_gemini_chat')) {
             );
             $contents[] = array(
                 'role'  => 'model',
-                'parts' => array(array('text' => '네, 링크커넥트 AI 가이드로서 안내하겠습니다.')),
+                'parts' => array(array('text' => '네, 온오프CPA AI 가이드로서 안내하겠습니다.')),
             );
         }
 

@@ -3,7 +3,7 @@ if (!defined('_GNUBOARD_')) {
     exit;
 }
 $lc_page_title = isset($lc_page_title) ? (string) $lc_page_title : '관리자센터';
-$lc_admin_role = lc_is_super_admin() ? '최고관리자' : (lc_is_linkconnect_admin() ? '링크커넥트 관리자' : '운영 관리자 (샘플)');
+$lc_admin_role = lc_is_super_admin() ? '최고관리자' : (lc_is_linkconnect_admin() ? '온오프CPA 관리자' : '운영 관리자 (샘플)');
 $lc_admin_date = date('Y.m.d H:i');
 ?>
 <header class="lc-partner-toolbar lc-admin-toolbar">

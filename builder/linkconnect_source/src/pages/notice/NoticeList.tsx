@@ -78,7 +78,7 @@ export function NoticeList() {
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">공지사항</h1>
           <p className="text-slate-600 text-lg max-w-2xl">
-            링크커넥트의 새로운 소식, 업데이트, 운영 안내를 확인하세요.
+            온오프CPA의 새로운 소식, 업데이트, 운영 안내를 확인하세요.
           </p>
         </div>
 

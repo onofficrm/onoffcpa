@@ -15,7 +15,7 @@ $merchant_url = lc_url('merchant/dashboard.php');
     <div>
       <div class="lc-hero__badge"><span class="lc-hero__badge-dot"></span> 클릭을 수익으로, DB를 성과로 연결하는 제휴마케팅 플랫폼</div>
       <h1 class="lc-hero__title">트래픽이 있다면,<br>지금 바로 <em>수익으로 연결</em>하세요</h1>
-      <p class="lc-hero__lead">CPA DB 캠페인과 CPS 구매 캠페인을 한곳에서 확인하고, 실시간 성과와 정산 내역까지 링크커넥트에서 관리하세요.</p>
+      <p class="lc-hero__lead">CPA DB 캠페인과 CPS 구매 캠페인을 한곳에서 확인하고, 실시간 성과와 정산 내역까지 온오프CPA에서 관리하세요.</p>
       <div class="lc-hero__actions">
         <a class="lc-btn lc-btn--emerald lc-btn--xl" href="<?php echo lc_h($cpa_url); ?>">인기 CPA 상품 보기</a>
         <a class="lc-btn lc-btn--ghost lc-btn--xl" href="<?php echo lc_h($cps_url); ?>">CPS 상품 둘러보기</a>
@@ -23,7 +23,7 @@ $merchant_url = lc_url('merchant/dashboard.php');
       </div>
     </div>
     <div class="lc-hero__visual">
-      <img src="<?php echo lc_h($hero_img); ?>" alt="LinkConnect 대시보드 미리보기" loading="lazy">
+      <img src="<?php echo lc_h($hero_img); ?>" alt="OnOff CPA 대시보드 미리보기" loading="lazy">
     </div>
   </div>
 </section>
@@ -42,7 +42,7 @@ $merchant_url = lc_url('merchant/dashboard.php');
 <section class="lc-section lc-section--muted">
   <div class="lc-section__inner">
     <h2 class="lc-section__title">CPA 운영 흐름</h2>
-    <p class="lc-section__lead">캠페인 선택부터 정산까지, 링크커넥트에서 투명하게 관리되는 CPA 프로세스입니다.</p>
+    <p class="lc-section__lead">캠페인 선택부터 정산까지, 온오프CPA에서 투명하게 관리되는 CPA 프로세스입니다.</p>
     <div class="lc-flow">
       <?php foreach (lc_sample_cpa_flow() as $step) { ?>
       <article class="lc-flow__step">
@@ -147,7 +147,7 @@ $merchant_url = lc_url('merchant/dashboard.php');
 
 <section class="lc-section lc-section--light">
   <div class="lc-section__inner" style="text-align:center">
-    <h2 class="lc-section__title">왜 <em>링크커넥트</em>인가?</h2>
+    <h2 class="lc-section__title">왜 <em>온오프CPA</em>인가?</h2>
     <p class="lc-section__lead" style="margin:0 auto 2rem">CPA/CPS를 한 플랫폼에서 확장 가능하게 운영하는 SaaS형 제휴마케팅 인프라입니다.</p>
     <div class="lc-feature-grid">
       <?php
@@ -196,7 +196,7 @@ $merchant_url = lc_url('merchant/dashboard.php');
 <section class="lc-final-cta">
   <div class="lc-section__inner">
     <h2 class="lc-final-cta__title">광고주는 성과를 만들고,<br>파트너는 수익을 만듭니다.</h2>
-    <p class="lc-final-cta__lead">지금 바로 링크커넥트에서 완벽한 제휴마케팅을 시작하세요.</p>
+    <p class="lc-final-cta__lead">지금 바로 온오프CPA에서 완벽한 제휴마케팅을 시작하세요.</p>
     <div class="lc-final-cta__actions">
       <a class="lc-btn lc-btn--white lc-btn--xl" href="<?php echo lc_h($partner_url); ?>">파트너로 시작하기</a>
       <a class="lc-btn lc-btn--emerald-dark lc-btn--xl" href="<?php echo lc_h(lc_inquiry_url()); ?>">광고주로 문의하기</a>

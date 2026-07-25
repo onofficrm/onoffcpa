@@ -73,7 +73,7 @@ if (!function_exists('lc_demo_member_ensure')) {
         $email_esc = sql_escape_string($mb_id . '@linkconnect.demo');
         $ip = isset($_SERVER['REMOTE_ADDR']) ? preg_replace('/[^0-9a-fA-F:\.]/', '', $_SERVER['REMOTE_ADDR']) : '127.0.0.1';
         $ip_esc = sql_escape_string($ip);
-        $memo_esc = sql_escape_string('LinkConnect 데모 계정');
+        $memo_esc = sql_escape_string('OnOff CPA 데모 계정');
 
         sql_query(" INSERT INTO {$g5['member_table']}
             SET mb_id = '{$mb_id_esc}',
@@ -496,7 +496,7 @@ if (!function_exists('lc_demo_contract_default_form')) {
             'companyName'        => $company,
             'representativeName' => '김데모',
             'businessNumber'     => '123-45-67890',
-            'companyAddress'     => '서울특별시 강남구 테헤란로 123, 링크커넥트빌딩 10층',
+            'companyAddress'     => '서울특별시 강남구 테헤란로 123, 온오프CPA빌딩 10층',
             'companyPhone'       => '02-1234-5678',
             'contactName'        => $contact_name,
             'contactPhone'       => '010-9876-5432',
@@ -599,7 +599,7 @@ if (!function_exists('lc_demo_seed_run')) {
         if (!lc_db_installed()) {
             return array(
                 'ok'      => false,
-                'message' => 'LinkConnect DB가 설치되지 않았습니다. 먼저 install을 실행하세요.',
+                'message' => 'OnOff CPA DB가 설치되지 않았습니다. 먼저 install을 실행하세요.',
                 'details' => array(),
             );
         }

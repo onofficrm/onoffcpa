@@ -51,7 +51,7 @@ export function AdminLayout({ children, activeMenu, title, description }: { chil
               <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-black text-sm">LC</span>
               </div>
-              <span className="hidden sm:inline">링크커넥트 <span className="text-cyan-400 text-xs font-medium ml-1 px-1.5 py-0.5 bg-cyan-950 rounded-md border border-cyan-800/50">ADMIN</span></span>
+              <span className="hidden sm:inline">온오프CPA <span className="text-cyan-400 text-xs font-medium ml-1 px-1.5 py-0.5 bg-cyan-950 rounded-md border border-cyan-800/50">ADMIN</span></span>
             </Link>
           </div>
           

@@ -230,7 +230,7 @@ if (!function_exists('lc_email_notify_send')) {
         }
 
         global $config;
-        $from_name = function_exists('lc_site_name') ? lc_site_name() : 'LinkConnect';
+        $from_name = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
         $from_email = !empty($config['cf_admin_email']) ? (string) $config['cf_admin_email'] : (function_exists('lc_contact_email') ? lc_contact_email() : '');
         if ($from_email === '' || !filter_var($from_email, FILTER_VALIDATE_EMAIL)) {
             return false;
@@ -239,7 +239,7 @@ if (!function_exists('lc_email_notify_send')) {
         try {
             return (bool) @mailer($from_name, $from_email, $to, $subject, $html, 1);
         } catch (Throwable $e) {
-            error_log('[LinkConnect EmailNotify] send failed: ' . $e->getMessage());
+            error_log('[OnOff CPA EmailNotify] send failed: ' . $e->getMessage());
             return false;
         }
     }
@@ -336,7 +336,7 @@ if (!function_exists('lc_email_notify_flush_digest')) {
         }
 
         $count = (int) $row['nd_count'];
-        $site = function_exists('lc_site_name') ? lc_site_name() : 'LinkConnect';
+        $site = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
         $label = $type === 'dbReceived' ? '신규 DB' : $type;
         $cta = $center_key === 'merchant'
             ? ((defined('G5_URL') ? G5_URL : '') . '/advertiser/db')
@@ -393,7 +393,7 @@ if (!function_exists('lc_email_notify_on_conversion')) {
         $mt_id = (int) ($conversion['mt_id'] ?? 0);
         $price = (int) ($conversion['cv_price'] ?? $conversion['cv_partner_price'] ?? 0);
         $reason = trim((string) ($conversion['cv_reject_reason'] ?? ''));
-        $site = function_exists('lc_site_name') ? lc_site_name() : 'LinkConnect';
+        $site = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
         $base = defined('G5_URL') ? G5_URL : '';
 
         if ($event === 'received') {
@@ -489,7 +489,7 @@ if (!function_exists('lc_email_notify_on_low_balance')) {
             return false;
         }
 
-        $site = function_exists('lc_site_name') ? lc_site_name() : 'LinkConnect';
+        $site = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
         $rows = lc_email_notify_row('현재 잔액', number_format((int) $balance) . '원')
             . lc_email_notify_row('기준 금액', number_format((int) $threshold) . '원');
         $base = defined('G5_URL') ? G5_URL : '';
@@ -525,7 +525,7 @@ if (!function_exists('lc_email_notify_on_settlement_paid')) {
             $amount = (int) ($settlement['st_amount'] ?? 0);
         }
         $code = (string) ($settlement['st_code'] ?? '');
-        $site = function_exists('lc_site_name') ? lc_site_name() : 'LinkConnect';
+        $site = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
         $base = defined('G5_URL') ? G5_URL : '';
         $rows = lc_email_notify_row('정산번호', $code)
             . lc_email_notify_row('지급 금액', number_format($amount) . '원');

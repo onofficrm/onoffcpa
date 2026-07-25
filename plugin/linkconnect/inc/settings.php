@@ -7,10 +7,10 @@ if (!function_exists('lc_settings_defaults')) {
     function lc_settings_defaults()
     {
         return array(
-            'siteName'              => '링크커넥트',
+            'siteName'              => '온오프CPA',
             'siteStatus'            => 'active',
-            'adminEmail'            => 'support2580_@linkconnect.co.kr',
-            'supportEmail'          => 'support2580_@linkconnect.co.kr',
+            'adminEmail'            => 'help@onoffcpa.com',
+            'supportEmail'          => 'help@onoffcpa.com',
             'supportPhone'          => '070-8098-6824',
             'timezone'              => 'Asia/Seoul',
             'duplicateDays'         => 30,

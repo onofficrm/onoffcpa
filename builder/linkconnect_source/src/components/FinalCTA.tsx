@@ -13,7 +13,7 @@ export function FinalCTA() {
           파트너는 수익을 만듭니다.
         </h2>
         <p className="text-lg text-emerald-100 mb-10">
-          지금 바로 링크커넥트에서 완벽한 제휴마케팅을 시작하세요.
+          지금 바로 온오프CPA에서 완벽한 제휴마케팅을 시작하세요.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

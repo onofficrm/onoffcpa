@@ -168,7 +168,7 @@ export function AdminDashboard() {
   }, []);
 
   return (
-    <AdminLayout activeMenu="dashboard" title="관리자 통합 대시보드" description="링크커넥트 CPA 운영 현황과 주요 이슈를 한눈에 확인하세요.">
+    <AdminLayout activeMenu="dashboard" title="관리자 통합 대시보드" description="온오프CPA 운영 현황과 주요 이슈를 한눈에 확인하세요.">
       <AiReportInsight title="AI 운영 브리핑" fetchSummary={fetchAdminAiSummary} />
 
       {/* 8 Summary Cards */}

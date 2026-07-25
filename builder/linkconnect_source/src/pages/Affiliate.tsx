@@ -8,7 +8,7 @@ const steps = [
     num: '01',
     icon: <MousePointerClick className="w-6 h-6 text-emerald-400" />,
     title: '아이템 고르기',
-    desc: '링크커넥트에 등록된 다양한 브랜드의 캠페인 중에서 내가 홍보하고 싶은 아이템을 선택합니다.',
+    desc: '온오프CPA에 등록된 다양한 브랜드의 캠페인 중에서 내가 홍보하고 싶은 아이템을 선택합니다.',
   },
   {
     num: '02',
@@ -189,7 +189,7 @@ export function Affiliate() {
               <ul className="space-y-3 text-slate-600 text-sm leading-relaxed">
                 <li className="flex gap-2"><span className="text-emerald-500 font-bold shrink-0">·</span>가입비나 초기 비용이 전혀 들지 않습니다.</li>
                 <li className="flex gap-2"><span className="text-emerald-500 font-bold shrink-0">·</span>남는 시간을 활용해 언제 어디서든 부수익을 만들 수 있습니다.</li>
-                <li className="flex gap-2"><span className="text-emerald-500 font-bold shrink-0">·</span>연 300억 원의 매출을 이끌어낸 링크커넥트의 검증된 캠페인으로 초보자도 수익을 빠르게 늘려갈 수 있습니다.</li>
+                <li className="flex gap-2"><span className="text-emerald-500 font-bold shrink-0">·</span>연 300억 원의 매출을 이끌어낸 온오프CPA의 검증된 캠페인으로 초보자도 수익을 빠르게 늘려갈 수 있습니다.</li>
               </ul>
             </article>
             <article className="bg-white border border-slate-100 rounded-2xl p-8">
@@ -217,7 +217,7 @@ export function Affiliate() {
             자본금 없이 시작하는 가장 안전한 비즈니스
           </h2>
           <p className="text-slate-400 text-lg mb-10">
-            당신의 글과 콘텐츠가 수익이 되는 경험을 링크커넥트에서 시작해 보세요.
+            당신의 글과 콘텐츠가 수익이 되는 경험을 온오프CPA에서 시작해 보세요.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link

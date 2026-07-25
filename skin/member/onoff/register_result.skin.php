@@ -28,7 +28,7 @@ $advertiser_url = $home_url . '#/advertiser';
             <strong><?php echo $mb_name; ?></strong>님,<br>회원가입을 축하합니다
         </h2>
         <p class="onoff-reg-result__lead">
-            링크커넥트 계정이 준비되었습니다.<br>
+            온오프CPA 계정이 준비되었습니다.<br>
             파트너센터 또는 광고주센터에서 바로 이용을 시작하세요.
         </p>
     </div>

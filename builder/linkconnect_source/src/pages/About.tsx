@@ -57,7 +57,7 @@ const highlights = [
 const introPoints = [
   {
     title: '성장하는 제휴 마케팅 시장',
-    text: '해외는 수십 조원 규모, 국내는 무궁무진한 잠재력. 링크커넥트는 연간 300억 원 이상의 견인 매출 노하우로 새로운 기준을 제시합니다.',
+    text: '해외는 수십 조원 규모, 국내는 무궁무진한 잠재력. 온오프CPA는 연간 300억 원 이상의 견인 매출 노하우로 새로운 기준을 제시합니다.',
   },
   {
     title: '광고주와 파트너를 잇는 네트워크',
@@ -83,7 +83,7 @@ export function About() {
             <div className="text-center lg:text-left">
               <p className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-cyan-400 text-sm font-medium mb-6">
                 <Link2 className="w-4 h-4" />
-                About LinkConnect
+                About OnOff CPA
               </p>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
                 가치를 연결하고,
@@ -94,7 +94,7 @@ export function About() {
                 하다.
               </h1>
               <p className="text-lg text-slate-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                대한민국 성과 중심 제휴 마케팅 플랫폼, 링크커넥트(LinkConnect)입니다.
+                대한민국 성과 중심 제휴 마케팅 플랫폼, 온오프CPA(OnOff CPA)입니다.
               </p>
             </div>
 
@@ -102,7 +102,7 @@ export function About() {
               <div className="absolute -inset-3 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 rounded-2xl blur-xl" />
               <img
                 src={images.hero}
-                alt="링크커넥트 제휴 마케팅 플랫폼"
+                alt="온오프CPA 제휴 마케팅 플랫폼"
                 className="relative w-full rounded-2xl border border-white/10 shadow-2xl object-cover aspect-video"
               />
             </div>
@@ -168,7 +168,7 @@ export function About() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-              링크커넥트가 약속하는 <span className="text-emerald-500">3가지 핵심 가치</span>
+              온오프CPA가 약속하는 <span className="text-emerald-500">3가지 핵심 가치</span>
             </h2>
             <p className="text-slate-500 max-w-xl mx-auto">
               연결부터 정산까지, 성과 중심 제휴 마케팅의 새로운 기준
@@ -257,7 +257,7 @@ export function About() {
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 leading-tight">
             연결이 곧 수익이 되는 곳,
             <br />
-            <span className="text-emerald-400">링크커넥트</span>
+            <span className="text-emerald-400">온오프CPA</span>
           </h2>
           <p className="text-slate-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
             연간 300억 매출 견인의 저력, 투명한 데이터와 강력한 네트워크로

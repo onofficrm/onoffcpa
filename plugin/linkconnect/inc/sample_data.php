@@ -91,8 +91,8 @@ if (!function_exists('lc_sample_links')) {
     function lc_sample_links()
     {
         return array(
-            array('campaign' => '개인회생 무료상담 CPA', 'url' => 'https://linkconnect.co.kr/t/lc001', 'clicks' => 842, 'dbs' => 28),
-            array('campaign' => '피부클리닉 상담 CPA', 'url' => 'https://linkconnect.co.kr/t/lc002', 'clicks' => 406, 'dbs' => 11),
+            array('campaign' => '개인회생 무료상담 CPA', 'url' => 'https://onoffcpa.iwinv.net/t/lc001', 'clicks' => 842, 'dbs' => 28),
+            array('campaign' => '피부클리닉 상담 CPA', 'url' => 'https://onoffcpa.iwinv.net/t/lc002', 'clicks' => 406, 'dbs' => 11),
         );
     }
 }
@@ -293,14 +293,14 @@ if (!function_exists('lc_sample_promo_copy_tabs')) {
                 'label' => '블로그',
                 'copies' => array(
                     array('title' => '개인회생 단가 상승', 'text' => '🔥 [한정 이벤트] 개인회생 무료상담 DB — 이벤트 단가 40,000원! 승인율 68% 안정 캠페인. 지금 무료 상담 신청하세요 ▶ [링크]'),
-                    array('title' => '첫 승인 보너스', 'text' => '✨ 링크커넥트 신규 파트너 첫 승인 시 5만원 추가 보너스! 개인회생 상담 CPA 홍보하고 수익 시작하기 → [링크]'),
+                    array('title' => '첫 승인 보너스', 'text' => '✨ 온오프CPA 신규 파트너 첫 승인 시 5만원 추가 보너스! 개인회생 상담 CPA 홍보하고 수익 시작하기 → [링크]'),
                 ),
             ),
             array(
                 'id' => 'sns',
                 'label' => 'SNS/숏폼',
                 'copies' => array(
-                    array('title' => '숏폼용 짧은 문구', 'text' => '💰 상담 1건마다 4만원! 개인회생 무료상담 이벤트 중 #부업 #CPA #링크커넥트'),
+                    array('title' => '숏폼용 짧은 문구', 'text' => '💰 상담 1건마다 4만원! 개인회생 무료상담 이벤트 중 #부업 #CPA #온오프CPA'),
                     array('title' => '인스타 스토리', 'text' => '이번 달만 단가 UP ⬆️ 장기렌트 견적 DB 25,000원 + 첫승인 5만 보너스 🎁 프로필 링크에서 신청!'),
                 ),
             ),
@@ -413,10 +413,10 @@ if (!function_exists('lc_sample_partner_links_detail')) {
     function lc_sample_partner_links_detail()
     {
         return array(
-            array('id' => 'l_001', 'campaign' => '개인회생 상담 DB', 'channel' => '네이버 블로그', 'sub_id' => 'blog_01', 'url' => 'https://linkconnect.co.kr/r/abc123', 'clicks' => 1248, 'received' => 32, 'approved' => 21, 'canceled' => 4, 'est_revenue' => 960000, 'conf_revenue' => 630000, 'status' => '운영중'),
-            array('id' => 'l_002', 'campaign' => '자동차 장기렌트 특가', 'channel' => '인스타그램', 'sub_id' => 'insta_bio', 'url' => 'https://linkconnect.co.kr/r/xyz789', 'clicks' => 850, 'received' => 12, 'approved' => 8, 'canceled' => 2, 'est_revenue' => 300000, 'conf_revenue' => 200000, 'status' => '운영중'),
-            array('id' => 'l_003', 'campaign' => '어린이 영어캠프 조기등록', 'channel' => '맘카페', 'sub_id' => 'cafe_event', 'url' => 'https://linkconnect.co.kr/r/qwe456', 'clicks' => 320, 'received' => 5, 'approved' => 2, 'canceled' => 0, 'est_revenue' => 175000, 'conf_revenue' => 70000, 'status' => '중지'),
-            array('id' => 'l_004', 'campaign' => '소상공인 대출 지원센터', 'channel' => '유튜브', 'sub_id' => 'yt_desc', 'url' => 'https://linkconnect.co.kr/r/rty234', 'clicks' => 2100, 'received' => 45, 'approved' => 30, 'canceled' => 8, 'est_revenue' => 1440000, 'conf_revenue' => 960000, 'status' => '만료'),
+            array('id' => 'l_001', 'campaign' => '개인회생 상담 DB', 'channel' => '네이버 블로그', 'sub_id' => 'blog_01', 'url' => 'https://onoffcpa.iwinv.net/r/abc123', 'clicks' => 1248, 'received' => 32, 'approved' => 21, 'canceled' => 4, 'est_revenue' => 960000, 'conf_revenue' => 630000, 'status' => '운영중'),
+            array('id' => 'l_002', 'campaign' => '자동차 장기렌트 특가', 'channel' => '인스타그램', 'sub_id' => 'insta_bio', 'url' => 'https://onoffcpa.iwinv.net/r/xyz789', 'clicks' => 850, 'received' => 12, 'approved' => 8, 'canceled' => 2, 'est_revenue' => 300000, 'conf_revenue' => 200000, 'status' => '운영중'),
+            array('id' => 'l_003', 'campaign' => '어린이 영어캠프 조기등록', 'channel' => '맘카페', 'sub_id' => 'cafe_event', 'url' => 'https://onoffcpa.iwinv.net/r/qwe456', 'clicks' => 320, 'received' => 5, 'approved' => 2, 'canceled' => 0, 'est_revenue' => 175000, 'conf_revenue' => 70000, 'status' => '중지'),
+            array('id' => 'l_004', 'campaign' => '소상공인 대출 지원센터', 'channel' => '유튜브', 'sub_id' => 'yt_desc', 'url' => 'https://onoffcpa.iwinv.net/r/rty234', 'clicks' => 2100, 'received' => 45, 'approved' => 30, 'canceled' => 8, 'est_revenue' => 1440000, 'conf_revenue' => 960000, 'status' => '만료'),
         );
     }
 }
@@ -527,7 +527,7 @@ if (!function_exists('lc_sample_merchant_dbs')) {
                 'id' => 'DB241007-001', 'date' => '10.07 14:22', 'campaign' => '개인회생 상담 DB', 'name' => '홍길동', 'phone' => '010-1234-5678',
                 'email' => 'hong@example.com', 'region' => '서울', 'inquiry' => '개인회생 상담 원합니다', 'partner' => 'PTN-8291', 'status' => '신규접수',
                 'price' => 50000, 'comment' => '', 'needs_action' => true, 'channel' => '네이버 블로그', 'sub_id' => 'event_01',
-                'landing' => 'https://linkconnect.co.kr/c/1234', 'referer' => 'https://blog.naver.com/...',
+                'landing' => 'https://onoffcpa.iwinv.net/c/1234', 'referer' => 'https://blog.naver.com/...',
                 'history' => array(
                     array('time' => '2026.10.07 14:22', 'text' => '신규 디비 접수'),
                     array('time' => '2026.10.07 14:23', 'text' => '광고주센터 전달'),
@@ -537,7 +537,7 @@ if (!function_exists('lc_sample_merchant_dbs')) {
                 'id' => 'DB241007-002', 'date' => '10.07 13:15', 'campaign' => '어린이 영어캠프', 'name' => '이소희', 'phone' => '010-8812-5644',
                 'email' => 'sohee@example.com', 'region' => '경기', 'inquiry' => '무료체험 신청', 'partner' => 'PTN-1022', 'status' => '승인완료',
                 'price' => 35000, 'comment' => '상담 예약 완료', 'needs_action' => false, 'channel' => '인스타그램', 'sub_id' => '',
-                'landing' => 'https://linkconnect.co.kr/c/9922', 'referer' => 'https://instagram.com/...',
+                'landing' => 'https://onoffcpa.iwinv.net/c/9922', 'referer' => 'https://instagram.com/...',
                 'history' => array(
                     array('time' => '2026.10.07 13:15', 'text' => '신규 디비 접수'),
                     array('time' => '2026.10.07 14:10', 'text' => '승인완료'),
@@ -547,7 +547,7 @@ if (!function_exists('lc_sample_merchant_dbs')) {
                 'id' => 'DB241007-003', 'date' => '10.07 11:40', 'campaign' => '개인회생 상담 DB', 'name' => '박재민', 'phone' => '010-2199-9922',
                 'email' => 'jm@example.com', 'region' => '부산', 'inquiry' => '채무상담', 'partner' => 'PTN-8291', 'status' => '확인중',
                 'price' => 50000, 'comment' => '', 'needs_action' => true, 'channel' => '카카오톡', 'sub_id' => 'kakao_01',
-                'landing' => 'https://linkconnect.co.kr/c/1234', 'referer' => 'https://kakao.com/...',
+                'landing' => 'https://onoffcpa.iwinv.net/c/1234', 'referer' => 'https://kakao.com/...',
                 'history' => array(
                     array('time' => '2026.10.07 11:40', 'text' => '신규 디비 접수'),
                     array('time' => '2026.10.07 12:00', 'text' => '확인중 처리'),
@@ -557,7 +557,7 @@ if (!function_exists('lc_sample_merchant_dbs')) {
                 'id' => 'DB241007-004', 'date' => '10.07 10:05', 'campaign' => '자동차 렌트 상담', 'name' => '최지훈', 'phone' => '010-5511-3377',
                 'email' => 'hoon@example.com', 'region' => '대구', 'inquiry' => 'G80 렌트', 'partner' => 'PTN-3011', 'status' => '취소/무효',
                 'price' => 0, 'comment' => '연락처 결번', 'needs_action' => false, 'channel' => '구글 검색', 'sub_id' => '',
-                'landing' => 'https://linkconnect.co.kr/c/5533', 'referer' => 'https://google.com/...',
+                'landing' => 'https://onoffcpa.iwinv.net/c/5533', 'referer' => 'https://google.com/...',
                 'history' => array(
                     array('time' => '2026.10.07 10:05', 'text' => '신규 디비 접수'),
                     array('time' => '2026.10.07 11:00', 'text' => '취소/무효 승인'),
@@ -567,7 +567,7 @@ if (!function_exists('lc_sample_merchant_dbs')) {
                 'id' => 'DB241006-005', 'date' => '10.06 18:30', 'campaign' => '소상공인 대출 상담', 'name' => '정민수', 'phone' => '010-7788-1122',
                 'email' => 'min@example.com', 'region' => '인천', 'inquiry' => '정부지원 대출', 'partner' => 'PTN-5044', 'status' => '취소요청',
                 'price' => 25000, 'comment' => '조건 불일치', 'needs_action' => true, 'channel' => '네이버 검색', 'sub_id' => '',
-                'landing' => 'https://linkconnect.co.kr/c/7744', 'referer' => 'https://search.naver.com/...',
+                'landing' => 'https://onoffcpa.iwinv.net/c/7744', 'referer' => 'https://search.naver.com/...',
                 'history' => array(
                     array('time' => '2026.10.06 18:30', 'text' => '신규 디비 접수'),
                     array('time' => '2026.10.07 09:30', 'text' => '취소요청'),

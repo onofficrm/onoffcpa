@@ -31,7 +31,7 @@ export function AdminRouteGuard() {
       <div className="max-w-lg w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
         <h1 className="text-2xl font-bold text-slate-900 mb-3">관리자 권한이 필요합니다</h1>
         <p className="text-slate-600 mb-4">
-          관리자센터는 슈퍼관리자 또는 링크커넥트 관리자(level 9 이상)만 이용할 수 있습니다.
+          관리자센터는 슈퍼관리자 또는 온오프CPA 관리자(level 9 이상)만 이용할 수 있습니다.
         </p>
         <div className="mt-6 flex gap-3">
           <Link to="/" className="text-sm text-slate-500 hover:text-cyan-600">홈으로</Link>
