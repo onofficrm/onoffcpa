@@ -1,0 +1,77 @@
+name: Upload dbconfig.php
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload-dbconfig:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build dbconfig.php from secrets
+        env:
+          G5_MYSQL_HOST: ${{ secrets.G5_MYSQL_HOST }}
+          G5_MYSQL_USER: ${{ secrets.G5_MYSQL_USER }}
+          G5_MYSQL_PASSWORD: ${{ secrets.G5_MYSQL_PASSWORD }}
+          G5_MYSQL_DB: ${{ secrets.G5_MYSQL_DB }}
+        run: |
+          missing=0
+          [ -z "$G5_MYSQL_HOST" ] && echo "::error::G5_MYSQL_HOST missing" && missing=1
+          [ -z "$G5_MYSQL_USER" ] && echo "::error::G5_MYSQL_USER missing" && missing=1
+          [ -z "$G5_MYSQL_PASSWORD" ] && echo "::error::G5_MYSQL_PASSWORD missing" && missing=1
+          [ -z "$G5_MYSQL_DB" ] && echo "::error::G5_MYSQL_DB missing" && missing=1
+          [ "$missing" -eq 1 ] && exit 1
+          mkdir -p data
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          def php_str(value: str) -> str:
+              return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+          host = php_str(os.environ["G5_MYSQL_HOST"])
+          user = php_str(os.environ["G5_MYSQL_USER"])
+          password = php_str(os.environ["G5_MYSQL_PASSWORD"])
+          db = php_str(os.environ["G5_MYSQL_DB"])
+          Path("data/dbconfig.php").write_text(
+              "<?php\n"
+              "if (!defined('_GNUBOARD_')) exit;\n"
+              "\n"
+              "if (!defined('G5_MYSQL_HOST')) {\n"
+              f"    define('G5_MYSQL_HOST', {host});\n"
+              "}\n"
+              "if (!defined('G5_MYSQL_USER')) {\n"
+              f"    define('G5_MYSQL_USER', {user});\n"
+              "}\n"
+              "if (!defined('G5_MYSQL_PASSWORD')) {\n"
+              f"    define('G5_MYSQL_PASSWORD', {password});\n"
+              "}\n"
+              "if (!defined('G5_MYSQL_DB')) {\n"
+              f"    define('G5_MYSQL_DB', {db});\n"
+              "}\n"
+              "if (!defined('G5_MYSQL_SET_MODE')) {\n"
+              "    define('G5_MYSQL_SET_MODE', true);\n"
+              "}\n",
+              encoding="utf-8",
+          )
+          print("Wrote data/dbconfig.php")
+          PY
+
+      - name: Upload via FTP
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+        run: |
+          missing=0
+          [ -z "$FTP_SERVER" ] && echo "::error::FTP_SERVER missing" && missing=1
+          [ -z "$FTP_USERNAME" ] && echo "::error::FTP_USERNAME missing" && missing=1
+          [ -z "$FTP_PASSWORD" ] && echo "::error::FTP_PASSWORD missing" && missing=1
+          [ -z "$FTP_PORT" ] && echo "::error::FTP_PORT missing" && missing=1
+          [ "$missing" -eq 1 ] && exit 1
+          curl --fail --show-error --silent \
+            --ftp-create-dirs \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T data/dbconfig.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/data/dbconfig.php"
+          echo "Uploaded /public_html/data/dbconfig.php"
