@@ -304,7 +304,7 @@ if (!function_exists('lc_inquiry_create_advertiser_apply')) {
             WHERE iq_id = '{$iq_id}' ", false);
 
         $inquiry = lc_inquiry_get_by_id($iq_id);
-        // 사업자등록증 첨부 완료 후 support2580_@onoffcpa.iwinv.net 로 알림
+        // 사업자등록증 첨부 완료 후 support2580_@onoffcpa.icrm.co.kr 로 알림
         $mail_sent = false;
         if (is_array($inquiry)) {
             $mail_sent = lc_inquiry_notify_admin_new($inquiry);
@@ -382,7 +382,7 @@ if (!function_exists('lc_inquiry_admin_recipient_email')) {
      */
     function lc_inquiry_admin_recipient_email()
     {
-        return 'support2580_@onoffcpa.iwinv.net';
+        return 'support2580_@onoffcpa.icrm.co.kr';
     }
 }
 
@@ -419,7 +419,7 @@ if (!function_exists('lc_inquiry_send_admin_email')) {
         if (!empty($config['cf_admin_email']) && filter_var((string) $config['cf_admin_email'], FILTER_VALIDATE_EMAIL)) {
             // 그누보드 관리자 메일이 같은 도메인이면 From으로 사용
             $cf = (string) $config['cf_admin_email'];
-            if (stripos($cf, '@onoffcpa.iwinv.net') !== false) {
+            if (stripos($cf, '@onoffcpa.icrm.co.kr') !== false) {
                 $from_email = $cf;
             }
         }

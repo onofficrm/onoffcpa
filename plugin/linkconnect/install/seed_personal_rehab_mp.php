@@ -56,7 +56,9 @@ if (!function_exists('lc_mp_seed_configure_peer_platform')) {
             $base = 'https://linkconnect.co.kr';
         } else {
             $peer = 'ONOFFCPA';
-            $base = 'https://onoffcpa.iwinv.net';
+            $base = function_exists('lc_mp_resolve_onoffcpa_base_url')
+                ? lc_mp_resolve_onoffcpa_base_url()
+                : (defined('LC_ONOFFCPA_PUBLIC_URL') ? LC_ONOFFCPA_PUBLIC_URL : 'https://onoffcpa.icrm.co.kr');
         }
 
         $peer_esc = lc_sql_escape($peer);

@@ -3,6 +3,8 @@ name: Setup MP cron token
 # 다중 플랫폼 outbox 크론용 토큰을 서버 DB(lc_settings.mpCronToken)에 심는다.
 # 스케줄러(mp-outbox-cron.yml)가 같은 시크릿을 사용하므로 값이 항상 일치한다.
 # 토큰을 교체하려면 MP_CRON_TOKEN 시크릿을 바꾼 뒤 이 워크플로를 다시 실행할 것.
+#
+# 공개 도메인: onoffcpa.icrm.co.kr (우선) / onoffcpa.iwinv.net (폴백)
 
 on:
   workflow_dispatch:
@@ -25,6 +27,22 @@ jobs:
             echo "MP_CRON_TOKEN secret is empty"; exit 1
           fi
 
+          # 도메인 별칭·SSL 준비 전에는 레거시로 폴백
+          BASE=""
+          for CAND in "https://onoffcpa.icrm.co.kr" "https://onoffcpa.iwinv.net"; do
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 \
+              "${CAND}/plugin/linkconnect/api/platform/health.php" || echo 000)
+            echo "probe ${CAND} -> ${CODE}"
+            if [ "$CODE" = "200" ]; then
+              BASE="$CAND"
+              break
+            fi
+          done
+          if [ -z "$BASE" ]; then
+            echo "No reachable OnOff CPA base URL"; exit 1
+          fi
+          echo "Using BASE=${BASE}"
+
           cat > set_mp_cron_token.php << 'EOF'
           <?php
           header('Content-Type: application/json; charset=utf-8');
@@ -44,7 +62,6 @@ jobs:
               'mpEnabled' => function_exists('lc_mp_enabled') ? lc_mp_enabled() : null,
           ), JSON_UNESCAPED_UNICODE);
           EOF
-          # 토큰은 시크릿에서 주입 — 워크플로 로그에는 마스킹되어 남는다.
           python3 - << 'PY'
           import os
           p = 'set_mp_cron_token.php'
@@ -58,10 +75,9 @@ jobs:
             "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/set_mp_cron_token.php"
 
           echo "=== SET TOKEN ==="
-          curl -sS "https://onoffcpa.iwinv.net/set_mp_cron_token.php" || true
+          curl -sS "${BASE}/set_mp_cron_token.php" || true
           echo
 
-          # 서버에서 즉시 제거 (토큰이 담긴 파일을 남기지 않는다)
           curl --silent --show-error \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -Q "DELE /public_html/set_mp_cron_token.php" \
@@ -70,8 +86,8 @@ jobs:
           echo "=== CRON ENDPOINT (with token) ==="
           curl -sS --max-time 60 \
             -H "X-LC-Cron-Token: ${MP_CRON_TOKEN}" \
-            "https://onoffcpa.iwinv.net/plugin/linkconnect/cron/platform_sync_outbox.php"
+            "${BASE}/plugin/linkconnect/cron/platform_sync_outbox.php"
           echo
           echo "=== CRON ENDPOINT (no token — must be 403) ==="
           curl -sS -o /dev/null -w '%{http_code}\n' \
-            "https://onoffcpa.iwinv.net/plugin/linkconnect/cron/platform_sync_outbox.php"
+            "${BASE}/plugin/linkconnect/cron/platform_sync_outbox.php"

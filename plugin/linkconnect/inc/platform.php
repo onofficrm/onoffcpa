@@ -25,6 +25,67 @@ if (!function_exists('lc_mp_local_platform_code')) {
     }
 }
 
+if (!function_exists('lc_mp_onoffcpa_url_candidates')) {
+    /**
+     * 온오프CPA 공개 URL 후보 (신규 도메인 우선, 레거시 폴백).
+     *
+     * @return array<int,string>
+     */
+    function lc_mp_onoffcpa_url_candidates()
+    {
+        $urls = array();
+        if (defined('LC_ONOFFCPA_PUBLIC_URL') && LC_ONOFFCPA_PUBLIC_URL !== '') {
+            $urls[] = rtrim((string) LC_ONOFFCPA_PUBLIC_URL, '/');
+        }
+        if (defined('LC_ONOFFCPA_LEGACY_URL') && LC_ONOFFCPA_LEGACY_URL !== '') {
+            $urls[] = rtrim((string) LC_ONOFFCPA_LEGACY_URL, '/');
+        }
+        $urls[] = 'https://onoffcpa.icrm.co.kr';
+        $urls[] = 'https://onoffcpa.iwinv.net';
+
+        return array_values(array_unique(array_filter($urls)));
+    }
+}
+
+if (!function_exists('lc_mp_resolve_onoffcpa_base_url')) {
+    /**
+     * 헬스 체크에 응답하는 온오프CPA base URL을 고른다.
+     * SSL/별칭 미준비 시 레거시(iwinv)로 폴백해 동기화가 끊기지 않게 한다.
+     *
+     * @return string
+     */
+    function lc_mp_resolve_onoffcpa_base_url($timeout = 5)
+    {
+        $candidates = lc_mp_onoffcpa_url_candidates();
+        foreach ($candidates as $base) {
+            $url = $base . '/plugin/linkconnect/api/platform/health.php';
+            if (!function_exists('curl_init')) {
+                break;
+            }
+            $ch = curl_init($url);
+            if ($ch === false) {
+                continue;
+            }
+            curl_setopt_array($ch, array(
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => max(2, (int) $timeout),
+                CURLOPT_CONNECTTIMEOUT => 3,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+            ));
+            $body = curl_exec($ch);
+            $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($http >= 200 && $http < 300 && is_string($body) && strpos($body, '"ok"') !== false) {
+                return $base;
+            }
+        }
+
+        return $candidates[0];
+    }
+}
+
 if (!function_exists('lc_mp_require_enabled')) {
     /**
      * API 진입점용. 비활성 시 JSON 404 후 종료.

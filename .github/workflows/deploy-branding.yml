@@ -172,17 +172,26 @@ jobs:
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -T seed_mp_run.php \
             "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/seed_mp_run.php"
+          BASE=""
+          for CAND in "https://onoffcpa.icrm.co.kr" "https://onoffcpa.iwinv.net"; do
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 \
+              "${CAND}/plugin/linkconnect/api/platform/health.php" || echo 000)
+            echo "probe ${CAND} -> ${CODE}"
+            if [ "$CODE" = "200" ]; then BASE="$CAND"; break; fi
+          done
+          if [ -z "$BASE" ]; then BASE="https://onoffcpa.iwinv.net"; fi
+          echo "Using BASE=${BASE}"
           echo "=== RENAME ==="
-          curl -sS "https://onoffcpa.iwinv.net/rename_site.php" || true
+          curl -sS "${BASE}/rename_site.php" || true
           echo
           echo "=== APPLY PERSONAL REHAB ==="
-          curl -sS "https://onoffcpa.iwinv.net/apply_rehab.php" || true
+          curl -sS "${BASE}/apply_rehab.php" || true
           echo
           echo "=== SEED MP ADVERTISERS ==="
-          curl -sS "https://onoffcpa.iwinv.net/seed_mp_run.php" || true
+          curl -sS "${BASE}/seed_mp_run.php" || true
           echo
           echo "=== HEALTH ==="
-          curl -sS "https://onoffcpa.iwinv.net/plugin/linkconnect/api/platform/health.php" || true
+          curl -sS "${BASE}/plugin/linkconnect/api/platform/health.php" || true
           echo
           curl --silent --show-error \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
@@ -197,5 +206,5 @@ jobs:
             -Q "DELE /public_html/seed_mp_run.php" \
             "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
           echo "=== CAMPAIGNS ==="
-          curl -sS "https://onoffcpa.iwinv.net/plugin/linkconnect/api/campaigns.php?type=cpa" | head -c 1200
+          curl -sS "${BASE}/plugin/linkconnect/api/campaigns.php?type=cpa" | head -c 1200
           echo

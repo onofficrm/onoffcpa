@@ -142,6 +142,17 @@ if (!defined('LC_PLATFORM_CODE')) {
 if (!defined('LC_PLATFORM_LINKCONNECT')) {
     define('LC_PLATFORM_LINKCONNECT', 'LINKCONNECT');
 }
+/**
+ * 온오프CPA 공개 URL (다중 플랫폼 peer / 크론 / 시드용).
+ * 우선: onoffcpa.icrm.co.kr  (신규 정식 도메인)
+ * 폴백: onoffcpa.iwinv.net (호스팅 별칭·SSL 준비 전)
+ */
+if (!defined('LC_ONOFFCPA_PUBLIC_URL')) {
+    define('LC_ONOFFCPA_PUBLIC_URL', 'https://onoffcpa.icrm.co.kr');
+}
+if (!defined('LC_ONOFFCPA_LEGACY_URL')) {
+    define('LC_ONOFFCPA_LEGACY_URL', 'https://onoffcpa.iwinv.net');
+}
 
 /* ── 링크프라이스 CPS (외부 네트워크, CPA와 분리) ── */
 /**

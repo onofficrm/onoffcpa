@@ -38,7 +38,9 @@ if (!function_exists('lc_link_main_site_hosts')) {
                 $hosts[] = strtolower((string) $parts['host']);
             }
         }
-        // 운영 메인 도메인 별칭
+        // 운영 메인 도메인 별칭 (신규 → 레거시)
+        $hosts[] = 'onoffcpa.icrm.co.kr';
+        $hosts[] = 'www.onoffcpa.icrm.co.kr';
         $hosts[] = 'onoffcpa.iwinv.net';
         $hosts[] = 'www.onoffcpa.iwinv.net';
 

@@ -50,7 +50,13 @@ jobs:
             "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/_db_probe.php"
 
           echo "=== HTTP PROBE ==="
-          curl -sS "https://onoffcpa.iwinv.net/_db_probe.php" || true
+          BASE=""
+          for CAND in "https://onoffcpa.icrm.co.kr" "https://onoffcpa.iwinv.net"; do
+            CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 "${CAND}/" || echo 000)
+            if [ "$CODE" = "200" ]; then BASE="$CAND"; break; fi
+          done
+          [ -z "$BASE" ] && BASE="https://onoffcpa.iwinv.net"
+          curl -sS "${BASE}/_db_probe.php" || true
           echo
 
           curl --silent --show-error \
