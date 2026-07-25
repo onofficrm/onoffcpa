@@ -9,23 +9,58 @@ import { AiGuideChat } from '../components/AiGuideChat';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { ImpersonateHistoryBar } from '../components/ImpersonateHistoryBar';
 
-const sidebarMenus = [
-  { id: 'dashboard', label: '통합 대시보드', icon: <LayoutDashboard size={20} />, path: '/admin' },
-  { id: 'partners', label: '파트너 관리', icon: <Users size={20} />, path: '/admin/partners' },
-  { id: 'review', label: '자동 심사 큐', icon: <ClipboardList size={20} />, path: '/admin/review-queue' },
-  { id: 'advertisers', label: '광고주 관리', icon: <Building2 size={20} />, path: '/admin/advertisers' },
-  { id: 'campaigns', label: '광고상품 관리', icon: <Briefcase size={20} />, path: '/admin/campaigns' },
-  { id: 'db', label: '전체 디비 관리', icon: <Database size={20} />, path: '/admin/conversions' },
-  { id: 'call', label: '콜디비 관리', icon: <PhoneCall size={20} />, path: '/admin/call' },
-  { id: 'inspections', label: '취소/무효 검수', icon: <ShieldAlert size={20} />, path: '/admin/inspections' },
-  { id: 'channel_reports', label: '금지 채널 신고', icon: <AlertTriangle size={20} />, path: '/admin/channel-reports' },
-  { id: 'billing', label: '광고비 관리', icon: <CreditCard size={20} />, path: '/admin/billing' },
-  { id: 'settlements', label: '정산 관리', icon: <Receipt size={20} />, path: '/admin/settlements' },
-  { id: 'api', label: 'API 관리', icon: <Code size={20} />, path: '/admin/api' },
-  { id: 'events', label: '이벤트/프로모션', icon: <Gift size={20} />, path: '/admin/events' },
-  { id: 'logs', label: '작업 로그', icon: <ScrollText size={20} />, path: '/admin/logs' },
-  { id: 'support', label: '문의 관리', icon: <MessageSquare size={20} />, path: '/admin/support' },
-  { id: 'settings', label: '환경설정', icon: <Settings size={20} />, path: '/admin/settings' },
+const sidebarGroups = [
+  {
+    label: null,
+    items: [
+      { id: 'dashboard', label: '통합 대시보드', icon: <LayoutDashboard size={20} />, path: '/admin' },
+    ],
+  },
+  {
+    label: '회원 · 입점',
+    items: [
+      { id: 'partners', label: '파트너 관리', icon: <Users size={20} />, path: '/admin/partners' },
+      { id: 'advertisers', label: '광고주 관리', icon: <Building2 size={20} />, path: '/admin/advertisers' },
+      { id: 'campaigns', label: '광고상품 관리', icon: <Briefcase size={20} />, path: '/admin/campaigns' },
+    ],
+  },
+  {
+    label: 'DB 운영',
+    items: [
+      { id: 'db', label: '전체 디비 관리', icon: <Database size={20} />, path: '/admin/conversions' },
+      { id: 'call', label: '콜디비 관리', icon: <PhoneCall size={20} />, path: '/admin/call' },
+      { id: 'review', label: '자동 심사 큐', icon: <ClipboardList size={20} />, path: '/admin/review-queue' },
+      { id: 'inspections', label: '취소/무효 검수', icon: <ShieldAlert size={20} />, path: '/admin/inspections' },
+      { id: 'channel_reports', label: '금지 채널 신고', icon: <AlertTriangle size={20} />, path: '/admin/channel-reports' },
+    ],
+  },
+  {
+    label: '정산 · 과금',
+    items: [
+      { id: 'billing', label: '광고비 관리', icon: <CreditCard size={20} />, path: '/admin/billing' },
+      { id: 'settlements', label: '정산 관리', icon: <Receipt size={20} />, path: '/admin/settlements' },
+    ],
+  },
+  {
+    label: '마케팅',
+    items: [
+      { id: 'events', label: '이벤트/프로모션', icon: <Gift size={20} />, path: '/admin/events' },
+    ],
+  },
+  {
+    label: '고객지원',
+    items: [
+      { id: 'support', label: '문의 관리', icon: <MessageSquare size={20} />, path: '/admin/support' },
+    ],
+  },
+  {
+    label: '시스템',
+    items: [
+      { id: 'api', label: 'API 관리', icon: <Code size={20} />, path: '/admin/api' },
+      { id: 'logs', label: '작업 로그', icon: <ScrollText size={20} />, path: '/admin/logs' },
+      { id: 'settings', label: '환경설정', icon: <Settings size={20} />, path: '/admin/settings' },
+    ],
+  },
 ];
 
 export function AdminLayout({ children, activeMenu, title, description }: { children: React.ReactNode, activeMenu: string, title: string, description?: string }) {
@@ -112,20 +147,30 @@ export function AdminLayout({ children, activeMenu, title, description }: { chil
           flex flex-col
           ${isSidebarOpen ? 'translate-x-0 pt-16' : '-translate-x-full'}
         `}>
-          <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1 hide-scrollbar">
-            {sidebarMenus.map((menu) => (
-              <Link
-                key={menu.id}
-                to={menu.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  activeMenu === menu.id 
-                    ? 'bg-cyan-500/10 text-cyan-400 font-bold border border-cyan-500/20' 
-                    : 'text-slate-400 hover:text-white hover:bg-slate-900 font-medium'
-                }`}
-              >
-                {menu.icon}
-                <span>{menu.label}</span>
-              </Link>
+          <div className="flex-1 overflow-y-auto py-6 px-4 space-y-5 hide-scrollbar">
+            {sidebarGroups.map((group, groupIndex) => (
+              <div key={group.label ?? `group-${groupIndex}`} className="space-y-1">
+                {group.label && (
+                  <div className="px-4 pt-1 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    {group.label}
+                  </div>
+                )}
+                {group.items.map((menu) => (
+                  <Link
+                    key={menu.id}
+                    to={menu.path}
+                    onClick={() => setIsSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                      activeMenu === menu.id 
+                        ? 'bg-cyan-500/10 text-cyan-400 font-bold border border-cyan-500/20' 
+                        : 'text-slate-400 hover:text-white hover:bg-slate-900 font-medium'
+                    }`}
+                  >
+                    {menu.icon}
+                    <span>{menu.label}</span>
+                  </Link>
+                ))}
+              </div>
             ))}
           </div>
           
