@@ -206,9 +206,9 @@ export function AffiliateWebtoon() {
           </span>
         </h2>
         <p className="text-slate-500 text-sm md:text-base leading-relaxed">
-          CPA·CPS가 뭔지, 광고주와 파트너에게 왜 좋은지
+          CPA가 뭔지, 광고주와 파트너에게 왜 좋은지
           <br className="hidden sm:block" />
-          웹툰 6화로 쉽게 알아보세요.
+          웹툰 4화로 쉽게 알아보세요.
         </p>
 
         <div className="flex flex-wrap justify-center gap-2 mt-6">
@@ -241,7 +241,7 @@ export function AffiliateWebtoon() {
           </div>
           <p className="relative text-2xl font-black mb-2">END</p>
           <p className="relative text-sm md:text-base font-medium opacity-95 leading-relaxed">
-            이제 제휴 마케팅, CPA, CPS가 뭔지 알겠죠?
+            이제 제휴 마케팅과 CPA가 뭔지 알겠죠?
             <br />
             링크 하나로 시작해 보세요!
           </p>

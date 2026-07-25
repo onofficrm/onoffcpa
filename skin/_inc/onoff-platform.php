@@ -192,7 +192,7 @@ if (!function_exists('onoff_platform_member_center_meta')) {
 
         return array(
             'eyebrow' => 'MEMBER',
-            'hint'    => 'CPA/CPS 제휴마케팅 플랫폼',
+            'hint'    => 'CPA 제휴마케팅 플랫폼',
         );
     }
 }

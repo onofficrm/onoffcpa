@@ -1,4 +1,4 @@
-import { ArrowUpRight, MousePointerClick, Link2, PenLine, Wallet, ShoppingCart, MessageSquare, Users, Building2 } from 'lucide-react';
+import { ArrowUpRight, MousePointerClick, Link2, PenLine, Wallet, ClipboardCheck, MessageSquare, Users, Building2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { g5RegisterUrl } from '../lib/urls';
 import { AffiliateWebtoon } from '../components/AffiliateWebtoon';
@@ -32,20 +32,20 @@ const steps = [
 
 const revenueTypes = [
   {
-    type: '판매형 (CPS)',
-    concept: 'Cost Per Sale',
-    criteria: "내 링크를 통해 들어온 사람이 '물건을 결제'했을 때",
-    examples: '쇼핑몰 제품 판매, 온라인 강의 결제',
-    icon: <ShoppingCart className="w-5 h-5 text-cyan-500" />,
-    accent: 'border-cyan-200 bg-cyan-50/50',
-  },
-  {
-    type: '행동형 (CPA)',
+    type: '상담·문의형 (CPA)',
     concept: 'Cost Per Action',
     criteria: "내 링크를 통해 들어온 사람이 '문의/상담 신청'을 했을 때",
-    examples: '신규 앱 설치, 서비스 문의, 보험 및 금융 상담',
+    examples: '보험 및 금융 상담, 법률 상담, 병원 예약 문의',
     icon: <MessageSquare className="w-5 h-5 text-emerald-500" />,
     accent: 'border-emerald-200 bg-emerald-50/50',
+  },
+  {
+    type: '가입·신청형 (CPA)',
+    concept: 'Cost Per Action',
+    criteria: "내 링크를 통해 들어온 사람이 '회원가입·견적 신청'을 완료했을 때",
+    examples: '신규 앱 설치, 회원가입, 렌탈·교육 견적 신청',
+    icon: <ClipboardCheck className="w-5 h-5 text-cyan-500" />,
+    accent: 'border-cyan-200 bg-cyan-50/50',
   },
 ];
 
@@ -125,15 +125,15 @@ export function Affiliate() {
         </div>
       </section>
 
-      {/* CPS vs CPA */}
+      {/* CPA 수익 방식 */}
       <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-              초보자도 쉽게 이해하는 <span className="text-cyan-500">두 가지 수익 방식</span>
+              초보자도 쉽게 이해하는 <span className="text-cyan-500">CPA 수익 방식</span>
             </h2>
             <p className="text-slate-500">
-              CPS와 CPA는 캠페인 목적에 따라 수익 발생 기준이 다릅니다.
+              온오프CPA는 상담·신청 등 고객 행동(Action)이 발생할 때 수수료가 지급되는 CPA 캠페인만 취급합니다.
             </p>
           </div>
 
@@ -162,9 +162,6 @@ export function Affiliate() {
           </div>
 
           <div className="flex flex-wrap justify-center gap-4">
-            <Link to="/cps" className="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-white font-bold rounded-xl text-sm transition-colors">
-              CPS 캠페인 보기
-            </Link>
             <Link to="/cpa-list" className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-sm transition-colors">
               CPA 캠페인 보기
             </Link>

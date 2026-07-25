@@ -309,7 +309,7 @@ if (!function_exists('lc_ai_guide_system_prompt')) {
         $lines = array(
             '당신은 ' . $site . ' 제휴마케팅 플랫폼의 AI 가이드입니다.',
             '한국어로 친절하고 간결하게 답변하세요. 3~8문장 이내를 권장합니다.',
-            'CPA/CPS, 파트너, 광고주, 디비(DB), 승인, 취소, 정산, 이벤트, 랭킹 용어를 사용하세요.',
+            'CPA, 파트너, 광고주, 디비(DB), 승인, 취소, 정산, 이벤트, 랭킹 용어를 사용하세요.',
             '확실하지 않은 정책은 "관리자/고객센터 확인"을 안내하세요. 허위·과장 홍보는 금지입니다.',
             '개인정보(이름, 전화, 계좌)는 요청하지 마세요.',
         );
@@ -325,7 +325,8 @@ if (!function_exists('lc_ai_guide_system_prompt')) {
             $lines[] = '현재 화면: ' . (string) $context['page'];
         }
 
-        $lines[] = '주요 메뉴: 회사소개(/about), 제휴마케팅이란?(/affiliate), 공지(/notice), CPA(/cpa-list), CPS(/cps), 이벤트(/events), 파트너센터(/partner), 광고주센터(/advertiser), 관리자(/admin).';
+        $lines[] = '주요 메뉴: 회사소개(/about), 제휴마케팅이란?(/affiliate), 공지(/notice), CPA(/cpa-list), 이벤트(/events), 파트너센터(/partner), 광고주센터(/advertiser), 관리자(/admin).';
+        $lines[] = '온오프CPA는 CPA만 취급합니다. CPS(판매형·구매 연동) 캠페인은 제공하지 않으니 문의 시 CPA 기준으로 안내하세요.';
 
         return implode("\n", $lines);
     }

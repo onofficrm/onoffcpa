@@ -10,7 +10,6 @@ import { About } from './pages/About';
 import { Affiliate } from './pages/Affiliate';
 import { Events } from './pages/Events';
 import { EventDetail } from './pages/EventDetail';
-import { CpsList } from './pages/cps/CpsList';
 import { CenterSelect } from './pages/CenterSelect';
 import { CpaList } from './pages/cpa/CpaList';
 import { PartnerDashboard } from './pages/partner/Dashboard';
@@ -66,7 +65,6 @@ export default function App() {
           <Route path="affiliate" element={<Affiliate />} />
           <Route path="select-center" element={<CenterSelect />} />
           <Route path="cpa-list" element={<CpaList />} />
-          <Route path="cps" element={<CpsList />} />
           <Route path="events" element={<Events />} />
           <Route path="events/detail" element={<EventDetail />} />
           <Route path="notice" element={<NoticeList />} />

@@ -4,7 +4,7 @@ export type CharacterMood = 'neutral' | 'worried' | 'happy' | 'excited' | 'think
 
 export type BubbleAlign = 'left' | 'right' | 'center';
 
-export type SceneProp = 'shop' | 'blog' | 'compare' | 'money' | 'sparkle';
+export type SceneProp = 'shop' | 'blog' | 'money' | 'sparkle';
 
 export interface PanelCharacter {
   id: CharacterId;
@@ -114,7 +114,7 @@ export const episodes: WebtoonEpisode[] = [
           align: 'center',
           speaker: '온오프CPA',
           speakerColor: 'text-indigo-700',
-          text: '파트너가 고객을 소개하고, 실제 성과(구매·상담)가 생기면 광고주가 보상해요!',
+          text: '파트너가 고객을 소개하고, 실제 성과(상담·신청)가 생기면 광고주가 보상해요!',
         },
         caption: '소개 → 성과 → 보상. 이게 제휴 마케팅의 핵심!',
       },
@@ -169,84 +169,6 @@ export const episodes: WebtoonEpisode[] = [
   },
   {
     num: 3,
-    title: 'CPS는 뭐예요?',
-    subtitle: '구매하면 수수료!',
-    panels: [
-      {
-        scene: 'from-cyan-50 to-sky-100',
-        sceneAccent: 'bg-cyan-200/40',
-        sceneProp: 'blog',
-        characters: [{ id: 'partner', x: 32, y: 68, mood: 'happy' }],
-        bubble: {
-          align: 'left',
-          speaker: '홍보왕 민지',
-          speakerColor: 'text-emerald-700',
-          text: '이번엔 쇼핑몰 상품 리뷰 + 구매 링크를 올려볼게!',
-        },
-      },
-      {
-        scene: 'from-violet-50 to-purple-100',
-        sceneAccent: 'bg-violet-200/30',
-        characters: [{ id: 'customer', x: 58, y: 66, mood: 'excited' }],
-        bubble: {
-          align: 'right',
-          speaker: '손님',
-          speakerColor: 'text-sky-700',
-          text: '좋아 보이네! 링크 타고 50,000원짜리 구매할게요',
-        },
-      },
-      {
-        scene: 'from-cyan-100 to-indigo-100',
-        sceneAccent: 'bg-cyan-300/30',
-        sceneProp: 'money',
-        characters: [{ id: 'partner', x: 50, y: 66, scale: 1.15, mood: 'excited' }],
-        bubble: {
-          align: 'center',
-          speaker: '온오프CPA',
-          speakerColor: 'text-indigo-700',
-          text: '50,000원 × 수수료 10% = 5,000원! CPS는 "구매"가 완료되면 수익이 발생해요.',
-          highlight: 'CPS = Cost Per Sale (판매형)',
-        },
-      },
-    ],
-  },
-  {
-    num: 4,
-    title: 'CPA vs CPS',
-    subtitle: '한눈에 비교하기',
-    panels: [
-      {
-        scene: 'from-slate-50 to-slate-100',
-        sceneAccent: 'bg-slate-200/30',
-        characters: [{ id: 'guide', x: 50, y: 70, scale: 1.1, mood: 'neutral' }],
-        bubble: {
-          align: 'center',
-          speaker: '온오프CPA',
-          speakerColor: 'text-indigo-700',
-          text: '같은 제휴 마케팅이지만, 수익이 발생하는 순간이 달라요!',
-        },
-      },
-      {
-        scene: 'from-emerald-50 via-white to-cyan-50',
-        sceneAccent: 'bg-gradient-to-r from-emerald-200/20 to-cyan-200/20',
-        sceneProp: 'compare',
-        characters: [
-          { id: 'partner', x: 25, y: 72, mood: 'happy' },
-          { id: 'customer', x: 75, y: 72, mood: 'neutral' },
-        ],
-        bubble: {
-          align: 'center',
-          speaker: '비교',
-          speakerColor: 'text-slate-700',
-          text: 'CPA → 상담·가입·문의·예약  |  CPS → 쇼핑몰 구매·결제 완료',
-          highlight: '행동 vs 구매',
-        },
-        caption: 'CPA: 신청만 해도 OK  ·  CPS: 구매가 되어야 OK',
-      },
-    ],
-  },
-  {
-    num: 5,
     title: '광고주는 왜 좋아요?',
     subtitle: '성과 없으면 비용도 없어요',
     panels: [
@@ -281,7 +203,7 @@ export const episodes: WebtoonEpisode[] = [
     ],
   },
   {
-    num: 6,
+    num: 4,
     title: '파트너는 왜 좋아요?',
     subtitle: '링크 하나로 수익화',
     panels: [

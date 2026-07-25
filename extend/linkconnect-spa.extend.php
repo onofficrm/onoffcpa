@@ -27,7 +27,8 @@ if (!function_exists('linkconnect_spa_rewrite_enabled')) {
 if (!function_exists('linkconnect_spa_route_pattern')) {
     function linkconnect_spa_route_pattern()
     {
-        return '^(about|affiliate|select-center|cpa-list|cpa|cps|events|notice|community|inquiry|advertiser-apply|terms|privacy|partner|advertiser|admin)(/.*)?$';
+        // cps 제외 — CPS 미취급, /cps 는 cps/index.php 가 CPA 목록으로 리다이렉트
+        return '^(about|affiliate|select-center|cpa-list|cpa|events|notice|community|inquiry|advertiser-apply|terms|privacy|partner|advertiser|admin)(/.*)?$';
     }
 }
 

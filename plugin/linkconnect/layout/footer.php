@@ -39,7 +39,9 @@ if (!isset($lc_show_footer) || !$lc_show_footer) {
         <h4 class="lc-footer__title">캠페인 · 서비스</h4>
         <ul class="lc-footer__links">
           <li><a href="<?php echo lc_h(function_exists('lc_spa_url') && lc_builder_spa_enabled() ? lc_spa_url('/cpa-list') : lc_url('pages/cpa.php')); ?>">CPA 상품</a></li>
+<?php if (function_exists('lc_cps_enabled') && lc_cps_enabled()) { ?>
           <li><a href="<?php echo lc_h(function_exists('lc_spa_url') && lc_builder_spa_enabled() ? lc_spa_url('/cps') : lc_url('pages/cps.php')); ?>">CPS 상품</a></li>
+<?php } ?>
           <li><a href="<?php echo lc_h(function_exists('lc_spa_url') && lc_builder_spa_enabled() ? lc_spa_url('/events') : lc_url('pages/events.php')); ?>">이벤트/프로모션</a></li>
           <li><a href="<?php echo lc_h(function_exists('lc_spa_url') && lc_builder_spa_enabled() ? lc_spa_url('/partner') : lc_url('partner/dashboard.php')); ?>">파트너센터</a></li>
           <li><a href="<?php echo lc_h(function_exists('lc_spa_url') && lc_builder_spa_enabled() ? lc_spa_url('/advertiser') : lc_url('merchant/dashboard.php')); ?>">광고주센터</a></li>

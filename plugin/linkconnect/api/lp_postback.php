@@ -12,6 +12,14 @@
  */
 require_once dirname(__DIR__) . '/_common.php';
 
+// CPS 미취급(LC_CPS_ENABLED=false) — 외부 포스트백 수신 차단
+if (!function_exists('lc_cps_enabled') || !lc_cps_enabled()) {
+    header('Content-Type: application/json; charset=utf-8');
+    http_response_code(404);
+    echo json_encode(array('result' => 'error', 'message' => 'cps disabled'), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 @set_time_limit(8); // 공식 10초 미만으로 응답 목표
 
 $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHOD']) : 'GET';

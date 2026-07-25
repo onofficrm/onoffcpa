@@ -1,4 +1,4 @@
-import { CPAItem, CPSItem } from './types';
+import { CPAItem } from './types';
 
 export const cpaItems: CPAItem[] = [
   {
@@ -91,92 +91,6 @@ export const cpaItems: CPAItem[] = [
   }
 ];
 
-export const cpsItems: CPSItem[] = [
-  {
-    id: '1',
-    category: '건강식품',
-    brand: '건강식품 쇼핑몰 CPS',
-    description: '프리미엄 비타민/영양제 전문 쇼핑몰',
-    condition: '구매 확정 시',
-    rewardRate: '12%',
-    cookieDays: 7,
-    badge: '인기',
-    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400&h=200'
-  },
-  {
-    id: '2',
-    category: '뷰티',
-    brand: '뷰티 스킨케어 CPS',
-    description: '기능성 화장품 및 안티에이징 케어',
-    condition: '구매 확정 시',
-    rewardRate: '15%',
-    cookieDays: 14,
-    badge: '수익률 상향',
-    imageUrl: 'https://images.unsplash.com/photo-1596462502278-27bf85033e5a?auto=format&fit=crop&q=80&w=400&h=200'
-  },
-  {
-    id: '3',
-    category: '생활용품',
-    brand: '생활용품 쇼핑몰 CPS',
-    description: '친환경 세제 및 주방용품',
-    condition: '구매 확정 시',
-    rewardRate: '8%',
-    cookieDays: 7,
-    imageUrl: 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&q=80&w=400&h=200'
-  },
-  {
-    id: '4',
-    category: '교육상품',
-    brand: '온라인 강의 CPS',
-    description: '직무 교육 및 자격증 취득 패스',
-    condition: '결제 완료 시',
-    rewardRate: '20%',
-    cookieDays: 30,
-    badge: '고수익률',
-    imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=400&h=200'
-  },
-  {
-    id: '5',
-    category: 'SaaS',
-    brand: '디지털 서비스 CPS',
-    description: '기업용 업무 협업툴 연간 구독',
-    condition: '결제 완료 시',
-    rewardRate: '25%',
-    cookieDays: 30,
-    imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=400&h=200'
-  },
-  {
-    id: '6',
-    category: '패션',
-    brand: '패션 쇼핑몰 CPS',
-    description: '트렌디한 남녀 데일리룩 의류',
-    condition: '구매 확정 시',
-    rewardRate: '10%',
-    cookieDays: 7,
-    imageUrl: 'https://images.unsplash.com/photo-1445205170230-053b83016050?auto=format&fit=crop&q=80&w=400&h=200'
-  },
-  {
-    id: '7',
-    category: '반려동물',
-    brand: '반려동물 용품 CPS',
-    description: '프리미엄 사료 및 펫 헬스케어',
-    condition: '구매 확정 시',
-    rewardRate: '9%',
-    cookieDays: 14,
-    imageUrl: 'https://images.unsplash.com/photo-1415369629372-26f2fe60c467?auto=format&fit=crop&q=80&w=400&h=200'
-  },
-  {
-    id: '8',
-    category: '여행',
-    brand: '여행 예약 CPS',
-    description: '국내/해외 호텔 및 항공권 예약',
-    condition: '결제 완료 시',
-    rewardRate: '6%',
-    cookieDays: 15,
-    imageUrl: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&q=80&w=400&h=200'
-  }
-];
-
 export const categories = [
   '법률', '병원', '보험', '교육', '렌탈', 
   '부동산', '쇼핑몰', '건강식품', '뷰티', '생활서비스'
@@ -185,6 +99,5 @@ export const categories = [
 export const events = [
   { id: 1, title: '신규 파트너 첫 전환 보너스 이벤트', date: '2024.11.01 ~ 2024.11.30' },
   { id: 2, title: '이달의 고수익 CPA 상품 특별 기획전', date: '2024.11.15 ~ 2024.11.30' },
-  { id: 3, title: 'CPS 특별 수익률 최대 30% 프로모션', date: '2024.11.01 ~ 상시' },
-  { id: 4, title: '광고주 첫 충전 10% 추가 지급 프로모션', date: '2024.11.01 ~ 2024.12.31' },
+  { id: 3, title: '광고주 첫 충전 10% 추가 지급 프로모션', date: '2024.11.01 ~ 2024.12.31' },
 ];

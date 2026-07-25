@@ -41,6 +41,18 @@ if (!$is_cli) {
     require_once dirname(__DIR__) . '/_common.php';
 }
 
+// CPS 미취급(LC_CPS_ENABLED=false) — 동기화 중단
+if (!function_exists('lc_cps_enabled') || !lc_cps_enabled()) {
+    if ($is_cli) {
+        fwrite(STDERR, "CPS disabled (LC_CPS_ENABLED=false)\n");
+        exit(0);
+    }
+    header('Content-Type: application/json; charset=utf-8');
+    http_response_code(404);
+    echo json_encode(array('ok' => false, 'message' => 'cps disabled'), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 @set_time_limit(300);
 @ini_set('memory_limit', '256M');
 

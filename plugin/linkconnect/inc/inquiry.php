@@ -100,7 +100,7 @@ if (!function_exists('lc_inquiry_format_advertiser_apply_body')) {
             '이메일: ' . trim((string) ($fields['contactEmail'] ?? '')),
             '홈페이지 또는 랜딩페이지: ' . trim((string) ($fields['homepage'] ?? '')),
             '광고 업종: ' . trim((string) ($fields['industry'] ?? '')),
-            '희망 광고 방식 (CPA / CPS): ' . trim((string) ($fields['adMethod'] ?? '')),
+            '희망 광고 방식: ' . trim((string) ($fields['adMethod'] ?? '')),
             '',
             '간단한 소개 및 문의 내용:',
             trim((string) ($fields['message'] ?? '')),
@@ -238,8 +238,16 @@ if (!function_exists('lc_inquiry_create_advertiser_apply')) {
         if ($homepage === '' || $industry === '' || $ad_method === '' || $message === '') {
             return array('ok' => false, 'message' => '홈페이지, 광고 업종, 희망 광고 방식, 소개/문의 내용은 필수입니다.', 'inquiry' => null);
         }
-        if (!in_array($ad_method, array('CPA', 'CPS', 'CPA/CPS'), true)) {
-            return array('ok' => false, 'message' => '희망 광고 방식을 선택해주세요. (CPA / CPS)', 'inquiry' => null);
+        $ad_methods_allowed = array('CPA', 'CPS', 'CPA/CPS');
+        if (!function_exists('lc_cps_enabled') || !lc_cps_enabled()) {
+            // CPS 미취급 — 구버전 폼에서 넘어온 값도 CPA로 정규화
+            $ad_methods_allowed = array('CPA');
+            if ($ad_method === 'CPS' || $ad_method === 'CPA/CPS') {
+                $ad_method = 'CPA';
+            }
+        }
+        if (!in_array($ad_method, $ad_methods_allowed, true)) {
+            return array('ok' => false, 'message' => '희망 광고 방식을 선택해주세요.', 'inquiry' => null);
         }
         if (!is_array($file) || empty($file['tmp_name'])) {
             $upload_err = is_array($file) ? (int) ($file['error'] ?? 0) : -1;

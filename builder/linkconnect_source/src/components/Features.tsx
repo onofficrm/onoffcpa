@@ -3,7 +3,7 @@ import { Activity, BadgeDollarSign, ShieldCheck, Zap } from 'lucide-react';
 const features = [
   {
     icon: <Zap className="w-8 h-8 text-amber-500" />,
-    title: '다양한 CPA/CPS 상품',
+    title: '다양한 CPA 상품',
     desc: '모든 트래픽에 맞는 최적의 캠페인 매칭'
   },
   {

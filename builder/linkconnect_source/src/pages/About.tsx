@@ -36,7 +36,7 @@ const coreValues = [
     image: images.dashboard,
     imageAlt: '실시간 성과 대시보드',
     title: '투명하고 정교한 실시간 트래킹 & 어뷰징 관리',
-    desc: '링크 클릭부터 CPA/CPS 전환까지 모든 데이터를 실시간 대시보드로 공개합니다. 24시간 모니터링으로 허위 실적을 차단해 깨끗한 생태계를 만듭니다.',
+    desc: '링크 클릭부터 CPA 전환까지 모든 데이터를 실시간 대시보드로 공개합니다. 24시간 모니터링으로 허위 실적을 차단해 깨끗한 생태계를 만듭니다.',
   },
   {
     icon: <BadgeDollarSign className="w-6 h-6 text-amber-500" />,
@@ -49,7 +49,7 @@ const coreValues = [
 
 const highlights = [
   { value: '300억+', label: '연간 견인 매출', sub: '자체 운영 노하우', icon: <TrendingUp className="w-5 h-5" /> },
-  { value: 'CPA/CPS', label: '성과형 네트워크', sub: 'CPS · CPA 전문', icon: <Link2 className="w-5 h-5" /> },
+  { value: 'CPA', label: '성과형 네트워크', sub: 'CPA 전문', icon: <Link2 className="w-5 h-5" /> },
   { value: '실시간', label: '성과 추적', sub: '투명한 데이터', icon: <Zap className="w-5 h-5" /> },
   { value: 'Win-Win', label: '상생 파트너십', sub: '광고주 · 파트너', icon: <Handshake className="w-5 h-5" /> },
 ];
@@ -65,7 +65,7 @@ const introPoints = [
   },
   {
     title: '모두가 이기는 Win-Win',
-    text: 'CPS/CPA 전문 네트워크로 광고주와 마케터 모두 확실한 성과와 수익을 만들 수 있도록 함께합니다.',
+    text: 'CPA 전문 네트워크로 광고주와 마케터 모두 확실한 성과와 수익을 만들 수 있도록 함께합니다.',
   },
 ];
 
@@ -120,7 +120,7 @@ export function About() {
               className="w-full rounded-2xl border border-slate-100 shadow-lg object-cover aspect-video"
             />
             <div className="absolute -bottom-4 -right-4 hidden md:block bg-emerald-500 text-white text-sm font-bold px-4 py-2 rounded-xl shadow-lg">
-              CPS · CPA 전문
+              CPA 전문
             </div>
           </div>
 
@@ -219,7 +219,7 @@ export function About() {
               <span className="text-cyan-400">한눈에 보는 성과</span>
             </h2>
             <p className="text-slate-400 leading-relaxed mb-6">
-              CPA DB 캠페인과 CPS 구매 캠페인의 클릭·전환·수익 데이터를 실시간 대시보드에서 확인하세요.
+              CPA DB 캠페인의 클릭·전환·수익 데이터를 실시간 대시보드에서 확인하세요.
               광고주와 파트너 모두 투명한 데이터로 안심하고 운영할 수 있습니다.
             </p>
             <Link
@@ -234,7 +234,7 @@ export function About() {
             <div className="absolute -inset-2 bg-cyan-500/10 rounded-2xl blur-lg" />
             <img
               src={images.tracking}
-              alt="CPA vs CPS 성과 비교"
+              alt="CPA 성과 트래킹 대시보드"
               className="relative w-full rounded-2xl border border-white/10 shadow-2xl object-cover aspect-[4/3]"
               loading="lazy"
             />

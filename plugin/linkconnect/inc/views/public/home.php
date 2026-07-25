@@ -15,10 +15,12 @@ $merchant_url = lc_url('merchant/dashboard.php');
     <div>
       <div class="lc-hero__badge"><span class="lc-hero__badge-dot"></span> 클릭을 수익으로, DB를 성과로 연결하는 제휴마케팅 플랫폼</div>
       <h1 class="lc-hero__title">트래픽이 있다면,<br>지금 바로 <em>수익으로 연결</em>하세요</h1>
-      <p class="lc-hero__lead">CPA DB 캠페인과 CPS 구매 캠페인을 한곳에서 확인하고, 실시간 성과와 정산 내역까지 온오프CPA에서 관리하세요.</p>
+      <p class="lc-hero__lead">CPA DB 캠페인을 한곳에서 확인하고, 실시간 성과와 정산 내역까지 온오프CPA에서 관리하세요.</p>
       <div class="lc-hero__actions">
         <a class="lc-btn lc-btn--emerald lc-btn--xl" href="<?php echo lc_h($cpa_url); ?>">인기 CPA 상품 보기</a>
+<?php if (function_exists('lc_cps_enabled') && lc_cps_enabled()) { ?>
         <a class="lc-btn lc-btn--ghost lc-btn--xl" href="<?php echo lc_h($cps_url); ?>">CPS 상품 둘러보기</a>
+<?php } ?>
         <a class="lc-btn lc-btn--primary lc-btn--xl" href="<?php echo lc_h(lc_inquiry_url()); ?>" id="lc-inquiry">광고주 입점 문의</a>
       </div>
     </div>
@@ -148,11 +150,11 @@ $merchant_url = lc_url('merchant/dashboard.php');
 <section class="lc-section lc-section--light">
   <div class="lc-section__inner" style="text-align:center">
     <h2 class="lc-section__title">왜 <em>온오프CPA</em>인가?</h2>
-    <p class="lc-section__lead" style="margin:0 auto 2rem">CPA/CPS를 한 플랫폼에서 확장 가능하게 운영하는 SaaS형 제휴마케팅 인프라입니다.</p>
+    <p class="lc-section__lead" style="margin:0 auto 2rem">CPA를 한 플랫폼에서 확장 가능하게 운영하는 SaaS형 제휴마케팅 인프라입니다.</p>
     <div class="lc-feature-grid">
       <?php
       $features = array(
-          array('icon' => '⚡', 'title' => '다양한 CPA/CPS 상품', 'desc' => '모든 트래픽에 맞는 최적의 캠페인 매칭'),
+          array('icon' => '⚡', 'title' => '다양한 CPA 상품', 'desc' => '모든 트래픽에 맞는 최적의 캠페인 매칭'),
           array('icon' => '📊', 'title' => '실시간 전환 추적', 'desc' => '누락 없는 강력한 자체 트래킹 시스템'),
           array('icon' => '🛡', 'title' => '투명한 승인/반려 확인', 'desc' => '명확한 사유 제공으로 신뢰할 수 있는 데이터'),
           array('icon' => '💰', 'title' => '빠르고 정확한 수익 정산', 'desc' => '주급/월급 정산 등 파트너 맞춤형 시스템'),
@@ -168,7 +170,9 @@ $merchant_url = lc_url('merchant/dashboard.php');
     </div>
     <div style="margin-top:2.5rem;display:flex;flex-wrap:wrap;justify-content:center;gap:0.75rem">
       <a class="lc-btn lc-btn--emerald" href="<?php echo lc_h($cpa_url); ?>">CPA 상품 보기</a>
+<?php if (function_exists('lc_cps_enabled') && lc_cps_enabled()) { ?>
       <a class="lc-btn lc-btn--outline" href="<?php echo lc_h($cps_url); ?>">CPS 준비 현황</a>
+<?php } ?>
     </div>
   </div>
 </section>

@@ -6,6 +6,10 @@ lc_api_require_method('GET');
 $category = isset($_GET['category']) ? trim((string) $_GET['category']) : '';
 $q = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
 $type = isset($_GET['type']) ? trim((string) $_GET['type']) : '';
+// CPS 미취급(LC_CPS_ENABLED=false)
+if (strtolower($type) === 'cps' && (!function_exists('lc_cps_enabled') || !lc_cps_enabled())) {
+    lc_api_error('CPS 캠페인은 제공하지 않습니다.', 'CPS_DISABLED', 404);
+}
 $id = isset($_GET['id']) ? (int) $_GET['id'] : 0;
 $code = isset($_GET['code']) ? trim((string) $_GET['code']) : '';
 

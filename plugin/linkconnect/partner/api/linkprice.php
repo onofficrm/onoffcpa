@@ -5,6 +5,11 @@
  */
 require_once __DIR__ . '/_common.php';
 
+// CPS 미취급(LC_CPS_ENABLED=false)
+if (!function_exists('lc_cps_enabled') || !lc_cps_enabled()) {
+    lc_api_error('CPS 기능이 비활성화되어 있습니다.', 'CPS_DISABLED', 404);
+}
+
 if (!function_exists('lc_lp_partner_api_csrf_ok')) {
     function lc_lp_partner_api_csrf_ok()
     {

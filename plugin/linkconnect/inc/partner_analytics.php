@@ -90,6 +90,10 @@ if (!function_exists('lc_partner_analytics_parse_filters')) {
         if (!in_array($source, array('cpa', 'cps'), true)) {
             $source = 'cpa';
         }
+        // CPS 미취급(LC_CPS_ENABLED=false) — 성과분석은 CPA만
+        if ($source === 'cps' && (!function_exists('lc_cps_enabled') || !lc_cps_enabled())) {
+            $source = 'cpa';
+        }
 
         return array(
             'period'       => $period,

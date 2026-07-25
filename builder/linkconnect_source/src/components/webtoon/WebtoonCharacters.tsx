@@ -182,18 +182,6 @@ export function SceneDecoration({ type }: { type: 'shop' | 'blog' | 'compare' | 
       </svg>
     );
   }
-  if (type === 'compare') {
-    return (
-      <>
-        <div className="absolute inset-y-0 left-0 w-1/2 bg-emerald-400/10 border-r-2 border-dashed border-emerald-400/40" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-0 bg-white border-2 border-slate-900 rounded-full px-3 py-1 text-xs font-black text-slate-700 shadow-md">
-          VS
-        </div>
-        <div className="absolute top-20 left-4 bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded-md">CPA</div>
-        <div className="absolute top-20 right-4 bg-cyan-500 text-white text-[10px] font-bold px-2 py-1 rounded-md">CPS</div>
-      </>
-    );
-  }
   if (type === 'money') {
     return (
       <svg className="absolute top-14 right-6 w-16 h-16 opacity-40" viewBox="0 0 64 64" aria-hidden="true">

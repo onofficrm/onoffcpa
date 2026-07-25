@@ -9,7 +9,7 @@ if (!defined('_GNUBOARD_')) {
 
 $site_config = array(
     'site_name'           => '온오프CPA',
-    'site_desc'           => 'CPA/CPS 제휴마케팅 플랫폼',
+    'site_desc'           => 'CPA 제휴마케팅 플랫폼',
     'company_name'        => '온오프CPA',
     'ceo_name'            => '대표자명',
     'business_no'         => '000-00-00000',
@@ -25,8 +25,8 @@ $site_config = array(
     'og_image'            => '/img/common/og-image.jpg',
     /* SEO (components/seo-meta.php) */
     'seo_title'           => '온오프CPA',
-    'seo_description'     => '클릭을 수익으로, DB를 성과로 연결하는 CPA/CPS 제휴마케팅 플랫폼',
-    'main_keyword'        => '온오프CPA,CPA,CPS,제휴마케팅',
+    'seo_description'     => '클릭을 수익으로, DB를 성과로 연결하는 CPA 제휴마케팅 플랫폼',
+    'main_keyword'        => '온오프CPA,CPA,제휴마케팅',
     'sub_keywords'        => '',
     'robots'              => 'index,follow',
     'consultation_text'   => '상담문의',

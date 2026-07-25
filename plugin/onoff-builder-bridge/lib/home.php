@@ -50,7 +50,6 @@ if (!function_exists('onoff_builder_spa_route_prefixes')) {
             'select-center',
             'cpa-list',
             'cpa',
-            'cps',
             'events',
             'partner',
             'advertiser',

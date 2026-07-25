@@ -17,7 +17,6 @@ export const companyNavItems = companySubItems;
 /** 캠페인·프로모션 */
 export const campaignNavItems: NavLinkItem[] = [
   { to: '/cpa-list', label: 'CPA' },
-  { to: '/cps', label: 'CPS' },
   { to: '/events', label: '이벤트/프로모션' },
 ];
 

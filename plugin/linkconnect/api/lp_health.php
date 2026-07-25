@@ -10,6 +10,13 @@ require_once dirname(__DIR__) . '/_common.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
+// CPS 미취급(LC_CPS_ENABLED=false)
+if (!function_exists('lc_cps_enabled') || !lc_cps_enabled()) {
+    http_response_code(404);
+    echo json_encode(array('ok' => false, 'message' => 'cps disabled'), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 $expected = function_exists('lc_settings_get') ? trim((string) lc_settings_get('lpCronToken', '')) : '';
 if ($expected === '' && getenv('LC_LP_CRON_TOKEN')) {
     $expected = trim((string) getenv('LC_LP_CRON_TOKEN'));

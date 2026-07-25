@@ -380,7 +380,7 @@ if (!function_exists('lc_settings_raw_for_admin')) {
 if (!function_exists('lc_settings_to_api')) {
     function lc_settings_to_api(array $settings)
     {
-        return array(
+        $payload = array(
             'general' => array(
                 'siteName'     => (string) ($settings['siteName'] ?? ''),
                 'siteStatus'   => (string) ($settings['siteStatus'] ?? 'active'),
@@ -492,5 +492,12 @@ if (!function_exists('lc_settings_to_api')) {
                 'config'               => function_exists('lc_lp_config_to_api') ? lc_lp_config_to_api() : null,
             ),
         );
+
+        // CPS 미취급(LC_CPS_ENABLED=false) — 관리자센터에 링크프라이스 설정 노출 안 함
+        if (!function_exists('lc_cps_enabled') || !lc_cps_enabled()) {
+            unset($payload['linkprice']);
+        }
+
+        return $payload;
     }
 }

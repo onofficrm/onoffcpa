@@ -486,7 +486,6 @@ export function AdminCampaigns() {
                         className={`w-full px-3 py-2 border rounded-xl text-sm ${isEditMode ? 'bg-white border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
                       >
                         <option value="CPA">CPA</option>
-                        <option value="CPS">CPS</option>
                       </select>
                     </div>
                     <div className="col-span-1">

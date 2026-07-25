@@ -1,6 +1,6 @@
 {
   "name": "OnOff CPA",
-  "description": "A CPA/CPS affiliate marketing platform landing page.",
+  "description": "A CPA affiliate marketing platform landing page.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -21,7 +21,7 @@ export function Hero() {
             </h1>
 
             <p className="text-lg text-slate-400 leading-relaxed max-w-xl">
-              CPA DB 캠페인과 CPS 구매 캠페인을 한곳에서 확인하고,
+              CPA DB 캠페인을 한곳에서 확인하고,
               실시간 성과와 정산 내역까지 온오프CPA에서 관리하세요.
             </p>
 
@@ -29,9 +29,6 @@ export function Hero() {
               <Link to="/cpa-list" className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl flex items-center gap-2 transition-colors">
                 인기 CPA 상품 보기
                 <ArrowUpRight className="w-5 h-5" />
-              </Link>
-              <Link to="/cps" className="px-8 py-4 bg-white/5 hover:bg-white/10 text-white font-medium rounded-xl border border-white/10 transition-colors">
-                CPS 상품 둘러보기
               </Link>
               <Link
                 to="/"

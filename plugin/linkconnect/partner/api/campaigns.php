@@ -13,6 +13,10 @@ $type = isset($_GET['type']) ? strtolower(trim((string) $_GET['type'])) : 'cpa';
 if ($type === '') {
     $type = 'cpa';
 }
+// CPS 미취급(LC_CPS_ENABLED=false) — 파트너센터는 CPA만 노출
+if (($type === 'cps' || $type === 'all') && (!function_exists('lc_cps_enabled') || !lc_cps_enabled())) {
+    $type = 'cpa';
+}
 
 $cpa_categories = array('전체', '금융', '법률', '병원', '교육', '생활서비스', '렌탈', '기타');
 $cps_categories = function_exists('lc_campaign_cps_linkprice_categories')

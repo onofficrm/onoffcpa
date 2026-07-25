@@ -126,6 +126,13 @@ define('LC_FINAL_APPROVED', 'approved');
 define('LC_FINAL_REJECTED', 'rejected');
 
 /* ── 링크프라이스 CPS (외부 네트워크, CPA와 분리) ── */
+/**
+ * CPS 취급 여부. 온오프CPA는 CPA 전용이므로 false.
+ * true 로 바꾸면 메뉴·페이지·링크프라이스 연동이 다시 활성화됩니다.
+ */
+if (!defined('LC_CPS_ENABLED')) {
+    define('LC_CPS_ENABLED', false);
+}
 define('LC_LP_NETWORK_CODE', 'LINKPRICE');
 /** 내부 실적 상태 (공식 status와 별도 매핑) */
 define('LC_LP_ORDER_EXPECTED', 'expected');       // 하위호환 (=pending)
@@ -228,10 +235,10 @@ if (!function_exists('lc_site_desc')) {
     function lc_site_desc()
     {
         if (function_exists('g5site_cfg')) {
-            return g5site_cfg('site_desc', 'CPA/CPS 제휴마케팅 플랫폼');
+            return g5site_cfg('site_desc', 'CPA 제휴마케팅 플랫폼');
         }
 
-        return 'CPA/CPS 제휴마케팅 플랫폼';
+        return 'CPA 제휴마케팅 플랫폼';
     }
 }
 
@@ -379,26 +386,41 @@ if (!function_exists('lc_nav_company_items')) {
     }
 }
 
+if (!function_exists('lc_cps_enabled')) {
+    function lc_cps_enabled()
+    {
+        return defined('LC_CPS_ENABLED') ? (bool) LC_CPS_ENABLED : false;
+    }
+}
+
 if (!function_exists('lc_nav_items_public')) {
     function lc_nav_items_public()
     {
         if (lc_builder_spa_enabled()) {
-            return array(
+            $items = array(
                 array('id' => 'cpa', 'label' => 'CPA', 'url' => lc_spa_url('/cpa-list'), 'tone' => ''),
                 array('id' => 'cps', 'label' => 'CPS', 'url' => lc_spa_url('/cps'), 'tone' => ''),
                 array('id' => 'events', 'label' => '이벤트/프로모션', 'url' => lc_spa_url('/events'), 'tone' => ''),
                 array('id' => 'partner', 'label' => '파트너센터', 'url' => lc_spa_url('/partner'), 'tone' => 'partner'),
                 array('id' => 'merchant', 'label' => '광고주센터', 'url' => lc_spa_url('/advertiser'), 'tone' => 'merchant'),
             );
+        } else {
+            $items = array(
+                array('id' => 'cpa', 'label' => 'CPA', 'url' => lc_url('pages/cpa.php'), 'tone' => ''),
+                array('id' => 'cps', 'label' => 'CPS', 'url' => lc_url('pages/cps.php'), 'tone' => ''),
+                array('id' => 'events', 'label' => '이벤트/프로모션', 'url' => lc_url('pages/events.php'), 'tone' => ''),
+                array('id' => 'partner', 'label' => '파트너센터', 'url' => lc_url('partner/dashboard.php'), 'tone' => 'partner'),
+                array('id' => 'merchant', 'label' => '광고주센터', 'url' => lc_url('merchant/dashboard.php'), 'tone' => 'merchant'),
+            );
         }
 
-        return array(
-            array('id' => 'cpa', 'label' => 'CPA', 'url' => lc_url('pages/cpa.php'), 'tone' => ''),
-            array('id' => 'cps', 'label' => 'CPS', 'url' => lc_url('pages/cps.php'), 'tone' => ''),
-            array('id' => 'events', 'label' => '이벤트/프로모션', 'url' => lc_url('pages/events.php'), 'tone' => ''),
-            array('id' => 'partner', 'label' => '파트너센터', 'url' => lc_url('partner/dashboard.php'), 'tone' => 'partner'),
-            array('id' => 'merchant', 'label' => '광고주센터', 'url' => lc_url('merchant/dashboard.php'), 'tone' => 'merchant'),
-        );
+        if (!lc_cps_enabled()) {
+            $items = array_values(array_filter($items, function ($item) {
+                return ($item['id'] ?? '') !== 'cps';
+            }));
+        }
+
+        return $items;
     }
 }
 

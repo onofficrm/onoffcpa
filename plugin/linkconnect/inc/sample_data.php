@@ -32,7 +32,7 @@ if (!function_exists('lc_sample_events')) {
         return array(
             array('id' => '1', 'title' => '신규 파트너 웰컴 보너스', 'period' => '2026.07.01 ~ 2026.07.31', 'badge' => 'HOT'),
             array('id' => '2', 'title' => 'CPA 승인율 90% 이상 캠페인 모음', 'period' => '상시', 'badge' => '추천'),
-            array('id' => '3', 'title' => '여름 시즌 CPS 수수료 업', 'period' => '2026.06.15 ~ 2026.08.31', 'badge' => '한정'),
+            array('id' => '3', 'title' => '여름 시즌 CPA 단가 인상 캠페인', 'period' => '2026.06.15 ~ 2026.08.31', 'badge' => '한정'),
         );
     }
 }
@@ -972,10 +972,6 @@ if (!function_exists('lc_sample_admin_settings')) {
             array('id' => 'api', 'title' => 'API 보안 설정', 'desc' => '키 로테이션·IP 화이트리스트', 'fields' => array(
                 array('label' => 'API 키 자동 만료 (일)', 'value' => '90', 'type' => 'number'),
                 array('label' => 'IP 화이트리스트', 'value' => '활성화', 'type' => 'select'),
-            )),
-            array('id' => 'cps', 'title' => 'CPS 확장 준비', 'desc' => 'CPS 모듈 사전 설정 (비활성)', 'fields' => array(
-                array('label' => 'CPS 모듈', 'value' => '준비중 (비활성)', 'type' => 'select'),
-                array('label' => '트래킹 픽셀', 'value' => '미설정', 'type' => 'text'),
             )),
         );
     }

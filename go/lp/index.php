@@ -5,6 +5,14 @@
  */
 require_once dirname(__DIR__, 2) . '/plugin/linkconnect/_common.php';
 
+// CPS 미취급(LC_CPS_ENABLED=false) — CPS 클릭 추적 중단
+if (!function_exists('lc_cps_enabled') || !lc_cps_enabled()) {
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'CPS 링크는 더 이상 제공되지 않습니다.';
+    exit;
+}
+
 $merchant_code = isset($_GET['m']) ? trim((string) $_GET['m']) : '';
 if ($merchant_code === '' && isset($_GET['merchant'])) {
     $merchant_code = trim((string) $_GET['merchant']);

@@ -187,6 +187,11 @@ if (!function_exists('lc_campaign_list_for_api')) {
     {
         $type = !empty($filters['type']) ? strtolower((string) $filters['type']) : '';
 
+        // CPS 미취급(LC_CPS_ENABLED=false)
+        if ($type === 'cps' && (!function_exists('lc_cps_enabled') || !lc_cps_enabled())) {
+            return array();
+        }
+
         if ($type === 'cps' && function_exists('lc_campaign_cps_linkprice_for_api')) {
             if (lc_db_table_exists(lc_table('lp_merchants'))) {
                 return lc_campaign_cps_linkprice_for_api($filters);
