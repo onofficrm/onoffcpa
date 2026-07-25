@@ -47,6 +47,9 @@ jobs:
             mkdir -p "$ROOT/$(dirname "$file")"
             cp "$file" "$ROOT/$file"
           done
+          mkdir -p \
+            "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect" \
+            "$ROOT/plugin/onoff-builder-bridge/data/imports"
           rsync -a --exclude '._*' --exclude '.DS_Store' \
             plugin/onoff-builder-bridge/imports/linkconnect/ \
             "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/"
