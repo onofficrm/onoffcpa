@@ -3,9 +3,10 @@
  * 광고주 관리 플랫폼 정책
  *
  * 규칙:
- * - 단독 입점: 해당 플랫폼만 management
- * - 공동 입점(로컬+원격): 기본 management = 로컬(ONOFFCPA)
- * - 광고주는 관리 플랫폼에서만 조회·상태 변경
+ * - 단독 입점(그룹 미등록): 해당 플랫폼에서만 조회·승인/취소
+ * - 공동 입점(그룹 멤버 2+): 멤버 플랫폼 모두에서 조회·승인/취소 가능
+ * - 같은 리드를 한 쪽에서 승인하면 지갑 차감은 initiator 만, 상대는 ACK(과금 스킵)
+ * - management_platform_id 는 기본 미러/허브 우선순위로만 사용 (승인 독점 아님)
  */
 if (!defined('_GNUBOARD_')) {
     exit;
@@ -140,8 +141,8 @@ if (!function_exists('lc_mp_resolve_default_management_platform')) {
 
 if (!function_exists('lc_mp_local_is_management_for_mt')) {
     /**
-     * 로컬 광고주(mt_id)가 이 인스턴스에서 DB 상태 변경을 해도 되는지.
-     * 플래그 OFF 또는 멤버십 없음 → true (기존 동작 유지)
+     * 로컬이 지정된 management(허브) 플랫폼인지.
+     * 미러 생성 우선순위·레거시 호출용. 승인 권한은 lc_mp_local_can_mutate_for_mt 를 쓴다.
      */
     function lc_mp_local_is_management_for_mt($mt_id)
     {
@@ -158,6 +159,73 @@ if (!function_exists('lc_mp_local_is_management_for_mt')) {
         }
 
         return !empty($mgmt['is_local']) || ((string) ($mgmt['platform_code'] ?? '') === lc_mp_local_platform_code());
+    }
+}
+
+if (!function_exists('lc_mp_local_can_mutate_for_mt')) {
+    /**
+     * 이 인스턴스에서 광고주(mt) DB 승인/취소를 해도 되는지.
+     * - 플래그 OFF / 그룹 미등록(단독) → true (기존 로컬만 가능)
+     * - 공동 입점 → 로컬 플랫폼이 그룹 멤버이면 true (양쪽 모두 승인 가능)
+     */
+    function lc_mp_local_can_mutate_for_mt($mt_id)
+    {
+        if (!lc_mp_enabled()) {
+            return true;
+        }
+        $mt_id = (int) $mt_id;
+        if ($mt_id <= 0) {
+            return true;
+        }
+        $group = lc_mp_find_group_by_local_mt($mt_id);
+        if (!$group) {
+            return true; // 단독 입점
+        }
+
+        $memberships = lc_mp_list_memberships((int) $group['group_id']);
+        if (!$memberships) {
+            return true;
+        }
+        $local = lc_mp_local_platform_code();
+        foreach ($memberships as $m) {
+            $code = (string) ($m['platform_code'] ?? '');
+            if ($code === $local || !empty($m['is_local'])) {
+                return true;
+            }
+        }
+
+        // 그룹은 있으나 로컬 멤버십이 없으면 이 플랫폼에서 처리 불가
+        return false;
+    }
+}
+
+if (!function_exists('lc_mp_peer_platforms_for_mt')) {
+    /**
+     * 공동 입점 광고주의 원격(비로컬) 멤버 플랫폼 목록.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    function lc_mp_peer_platforms_for_mt($mt_id)
+    {
+        if (!lc_mp_enabled()) {
+            return array();
+        }
+        $group = lc_mp_find_group_by_local_mt($mt_id);
+        if (!$group) {
+            return array();
+        }
+        $peers = array();
+        foreach (lc_mp_list_memberships((int) $group['group_id']) as $m) {
+            if (!empty($m['is_local'])) {
+                continue;
+            }
+            $plat = lc_mp_get_platform_by_id((int) ($m['platform_id'] ?? 0));
+            if (is_array($plat) && empty($plat['is_local'])) {
+                $peers[] = $plat;
+            }
+        }
+
+        return $peers;
     }
 }
 

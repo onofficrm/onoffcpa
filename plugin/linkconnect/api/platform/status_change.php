@@ -22,8 +22,10 @@ if ($lead_ref_id <= 0) {
 if (!in_array($status, array('approved', 'rejected', 'pending'), true)) {
     lc_api_error('invalid status', 'INVALID_STATUS', 400);
 }
-if (!lc_mp_local_is_management_for_mt($mt_id)) {
-    lc_api_error('이 광고주는 로컬에서 상태를 변경할 수 없습니다.', 'NOT_MANAGEMENT_PLATFORM', 403);
+if (!(function_exists('lc_mp_local_can_mutate_for_mt')
+    ? lc_mp_local_can_mutate_for_mt($mt_id)
+    : lc_mp_local_is_management_for_mt($mt_id))) {
+    lc_api_error('이 광고주는 로컬에서 상태를 변경할 수 없습니다.', 'NOT_ALLOWED', 403);
 }
 
 $result = lc_mp_enqueue_status_change($lead_ref_id, $status, $comment, $mt_id);

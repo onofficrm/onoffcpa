@@ -23,31 +23,32 @@ if (!function_exists('lc_mp_adapter_push_status')) {
             return array('ok' => true, 'message' => 'local platform — no outbound push');
         }
 
-        if ($code === (defined('LC_PLATFORM_LINKCONNECT') ? LC_PLATFORM_LINKCONNECT : 'LINKCONNECT')) {
-            return lc_mp_adapter_linkconnect_push($platform, $command);
-        }
-
-        // 향후 독립 플랫폼: platform_code 별 어댑터 분기
-        return array('ok' => false, 'message' => 'adapter not implemented for ' . $code);
+        // 모든 원격 피어는 동일 remote_status API 를 사용 (링크커넥트/온오프CPA/향후 CPA)
+        return lc_mp_adapter_http_push_remote_status($platform, $command);
     }
 }
 
 if (!function_exists('lc_mp_adapter_linkconnect_push')) {
-    /**
-     * 링크커넥트 원격 승인/취소 푸시.
-     * api_base_url / outbound_token 미설정 시 실패만 반환 — 절대 로컬 상태를 강제 성공 처리하지 않음.
-     *
-     * 예상 엔드포인트 (링크커넥트에 별도 배포 전까지 stub):
-     *   POST {api_base_url}/plugin/linkconnect/api/platform/remote_status.php
-     */
+    /** @deprecated 범용 HTTP 푸시로 위임 */
     function lc_mp_adapter_linkconnect_push(array $platform, array $command)
+    {
+        return lc_mp_adapter_http_push_remote_status($platform, $command);
+    }
+}
+
+if (!function_exists('lc_mp_adapter_http_push_remote_status')) {
+    /**
+     * 원격 플랫폼 상태 ACK 푸시.
+     * POST {api_base_url}/plugin/linkconnect/api/platform/remote_status.php
+     */
+    function lc_mp_adapter_http_push_remote_status(array $platform, array $command)
     {
         $base = trim((string) ($platform['api_base_url'] ?? ''));
         $token = trim((string) ($platform['outbound_token'] ?? ''));
         if ($base === '' || $token === '') {
             return array(
                 'ok' => false,
-                'message' => 'LinkConnect adapter not configured (api_base_url / outbound_token)',
+                'message' => 'peer adapter not configured (api_base_url / outbound_token)',
             );
         }
 
@@ -73,6 +74,7 @@ if (!function_exists('lc_mp_adapter_linkconnect_push')) {
                 'Content-Type: application/json',
                 'Accept: application/json',
                 'X-LC-Platform-Token: ' . $token,
+                'X-LC-Platform-Code: ' . lc_mp_local_platform_code(),
                 'X-Idempotency-Key: ' . (string) ($command['idempotency_key'] ?? ''),
             ),
             CURLOPT_POSTFIELDS     => $body,

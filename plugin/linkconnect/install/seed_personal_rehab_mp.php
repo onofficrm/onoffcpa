@@ -5,7 +5,7 @@
  * - CPA-BANKTUPT (banktupt 랜딩)
  * - CPA-00011   (dasibom 랜딩)
  * 각 광고주를 독립 advertiser_group 으로 등록하고,
- * 관리 플랫폼 = ONOFFCPA, 원본 멤버십 = LINKCONNECT 로 연결한다.
+ * hub(management)=ONOFFCPA, 멤버십=양쪽. 승인/취소는 멤버 모두, 과금은 initiator만.
  *
  * 브라우저: /plugin/linkconnect/install/seed_personal_rehab_mp.php?action=run
  * 서버 1회 스크립트도 동일 파일 사용.
@@ -143,7 +143,7 @@ if (!function_exists('lc_mp_seed_one_rehab_advertiser')) {
         $pol = lc_mp_upsert_policy(
             $group_id,
             (int) $onoff['platform_id'],
-            '개인회생 공동/연동 — 온오프CPA에서만 DB 승인·반려'
+            '개인회생 공동입점 — 멤버 플랫폼(링크커넥트·온오프CPA) 모두 승인/취소 가능, 과금은 승인자만·상대 ACK'
         );
 
         return array(
@@ -231,7 +231,7 @@ header('Content-Type: text/html; charset=utf-8');
 <html lang="ko"><head><meta charset="UTF-8"><title>개인회생 MP 시딩</title></head>
 <body style="font-family:sans-serif;max-width:640px;margin:2rem auto;">
 <h1>개인회생 광고주 2곳 다중 플랫폼 시딩</h1>
-<p>banktupt / dasibom 각각 별도 그룹. 관리=온오프CPA.</p>
+<p>banktupt / dasibom 각각 별도 그룹. 멤버 양쪽 승인 가능(과금=승인자, 상대 ACK). hub=온오프CPA.</p>
 <p><a href="?action=run">실행</a></p>
 </body></html>
 <?php

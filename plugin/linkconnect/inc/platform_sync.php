@@ -190,7 +190,8 @@ if (!function_exists('lc_mp_resolve_local_campaign_for_lead')) {
 if (!function_exists('lc_mp_ensure_local_conversion_for_lead')) {
     /**
      * 인바운드 lead_ref 를 로컬 conversions 에 미러링하고 local_cv_id 를 연결한다.
-     * - 로컬이 관리 플랫폼일 때만 생성 (그 외에는 참조만 유지).
+     * - 로컬이 공동 입점 멤버(또는 단독)일 때 생성 — 승인 가능한 플랫폼에 미러.
+     * - 멤버가 아니면 참조만 유지.
      * - 이미 local_cv_id 가 있으면 그대로 반환(멱등).
      * - lc_conversion_create 를 쓰지 않고 최소 필드만 삽입(중복/어뷰즈/파트너 로직 우회).
      *
@@ -254,9 +255,12 @@ if (!function_exists('lc_mp_ensure_local_conversion_for_lead')) {
             return array('ok' => false, 'message' => 'local_mt_id unresolved');
         }
 
-        // 로컬이 관리 플랫폼이 아니면 로컬 conversion 을 만들지 않음(참조만).
-        if (!lc_mp_local_is_management_for_mt($local_mt_id)) {
-            return array('ok' => false, 'message' => 'local not management — ref only');
+        // 로컬에서 승인/처리할 수 없는 광고주면 로컬 conversion 미생성(참조만).
+        $can_mutate = function_exists('lc_mp_local_can_mutate_for_mt')
+            ? lc_mp_local_can_mutate_for_mt($local_mt_id)
+            : lc_mp_local_is_management_for_mt($local_mt_id);
+        if (!$can_mutate) {
+            return array('ok' => false, 'message' => 'local not member — ref only');
         }
 
         if ($cp_id <= 0) {
@@ -362,11 +366,33 @@ if (!function_exists('lc_mp_apply_remote_status')) {
             return array('ok' => false, 'message' => 'externalLeadId required');
         }
 
-        // 수신측에서 external_lead_id = 자신의 cv_code
+        // 1) 원본 플랫폼: external_lead_id = 로컬 cv_code
+        // 2) 미러 플랫폼: lead_ref.external_lead_id 또는 cv_sub_id 로 로컬 미러 건 조회
         $conversion = function_exists('lc_conversion_get_by_code')
             ? lc_conversion_get_by_code($external_lead_id)
             : null;
-        if (!is_array($conversion)) {
+        if (!is_array($conversion) || empty($conversion['cv_id'])) {
+            $conversion = null;
+            $leads = lc_mp_db_table('lead_refs');
+            if (lc_db_table_exists($leads)) {
+                $ext_esc = lc_sql_escape($external_lead_id);
+                $ref = sql_fetch(" SELECT local_cv_id FROM `{$leads}`
+                    WHERE external_lead_id = '{$ext_esc}' AND local_cv_id > 0 LIMIT 1 ");
+                if (is_array($ref) && (int) $ref['local_cv_id'] > 0 && function_exists('lc_conversion_get_by_id')) {
+                    $conversion = lc_conversion_get_by_id((int) $ref['local_cv_id']);
+                }
+            }
+        }
+        if (!is_array($conversion) || empty($conversion['cv_id'])) {
+            $conversion = null;
+            $cv_table = lc_table('conversions');
+            $ext_esc = lc_sql_escape($external_lead_id);
+            $row = sql_fetch(" SELECT * FROM `{$cv_table}` WHERE cv_sub_id = '{$ext_esc}' ORDER BY cv_id DESC LIMIT 1 ");
+            if (is_array($row) && !empty($row['cv_id'])) {
+                $conversion = $row;
+            }
+        }
+        if (!is_array($conversion) || empty($conversion['cv_id'])) {
             return array('ok' => false, 'message' => 'local conversion not found');
         }
 
@@ -433,9 +459,14 @@ if (!function_exists('lc_mp_enqueue_status_change')) {
             return array('ok' => false, 'message' => 'lead_ref not found');
         }
 
-        // 관리 플랫폼이 로컬인지 확인
-        if ($actor_mt_id > 0 && !lc_mp_local_is_management_for_mt($actor_mt_id)) {
-            return array('ok' => false, 'message' => '이 광고주는 로컬에서 상태를 변경할 수 없습니다.');
+        // 공동 입점 멤버만 상태 변경·역전송 가능
+        if ($actor_mt_id > 0) {
+            $can = function_exists('lc_mp_local_can_mutate_for_mt')
+                ? lc_mp_local_can_mutate_for_mt($actor_mt_id)
+                : lc_mp_local_is_management_for_mt($actor_mt_id);
+            if (!$can) {
+                return array('ok' => false, 'message' => '이 광고주는 로컬에서 상태를 변경할 수 없습니다.');
+            }
         }
 
         $new_status = strtolower(trim((string) $new_status));
@@ -663,21 +694,26 @@ if (!function_exists('lc_mp_outbox_enqueue_inbound_lead')) {
 
 if (!function_exists('lc_mp_on_local_conversion_status_changed')) {
     /**
-     * 기존 lc_conversion_update_status 성공 후 호출되는 안전 훅.
-     * - 플래그 OFF → 즉시 return
-     * - 로컬 전용 광고주/로컬 원본 DB → no-op (기존 동작 유지)
-     * - 외부 lead 와 연결된 경우에만 outbox (2차에서 local_cv_id 매핑 확장)
+     * 로컬 승인/취소 후 상대 플랫폼에 ACK 동기화.
+     * - 단독 광고주 → no-op
+     * - 미러본(lead_ref 있음) → 원본 플랫폼으로 status push
+     * - 원본(lead_ref 없음) + 공동 입점 → 피어 플랫폼으로 status push
+     * 과금은 로컬 initiator 에서만 이미 수행됨. 상대는 mp_remote_ack 로 지갑 스킵.
      */
     function lc_mp_on_local_conversion_status_changed($cv_id, $mt_id, $new_status, $comment = '')
     {
         if (!lc_mp_enabled()) {
             return;
         }
-        if (!lc_mp_local_is_management_for_mt($mt_id)) {
-            // 정책상 로컬이 관리 플랫폼이 아니면 여기까지 오면 안 되지만, 방어적으로 로그만.
+        $cv_id = (int) $cv_id;
+        $mt_id = (int) $mt_id;
+        $can = function_exists('lc_mp_local_can_mutate_for_mt')
+            ? lc_mp_local_can_mutate_for_mt($mt_id)
+            : lc_mp_local_is_management_for_mt($mt_id);
+        if (!$can) {
             lc_mp_audit('conversion.status_blocked', array(
-                'cv_id' => (int) $cv_id,
-                'mt_id' => (int) $mt_id,
+                'cv_id' => $cv_id,
+                'mt_id' => $mt_id,
                 'status' => (string) $new_status,
             ));
 
@@ -685,29 +721,97 @@ if (!function_exists('lc_mp_on_local_conversion_status_changed')) {
         }
 
         $leads = lc_mp_db_table('lead_refs');
-        if (!lc_db_table_exists($leads)) {
-            return;
-        }
-        $ref = sql_fetch(" SELECT * FROM `{$leads}` WHERE local_cv_id = '" . (int) $cv_id . "' LIMIT 1 ");
-        if (!is_array($ref) || empty($ref['lead_ref_id'])) {
-            return; // 순수 로컬 DB — 동기화 불필요
+        if (lc_db_table_exists($leads)) {
+            $ref = sql_fetch(" SELECT * FROM `{$leads}` WHERE local_cv_id = '{$cv_id}' LIMIT 1 ");
+            if (is_array($ref) && !empty($ref['lead_ref_id'])) {
+                $src = lc_mp_get_platform_by_id((int) $ref['source_platform_id']);
+                // 원본이 원격이면 원본으로 ACK
+                if (is_array($src) && empty($src['is_local'])) {
+                    lc_mp_enqueue_status_change((int) $ref['lead_ref_id'], $new_status, $comment, $mt_id);
+
+                    return;
+                }
+            }
         }
 
-        // 원본이 로컬이면 push 불필요
-        $src = lc_mp_get_platform_by_id((int) $ref['source_platform_id']);
-        if (is_array($src) && !empty($src['is_local'])) {
+        // 원본 로컬 DB → 공동 입점 피어로 상태 푸시
+        $peers = function_exists('lc_mp_peer_platforms_for_mt')
+            ? lc_mp_peer_platforms_for_mt($mt_id)
+            : array();
+        if (!$peers) {
             return;
         }
 
-        lc_mp_enqueue_status_change((int) $ref['lead_ref_id'], $new_status, $comment, $mt_id);
+        $conversion = function_exists('lc_conversion_get_by_id') ? lc_conversion_get_by_id($cv_id) : null;
+        if (!is_array($conversion)) {
+            return;
+        }
+        $ext_id = (string) ($conversion['cv_code'] ?? '');
+        if ($ext_id === '') {
+            return;
+        }
+
+        foreach ($peers as $peer) {
+            lc_mp_enqueue_peer_status_change($peer, $ext_id, $new_status, $comment, $cv_id);
+        }
+    }
+}
+
+if (!function_exists('lc_mp_enqueue_peer_status_change')) {
+    /**
+     * lead_ref 없이 원본 로컬 DB 상태를 피어로 푸시(outbox).
+     * external_lead_id = 로컬 cv_code (수신측 remote_status 가 cv_code 로 찾음)
+     *
+     * @return array{ok:bool,message:string,outbox_id?:int}
+     */
+    function lc_mp_enqueue_peer_status_change(array $peer, $external_lead_id, $new_status, $comment = '', $cv_id = 0)
+    {
+        if (!lc_mp_enabled()) {
+            return array('ok' => false, 'message' => 'disabled');
+        }
+        $outbox = lc_mp_db_table('sync_outbox');
+        if (!lc_db_table_exists($outbox)) {
+            return array('ok' => false, 'message' => 'outbox missing');
+        }
+        $target = (int) ($peer['platform_id'] ?? 0);
+        $external_lead_id = trim((string) $external_lead_id);
+        $new_status = strtolower(trim((string) $new_status));
+        if ($target <= 0 || $external_lead_id === '') {
+            return array('ok' => false, 'message' => 'target/externalLeadId required');
+        }
+
+        $idem = 'peer_status:' . $target . ':' . $external_lead_id . ':' . $new_status;
+        $idem_esc = lc_sql_escape($idem);
+        $exists = sql_fetch(" SELECT outbox_id FROM `{$outbox}` WHERE idempotency_key = '{$idem_esc}' LIMIT 1 ");
+        if (is_array($exists) && !empty($exists['outbox_id'])) {
+            return array('ok' => true, 'message' => 'already queued', 'outbox_id' => (int) $exists['outbox_id']);
+        }
+
+        $payload = array(
+            'command'            => 'status_change',
+            'external_lead_id'   => $external_lead_id,
+            'status'             => $new_status,
+            'comment'            => (string) $comment,
+            'version'            => 1,
+            'idempotency_key'    => $idem,
+            'lead_ref_id'        => 0,
+            'local_cv_id'        => (int) $cv_id,
+        );
+        $json = lc_sql_escape(json_encode($payload, JSON_UNESCAPED_UNICODE));
+        lc_sql_query(" INSERT INTO `{$outbox}`
+            (`target_platform_id`, `lead_ref_id`, `command`, `idempotency_key`, `payload_json`, `status`, `next_attempt_at`)
+            VALUES ('{$target}', '0', 'status_change', '{$idem_esc}', '{$json}', 'pending', NOW()) ", false);
+        $oid = function_exists('sql_insert_id') ? (int) sql_insert_id() : 0;
+        lc_mp_audit('outbox.enqueue_peer_status', $payload);
+
+        return array('ok' => true, 'message' => 'queued', 'outbox_id' => $oid);
     }
 }
 
 if (!function_exists('lc_mp_on_local_conversion_created')) {
     /**
-     * 로컬에서 신규 DB 접수 후 호출.
-     * - 로컬이 관리 플랫폼이면 no-op (원본도 로컬이거나 이미 inbound 로 들어옴)
-     * - 로컬이 원본이고 관리가 원격이면 → 관리 플랫폼으로 inbound_lead 푸시
+     * 로컬 신규 DB → 공동 입점 피어로 inbound_lead 미러.
+     * 단독 광고주 / 피어 없음 → no-op.
      */
     function lc_mp_on_local_conversion_created($cv_id, $mt_id = 0)
     {
@@ -732,20 +836,20 @@ if (!function_exists('lc_mp_on_local_conversion_created')) {
             return;
         }
 
-        // 관리 플랫폼이 로컬이면 원격으로 보내지 않음
-        if (lc_mp_local_is_management_for_mt($mt_id)) {
+        // 미러로 들어온 건(external:*) 은 다시 푸시하지 않음
+        $channel = (string) ($conversion['cv_channel'] ?? '');
+        if (strpos($channel, 'external:') === 0) {
+            return;
+        }
+
+        $peers = function_exists('lc_mp_peer_platforms_for_mt')
+            ? lc_mp_peer_platforms_for_mt($mt_id)
+            : array();
+        if (!$peers) {
             return;
         }
 
         $group = lc_mp_find_group_by_local_mt($mt_id);
-        if (!$group) {
-            return;
-        }
-        $mgmt = lc_mp_get_management_platform((int) $group['group_id']);
-        if (!$mgmt || !empty($mgmt['is_local'])) {
-            return;
-        }
-
         $cp_row = sql_fetch(" SELECT cp_code, cp_id FROM `" . lc_table('campaigns') . "` WHERE cp_id = '" . (int) $conversion['cp_id'] . "' LIMIT 1 ");
         $payload = array(
             'sourcePlatform'     => lc_mp_local_platform_code(),
@@ -759,7 +863,7 @@ if (!function_exists('lc_mp_on_local_conversion_created')) {
             'email'              => (string) ($conversion['cv_email'] ?? ''),
             'region'             => (string) ($conversion['cv_region'] ?? ''),
             'inquiry'            => (string) ($conversion['cv_inquiry'] ?? ''),
-            'groupCode'          => (string) ($group['group_code'] ?? ''),
+            'groupCode'          => is_array($group) ? (string) ($group['group_code'] ?? '') : '',
             'version'            => 1,
             'idempotencyKey'     => lc_mp_local_platform_code() . ':' . (string) ($conversion['cv_code'] ?? '') . ':1',
         );
@@ -767,19 +871,18 @@ if (!function_exists('lc_mp_on_local_conversion_created')) {
         if (!function_exists('lc_mp_adapter_push_inbound_lead')) {
             return;
         }
-        $push = lc_mp_adapter_push_inbound_lead($mgmt, $payload);
-        lc_mp_audit('outbound.inbound_lead', array(
-            'cv_id' => $cv_id,
-            'mt_id' => $mt_id,
-            'target' => (string) ($mgmt['platform_code'] ?? ''),
-            'ok' => !empty($push['ok']),
-            'message' => (string) ($push['message'] ?? ''),
-        ));
-
-        // 즉시 푸시가 실패하면 큐에 넘겨 크론이 재시도하도록 한다.
-        // 리드가 관리 플랫폼에 끝내 도달하지 못하는 상황을 막는 안전망.
-        if (empty($push['ok']) && function_exists('lc_mp_outbox_enqueue_inbound_lead')) {
-            lc_mp_outbox_enqueue_inbound_lead((int) $mgmt['platform_id'], $payload);
+        foreach ($peers as $peer) {
+            $push = lc_mp_adapter_push_inbound_lead($peer, $payload);
+            lc_mp_audit('outbound.inbound_lead', array(
+                'cv_id' => $cv_id,
+                'mt_id' => $mt_id,
+                'target' => (string) ($peer['platform_code'] ?? ''),
+                'ok' => !empty($push['ok']),
+                'message' => (string) ($push['message'] ?? ''),
+            ));
+            if (empty($push['ok']) && function_exists('lc_mp_outbox_enqueue_inbound_lead')) {
+                lc_mp_outbox_enqueue_inbound_lead((int) $peer['platform_id'], $payload);
+            }
         }
     }
 }

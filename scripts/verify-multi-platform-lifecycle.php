@@ -171,8 +171,9 @@ foreach ($advertisers as $adv) {
     $gid = (int)$grp['group_id'];
     lc_mp_attach_membership($gid, 'ONOFFCPA', $MT, 'local:'.$MT, $adv['code']);
     lc_mp_attach_membership($gid, 'LINKCONNECT', 0, 'campaign:'.$adv['code'], $adv['code']);
-    lc_mp_upsert_policy($gid, (int)$onoff['platform_id'], '온오프CPA 관리');
+    lc_mp_upsert_policy($gid, (int)$onoff['platform_id'], '공동입점 — 멤버 모두 승인, 과금=initiator');
     check("{$adv['name']} management=local", lc_mp_local_is_management_for_mt($MT) === true);
+    check("{$adv['name']} can mutate (dual)", lc_mp_local_can_mutate_for_mt($MT) === true);
 
     /* 1) 유입 */
     $ext = 'LC-' . strtoupper($adv['name']) . '-001';

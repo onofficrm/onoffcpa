@@ -60,7 +60,8 @@ if ($lead_ref_id > 0 && function_exists('lc_mp_ensure_local_conversion_for_lead'
         } else {
             $local_conv_ok = false;
             // 관리 플랫폼에서 로컬 conversion 생성 실패는 치명 — 광고주 목록에 안 보임
-            if ($local_conv_msg !== 'local not management — ref only'
+            if ($local_conv_msg !== 'local not member — ref only'
+                && $local_conv_msg !== 'local not management — ref only'
                 && $local_conv_msg !== 'disabled'
                 && empty($inbox['duplicate'])) {
                 lc_mp_audit('inbound.local_conversion_failed', array(

@@ -72,7 +72,11 @@ function lc_db_column_exists($t, $c) { $t = lc_sql_escape($t); $c = lc_sql_escap
 function lc_conversion_generate_code() { static $n = 0; $n++; return 'CV-' . date('ymd') . '-' . str_pad((string) $n, 4, '0', STR_PAD_LEFT); }
 
 /* ── 외부 의존 스텁 (승인/반려 부수효과 무력화) ── */
-function lc_wallet_deduct_for_conversion($mt, $cv, $price, $memo) { return array('ok' => true); }
+$GLOBALS['__wallet_deduct_calls'] = 0;
+function lc_wallet_deduct_for_conversion($mt, $cv, $price, $memo) {
+    $GLOBALS['__wallet_deduct_calls']++;
+    return array('ok' => true);
+}
 function lc_partner_credit_for_conversion($c) {}
 function lc_conversion_with_meta($cv) { return lc_conversion_get_by_id($cv); }
 function lc_conversion_apply_quality_feedback($cv, $opts) {}
@@ -159,8 +163,9 @@ $grp = lc_mp_create_group('희망법무법인(개인회생)', '123-45-67890');
 $gid = (int) $grp['group_id'];
 lc_mp_attach_membership($gid, 'ONOFFCPA', $MT_LOCAL, '', 'ONOFF-ADV-1');
 lc_mp_attach_membership($gid, 'LINKCONNECT', 0, 'LC-MERCH-9', 'LC-ADV-9');
-lc_mp_upsert_policy($gid, (int) $onoff['platform_id'], '공동 입점 — 온오프CPA 관리');
+lc_mp_upsert_policy($gid, (int) $onoff['platform_id'], '공동 입점 — 멤버 모두 승인, 과금은 initiator');
 check('local is management for co-enrolled advertiser', lc_mp_local_is_management_for_mt($MT_LOCAL) === true);
+check('local can mutate (dual member)', lc_mp_local_can_mutate_for_mt($MT_LOCAL) === true);
 
 /* 로컬 캠페인 (해당 광고주 소유) */
 lc_sql_query("INSERT INTO `{$cp}` (mt_id, cp_code, cp_name, cp_type, cp_status, cp_price)
@@ -254,6 +259,7 @@ lc_mp_attach_membership($gid2, 'ONOFFCPA', $MT_OWNER, '', 'OWN');
 lc_mp_attach_membership($gid2, 'LINKCONNECT', 0, 'LC-OWN', 'LC-OWN');
 lc_mp_upsert_policy($gid2, (int) $lc['platform_id'], '수신측: 원격이 관리');
 check('receiver local is NOT management', lc_mp_local_is_management_for_mt($MT_OWNER) === false);
+check('receiver local CAN still mutate (dual member)', lc_mp_local_can_mutate_for_mt($MT_OWNER) === true);
 
 $outbox_before = (int) (sql_fetch(" SELECT COUNT(*) c FROM `{$outbox_t}` ")['c'] ?? 0);
 $apply = lc_mp_apply_remote_status('LC-DB-1001', 'approved', '관리플랫폼 승인');
@@ -277,6 +283,7 @@ lc_sql_query("INSERT INTO `{$cv}` (cv_code, cp_id, cv_name, cv_phone, cv_status,
 $CV_PURE = (int) lc_sql_insert_id();
 $ob_before = (int) (sql_fetch(" SELECT COUNT(*) c FROM `{$outbox_t}` ")['c'] ?? 0);
 check('pure-local mgmt passthrough true', lc_mp_local_is_management_for_mt($MT_PURE) === true);
+check('pure-local can mutate true', lc_mp_local_can_mutate_for_mt($MT_PURE) === true);
 $updp = lc_conversion_update_status($CV_PURE, $MT_PURE, LC_STATUS_APPROVED, '');
 check('pure-local approve ok', !empty($updp['ok']));
 $ob_after = (int) (sql_fetch(" SELECT COUNT(*) c FROM `{$outbox_t}` ")['c'] ?? 0);
@@ -362,6 +369,40 @@ $obF6 = sql_fetch(" SELECT * FROM `{$outbox_t}` WHERE outbox_id = '{$orphan_id}'
 check('missing platform row gets backoff (no tight loop)',
     is_array($obF6) && !empty($obF6['next_attempt_at']) && (int) $obF6['attempts'] === 1,
     'attempts=' . ($obF6['attempts'] ?? '?') . ' next=' . ($obF6['next_attempt_at'] ?? 'NULL'));
+
+echo "\n=== 시나리오 G: 원본(링크커넥트)에서도 승인 가능 + 미러 조회 ACK + 이중과금 방지 ===\n";
+/* 온오프CPA 입장에서 미러 건이 있고, 원본 플랫폼이 승인하면 external_lead_id=원본코드로 ACK.
+   apply_remote_status 가 lead_ref/cv_sub_id 로 미러를 찾아야 함. */
+$inboundG = array(
+    'externalLeadId' => 'LC-DB-SRC-9', 'status' => 'pending', 'name' => '양자승인',
+    'phone' => '010-9999-0000', 'groupId' => $gid, 'localMtId' => $MT_LOCAL, 'localCampaignId' => $CP_LOCAL,
+);
+$leadG = lc_mp_upsert_lead_ref_from_inbound($lc, $inboundG);
+$refG = sql_fetch(" SELECT * FROM `{$leads_t}` WHERE lead_ref_id = '" . (int) $leadG['lead_ref_id'] . "' ");
+$convG = lc_mp_ensure_local_conversion_for_lead($refG, $inboundG);
+$CV_G = (int) $convG['cvId'];
+$deduct_before = (int) $GLOBALS['__wallet_deduct_calls'];
+
+/* 원본 쪽에서 승인했다고 가정 → 미러에 remote ACK (과금 스킵) */
+$ack = lc_mp_apply_remote_status('LC-DB-SRC-9', 'approved', '원본 플랫폼 승인');
+check('source-approve ACK finds mirror by externalLeadId', !empty($ack['ok']) && !empty($ack['applied']), json_encode($ack));
+$mir = lc_conversion_get_by_id($CV_G);
+check('mirror now approved via ACK', is_array($mir) && $mir['cv_status'] === LC_STATUS_APPROVED);
+check('ACK does NOT charge wallet (mp_remote_ack)',
+    (int) $GLOBALS['__wallet_deduct_calls'] === $deduct_before,
+    "calls {$deduct_before}->" . $GLOBALS['__wallet_deduct_calls']);
+
+/* 원본 로컬 DB 승인 시 피어 outbox 적재 (lead_ref 없는 원본) */
+lc_sql_query("INSERT INTO `{$cv}` (cv_code, cp_id, pt_id, cv_name, cv_phone, cv_status, cv_price, cv_partner_price, cv_channel, cv_created_at, cv_updated_at)
+  VALUES ('LC-ORIGIN-77','{$CP_LOCAL}','3','원본승인','010-7777-7777','pending','65000','30000','네이버',NOW(),NOW())");
+$CV_ORIGIN = (int) lc_sql_insert_id();
+$ob_before_g = (int) (sql_fetch(" SELECT COUNT(*) c FROM `{$outbox_t}` ")['c'] ?? 0);
+$updG = lc_conversion_update_status($CV_ORIGIN, $MT_LOCAL, LC_STATUS_APPROVED, '');
+check('origin local approve ok (dual can mutate)', !empty($updG['ok']), json_encode($updG));
+$ob_peer = sql_fetch(" SELECT * FROM `{$outbox_t}` WHERE idempotency_key LIKE 'peer_status:%LC-ORIGIN-77%' ORDER BY outbox_id DESC LIMIT 1 ");
+check('origin approve enqueues peer_status to LinkConnect',
+    is_array($ob_peer) && (int) $ob_peer['target_platform_id'] === (int) $lc['platform_id'],
+    is_array($ob_peer) ? $ob_peer['idempotency_key'] : 'none');
 
 /* ── 요약 ── */
 $failed = array_filter($RESULTS, function ($r) { return !$r['ok']; });

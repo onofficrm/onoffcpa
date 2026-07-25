@@ -471,11 +471,17 @@ if (!function_exists('lc_conversion_update_status')) {
             return array('ok' => false, 'message' => '접근 권한이 없습니다.');
         }
 
-        // 다중 플랫폼: 로컬이 관리 플랫폼이 아닌 광고주는 상태 변경 차단
-        // (플래그 OFF / 미등록 광고주는 lc_mp_local_is_management_for_mt=true → 기존과 동일)
-        // 단, 인증된 관리 플랫폼이 웹훅으로 보낸 원격 ACK($opts['mp_remote_ack'])는 게이트 우회.
+        // 다중 플랫폼: 단독=로컬만 / 공동 입점=멤버 플랫폼 모두 승인·취소 가능
+        // 원격 ACK($opts['mp_remote_ack'])는 게이트 우회.
         $mp_remote_ack = !empty($opts['mp_remote_ack']);
         if (!$mp_remote_ack
+            && function_exists('lc_mp_local_can_mutate_for_mt')
+            && !lc_mp_local_can_mutate_for_mt($mt_id)) {
+            return array('ok' => false, 'message' => '이 광고주의 DB는 입점된 플랫폼에서만 처리할 수 있습니다.');
+        }
+        // 레거시 심볼만 있는 환경 대비
+        if (!$mp_remote_ack
+            && !function_exists('lc_mp_local_can_mutate_for_mt')
             && function_exists('lc_mp_local_is_management_for_mt')
             && !lc_mp_local_is_management_for_mt($mt_id)) {
             return array('ok' => false, 'message' => '이 광고주의 DB는 지정된 관리 플랫폼에서만 처리할 수 있습니다.');
@@ -495,7 +501,7 @@ if (!function_exists('lc_conversion_update_status')) {
         }
 
         if ($new_status === LC_STATUS_APPROVED) {
-            // 원격 ACK(원본 플랫폼): 광고주 지갑 차감은 관리 플랫폼에서 이미 수행.
+            // 원격 ACK(원본/상대 플랫폼): 광고주 지갑 차감은 승인을 시작한 플랫폼에서만 수행.
             // 여기서 다시 차감하면 이중 과금이 되므로 건너뛰고, 파트너 적립만 수행.
             if (!$mp_remote_ack) {
                 $deduct = lc_wallet_deduct_for_conversion(
