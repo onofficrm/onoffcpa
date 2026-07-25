@@ -55,9 +55,9 @@ jobs:
                       "    echo 'FAIL host=' . $host . ' errno=' . mysqli_connect_errno() . ' error=' . mysqli_connect_error() . PHP_EOL;",
                       "  }",
                       "}",
-                      "if (is_file(__DIR__ . '/dbconfig.php')) {",
+                      "if (is_file(__DIR__ . '/data/dbconfig.php')) {",
                       "  define('_GNUBOARD_', true);",
-                      "  include __DIR__ . '/dbconfig.php';",
+                      "  include __DIR__ . '/data/dbconfig.php';",
                       "  echo 'dbconfig HOST=' . G5_MYSQL_HOST . ' USER=' . G5_MYSQL_USER . ' DB=' . G5_MYSQL_DB . ' PASSLEN=' . strlen(G5_MYSQL_PASSWORD) . PHP_EOL;",
                       "}",
                   ]
@@ -72,13 +72,13 @@ jobs:
             --ftp-create-dirs \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -T probe.php \
-            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/data/_db_probe.php"
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/_db_probe.php"
 
           echo "=== HTTP PROBE ==="
-          curl -sS "https://onoffcpa.iwinv.net/data/_db_probe.php" || true
+          curl -sS "https://onoffcpa.iwinv.net/_db_probe.php" || true
           echo
 
           curl --silent --show-error \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
-            -Q "DELE /public_html/data/_db_probe.php" \
+            -Q "DELE /public_html/_db_probe.php" \
             "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
