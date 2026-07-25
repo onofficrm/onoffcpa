@@ -68,7 +68,7 @@ jobs:
           $grp = function_exists('lc_mp_db_table') ? lc_mp_db_table('advertiser_groups') : '';
           $pol = function_exists('lc_mp_db_table') ? lc_mp_db_table('management_policies') : '';
           if ($grp && lc_db_table_exists($grp)) {
-            $r = sql_query("SELECT g.group_code, g.group_name, p.platform_code AS mgmt
+            $r = sql_query("SELECT g.group_code, g.display_name, p.platform_code AS mgmt
               FROM `{$grp}` g
               LEFT JOIN `{$pol}` mp ON mp.group_id = g.group_id
               LEFT JOIN `{$plat}` p ON p.platform_id = mp.management_platform_id
@@ -77,9 +77,17 @@ jobs:
             while ($r && ($row = sql_fetch_array($r))) {
               $out['groups'][] = array(
                 'code' => $row['group_code'],
-                'name' => $row['group_name'],
+                'name' => $row['display_name'],
                 'management' => $row['mgmt'],
               );
+            }
+            if (!$r) {
+              $out['groupsError'] = function_exists('lc_sql_error') ? lc_sql_error() : 'query failed';
+              // fallback: list all groups
+              $r2 = sql_query("SELECT group_code, display_name, status FROM `{$grp}` ORDER BY group_id LIMIT 20", false);
+              while ($r2 && ($row = sql_fetch_array($r2))) {
+                $out['allGroups'][] = array('code'=>$row['group_code'],'name'=>$row['display_name'],'status'=>$row['status']);
+              }
             }
           }
           if (function_exists('lc_mp_resolve_onoffcpa_base_url')) {
