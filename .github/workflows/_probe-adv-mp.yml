@@ -1,0 +1,119 @@
+name: Probe advertiser MP capability
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Run probe
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+        run: |
+          set -euo pipefail
+          cat > mp_adv_probe.php << 'PHP'
+          <?php
+          header('Content-Type: application/json; charset=utf-8');
+          require_once __DIR__ . '/plugin/linkconnect/_common.php';
+          $out = array('ok'=>true,'local'=>lc_mp_local_platform_code(),'enabled'=>lc_mp_enabled());
+          // groups + policies
+          $grp = lc_mp_db_table('advertiser_groups');
+          $pol = lc_mp_db_table('management_policies');
+          $mem = lc_mp_db_table('advertiser_memberships');
+          $plat = lc_mp_db_table('platforms');
+          $leads = lc_mp_db_table('lead_refs');
+          $cv = lc_table('conversions');
+          $cp = lc_table('campaigns');
+          $out['groups'] = array();
+          $r = sql_query("SELECT g.group_id, g.group_code, g.display_name, p.platform_code AS mgmt
+            FROM `{$grp}` g
+            LEFT JOIN `{$pol}` mp ON mp.group_id=g.group_id
+            LEFT JOIN `{$plat}` p ON p.platform_id=mp.management_platform_id
+            WHERE g.group_code IN ('AG-BANKTUPT','AG-DASIBOM')", false);
+          while ($r && ($row=sql_fetch_array($r))) {
+            $gid=(int)$row['group_id'];
+            $mt=0; $cpCode='';
+            $m = sql_fetch("SELECT local_mt_id FROM `{$mem}` WHERE group_id='{$gid}' AND local_mt_id>0 LIMIT 1");
+            if ($m) $mt=(int)$m['local_mt_id'];
+            $isMgmt = $mt>0 ? lc_mp_local_is_management_for_mt($mt) : null;
+            // merchant list count for mirrored external leads
+            $listN=0; $extN=0; $samples=array();
+            if ($mt>0 && function_exists('lc_conversion_list_for_merchant')) {
+              $list = lc_conversion_list_for_merchant($mt, array('limit'=>50));
+              $items = is_array($list) ? (isset($list['items'])?$list['items']:$list) : array();
+              if (!is_array($items)) $items=array();
+              $listN = count($items);
+              foreach ($items as $it) {
+                $ch = (string)($it['cv_channel'] ?? $it['channel'] ?? '');
+                if (strpos($ch, 'external:')===0 || (int)($it['pt_id']??0)===0 && strpos($ch,'external:')===0) {
+                  $extN++;
+                }
+                if (strpos($ch,'external:')===0 && count($samples)<3) {
+                  $samples[] = array(
+                    'cvId'=>(int)($it['cv_id']??0),
+                    'code'=>$it['cv_code']??'',
+                    'status'=>$it['cv_status']??$it['status']??'',
+                    'channel'=>$ch,
+                    'ptId'=>(int)($it['pt_id']??0),
+                    'subId'=>$it['cv_sub_id']??'',
+                  );
+                }
+              }
+            }
+            // lead_refs for this mt
+            $refN=0; $refSamples=array();
+            if (lc_db_table_exists($leads) && $mt>0) {
+              $rr = sql_query("SELECT lead_ref_id, external_lead_id, local_cv_id, status, sync_status, source_platform_id
+                FROM `{$leads}` WHERE local_mt_id='{$mt}' ORDER BY lead_ref_id DESC LIMIT 5", false);
+              while ($rr && ($lr=sql_fetch_array($rr))) {
+                $refN++;
+                $src = sql_fetch("SELECT platform_code FROM `{$plat}` WHERE platform_id='".(int)$lr['source_platform_id']."'");
+                $refSamples[] = array(
+                  'externalLeadId'=>$lr['external_lead_id'],
+                  'localCvId'=>(int)$lr['local_cv_id'],
+                  'status'=>$lr['status'],
+                  'sync'=>$lr['sync_status'],
+                  'source'=>$src['platform_code']??'',
+                );
+              }
+              $cnt = sql_fetch("SELECT COUNT(*) c FROM `{$leads}` WHERE local_mt_id='{$mt}'");
+              $refN = (int)($cnt['c']??0);
+            }
+            // conversions with external channel for this merchant's campaigns
+            $extCv = sql_fetch("SELECT COUNT(*) c FROM `{$cv}` v INNER JOIN `{$cp}` c ON c.cp_id=v.cp_id
+              WHERE c.mt_id='{$mt}' AND v.cv_channel LIKE 'external:%'");
+            $out['groups'][] = array(
+              'code'=>$row['group_code'],
+              'name'=>$row['display_name'],
+              'management'=>$row['mgmt'],
+              'localMtId'=>$mt,
+              'localIsManagement'=>$isMgmt,
+              'merchantListCount'=>$listN,
+              'externalInListSamples'=>$samples,
+              'externalConversionCount'=>(int)($extCv['c']??0),
+              'leadRefCount'=>$refN,
+              'leadRefSamples'=>$refSamples,
+            );
+          }
+          // platforms + adapter readiness
+          $out['platforms']=array();
+          $pr=sql_query("SELECT platform_code,is_local,status,api_base_url,(outbound_token<>'') has_tok,(webhook_secret<>'') has_wh FROM `{$plat}`",false);
+          while($pr && ($p=sql_fetch_array($pr))){
+            $out['platforms'][]=array('code'=>$p['platform_code'],'local'=>(int)$p['is_local'],'status'=>$p['status'],'apiBase'=>$p['api_base_url'],'hasTok'=>(int)$p['has_tok']===1,'hasWh'=>(int)$p['has_wh']===1);
+          }
+          $out['adapterPushStatusExists']=function_exists('lc_mp_adapter_push_status');
+          $out['adapterInboundExists']=function_exists('lc_mp_adapter_push_inbound_lead');
+          echo json_encode($out, JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT);
+          PHP
+          curl --fail --silent --show-error --ftp-create-dirs \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T mp_adv_probe.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/mp_adv_probe.php"
+          echo "=== ONOFFCPA ==="
+          curl -sS --max-time 60 "https://onoffcpa.icrm.co.kr/mp_adv_probe.php" || true
+          echo
+          curl --silent --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -Q "DELE /public_html/mp_adv_probe.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
