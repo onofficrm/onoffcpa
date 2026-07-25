@@ -9,6 +9,11 @@
  * 사용법:
  *   MP_DB_HOST=127.0.0.1 MP_DB_USER=root MP_DB_PASS= MP_DB_NAME=mp_e2e_test \
  *   php scripts/verify-multi-platform-e2e.php
+ *
+ * 127.0.0.1(TCP) 로 붙기 때문에 unix_socket 인증 계정은 쓸 수 없다.
+ * 비밀번호 인증 계정이 없으면 아래처럼 로컬 전용 계정을 하나 만들어 쓸 것:
+ *   CREATE USER 'mptest'@'127.0.0.1' IDENTIFIED BY 'mptest_pw';
+ *   GRANT ALL PRIVILEGES ON *.* TO 'mptest'@'127.0.0.1' WITH GRANT OPTION;
  */
 
 error_reporting(E_ALL & ~E_DEPRECATED);

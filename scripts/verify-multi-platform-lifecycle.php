@@ -3,8 +3,11 @@
  * 개인회생 광고주 전 구간 라이프사이클 검증 (유입→목록→승인/취소→정산).
  * 로컬 MariaDB 시뮬. 실제 플러그인 함수 사용.
  *
- *   MP_DB_HOST=localhost MP_DB_USER=$USER MP_DB_NAME=mp_lifecycle_test \
+ *   MP_DB_HOST=127.0.0.1 MP_DB_USER=mptest MP_DB_PASS=mptest_pw \
  *   php scripts/verify-multi-platform-lifecycle.php
+ *
+ * unix_socket 인증 계정은 mysqli 로 붙지 않으므로 비밀번호 인증 계정이 필요하다.
+ * (없으면 scripts/verify-multi-platform-e2e.php 주석의 CREATE USER 참고)
  */
 error_reporting(E_ALL & ~E_DEPRECATED);
 
