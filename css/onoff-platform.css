@@ -673,9 +673,17 @@
   width: 40px;
   height: 40px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #ecfeff, #d1fae5);
-  color: #0891b2;
+  background: transparent;
+  color: inherit;
   box-shadow: none;
+  overflow: hidden;
+  padding: 0;
+}
+
+.onoff-platform--linkconnect .onoff-platform__hero-mark-img {
+  display: block;
+  width: 40px;
+  height: 40px;
 }
 
 .onoff-platform--linkconnect .onoff-platform__hero-brand {

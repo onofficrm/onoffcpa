@@ -1,4 +1,4 @@
-import { ChevronDown, Link as LinkIcon, Menu, ShieldCheck, X } from 'lucide-react';
+import { ChevronDown, Menu, ShieldCheck, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { canAccessAdmin } from '../lib/auth';
@@ -10,6 +10,7 @@ import {
   isCompanyNavActive,
   type NavLinkItem,
 } from '../lib/publicNav';
+import { BrandMark } from './BrandMark';
 import { MemberAuthMenu, MemberAuthMenuMobile } from './MemberAuthMenu';
 
 function navLinkClass(active: boolean, accent?: NavLinkItem['accent']) {
@@ -113,7 +114,7 @@ export function Header() {
         <div className="flex items-center h-20">
           {/* 로고 */}
           <Link to="/" className="flex items-center gap-2 shrink-0 mr-6">
-            <LinkIcon className="w-7 h-7 text-cyan-400" />
+            <BrandMark className="w-7 h-7" />
             <span className="text-xl xl:text-2xl font-bold text-white tracking-tight">온오프CPA</span>
           </Link>
 

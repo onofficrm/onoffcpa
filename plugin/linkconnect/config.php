@@ -331,13 +331,13 @@ if (!function_exists('lc_status_label')) {
 if (!function_exists('lc_favicon_url')) {
     function lc_favicon_url()
     {
-        if (function_exists('lc_builder_spa_enabled') && lc_builder_spa_enabled()) {
-            $base = defined('G5_URL') ? rtrim(G5_URL, '/') : '';
-
-            return $base . '/plugin/onoff-builder-bridge/imports/linkconnect/favicon.png';
+        if (function_exists('onoff_platform_favicon_url')) {
+            return onoff_platform_favicon_url();
         }
 
-        return lc_asset_url('img/favicon.png');
+        $base = defined('G5_URL') ? rtrim(G5_URL, '/') : '';
+
+        return $base . '/img/brand/favicon-32.png';
     }
 }
 
@@ -352,8 +352,11 @@ if (!function_exists('lc_enqueue_assets')) {
 
         $ver = defined('G5_CSS_VER') ? G5_CSS_VER : LC_VERSION;
         $favicon = lc_favicon_url();
-        echo '<link rel="icon" type="image/png" href="' . lc_h($favicon) . '">' . PHP_EOL;
-        echo '<link rel="apple-touch-icon" href="' . lc_h($favicon) . '">' . PHP_EOL;
+        $svg = (defined('G5_URL') ? rtrim(G5_URL, '/') : '') . '/img/brand/favicon.svg';
+        $apple = (defined('G5_URL') ? rtrim(G5_URL, '/') : '') . '/img/brand/apple-touch-icon.png';
+        echo '<link rel="icon" type="image/svg+xml" href="' . lc_h($svg) . '">' . PHP_EOL;
+        echo '<link rel="icon" type="image/png" sizes="32x32" href="' . lc_h($favicon) . '">' . PHP_EOL;
+        echo '<link rel="apple-touch-icon" href="' . lc_h($apple) . '">' . PHP_EOL;
         echo '<link rel="stylesheet" href="' . lc_h(lc_asset_url('css/linkconnect.css?ver=' . $ver)) . '">' . PHP_EOL;
         echo '<script src="' . lc_h(lc_asset_url('js/linkconnect.js?ver=' . $ver)) . '" defer></script>' . PHP_EOL;
     }

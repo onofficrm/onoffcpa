@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 
 type CenterTopBarProps = {
   center: 'partner' | 'advertiser';
@@ -11,14 +12,12 @@ const centerConfig = {
     home: '/partner',
     badge: 'PARTNER',
     badgeClass: 'text-emerald-400 bg-emerald-950 border-emerald-800/50',
-    logoGradient: 'from-emerald-500 to-teal-600',
     activeNavClass: 'text-emerald-400',
   },
   advertiser: {
     home: '/advertiser',
     badge: 'ADVERTISER',
     badgeClass: 'text-cyan-400 bg-cyan-950 border-cyan-800/50',
-    logoGradient: 'from-cyan-500 to-blue-600',
     activeNavClass: 'text-cyan-400',
   },
 };
@@ -49,9 +48,7 @@ export function CenterTopBar({ center }: CenterTopBarProps) {
         </button>
 
         <Link to={config.home} className="text-lg font-bold tracking-tight text-white flex items-center gap-2 shrink-0">
-          <div className={`w-8 h-8 bg-gradient-to-br ${config.logoGradient} rounded-lg flex items-center justify-center`}>
-            <span className="text-white font-black text-sm">LC</span>
-          </div>
+          <BrandMark className="w-8 h-8" />
           <span className="hidden sm:inline">
             온오프CPA{' '}
             <span className={`text-xs font-medium ml-1 px-1.5 py-0.5 rounded-md border ${config.badgeClass}`}>

@@ -39,6 +39,48 @@ if (!function_exists('onoff_platform_is_linkconnect')) {
     }
 }
 
+if (!function_exists('onoff_platform_brand_asset_url')) {
+    /** @return string absolute URL under /img/brand/ */
+    function onoff_platform_brand_asset_url($file)
+    {
+        $base = defined('G5_URL') ? rtrim(G5_URL, '/') : '';
+
+        return $base . '/img/brand/' . ltrim((string) $file, '/');
+    }
+}
+
+if (!function_exists('onoff_platform_favicon_svg_url')) {
+    function onoff_platform_favicon_svg_url()
+    {
+        return onoff_platform_brand_asset_url('favicon.svg');
+    }
+}
+
+if (!function_exists('onoff_platform_favicon_url')) {
+    function onoff_platform_favicon_url()
+    {
+        return onoff_platform_brand_asset_url('favicon-32.png');
+    }
+}
+
+if (!function_exists('onoff_platform_apple_touch_url')) {
+    function onoff_platform_apple_touch_url()
+    {
+        return onoff_platform_brand_asset_url('apple-touch-icon.png');
+    }
+}
+
+if (!function_exists('onoff_platform_mark_html')) {
+    /** 로그인/회원 히어로용 온오프CPA 심볼 (전원 ON — 체인 링크와 구분) */
+    function onoff_platform_mark_html()
+    {
+        $src = onoff_platform_brand_asset_url('onoffcpa-mark.svg');
+
+        return '<img src="' . htmlspecialchars($src, ENT_QUOTES, 'UTF-8')
+            . '" alt="" width="40" height="40" class="onoff-platform__hero-mark-img" decoding="async">';
+    }
+}
+
 if (!function_exists('onoff_platform_member_styles')) {
     function onoff_platform_member_styles($skin_url = '')
     {
@@ -51,10 +93,11 @@ if (!function_exists('onoff_platform_member_styles')) {
         add_stylesheet('<link rel="stylesheet" href="' . htmlspecialchars($tokens, ENT_QUOTES, 'UTF-8') . '">', 0);
         add_stylesheet('<link rel="stylesheet" href="' . htmlspecialchars($platform, ENT_QUOTES, 'UTF-8') . '">', 1);
 
-        if (onoff_platform_is_linkconnect()) {
-            $favicon = G5_URL . '/plugin/onoff-builder-bridge/imports/linkconnect/favicon.png';
-            echo '<link rel="icon" type="image/png" href="' . htmlspecialchars($favicon, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
-        }
+        $favicon = onoff_platform_favicon_url();
+        $apple = onoff_platform_apple_touch_url();
+        echo '<link rel="icon" type="image/svg+xml" href="' . htmlspecialchars(onoff_platform_favicon_svg_url(), ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
+        echo '<link rel="icon" type="image/png" sizes="32x32" href="' . htmlspecialchars($favicon, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
+        echo '<link rel="apple-touch-icon" href="' . htmlspecialchars($apple, ENT_QUOTES, 'UTF-8') . '">' . PHP_EOL;
 
         if ($skin_url !== '') {
             add_stylesheet('<link rel="stylesheet" href="' . htmlspecialchars($skin_url, ENT_QUOTES, 'UTF-8') . '/style.css">', 2);
@@ -277,7 +320,7 @@ if (!function_exists('onoff_platform_member_brand')) {
         if ($is_lc) {
             echo '<a href="' . htmlspecialchars($home, ENT_QUOTES, 'UTF-8') . '" class="onoff-platform__hero-home">';
             echo '<span class="onoff-platform__hero-mark" aria-hidden="true">';
-            echo '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 1 7.07 0l1.41 1.41a5 5 0 0 1-7.07 7.07l-.71-.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M14 11a5 5 0 0 1-7.07 0L5.52 9.59a5 5 0 0 1 7.07-7.07l.71.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+            echo onoff_platform_mark_html();
             echo '</span>';
             echo '<span class="onoff-platform__hero-brand">' . htmlspecialchars($brand, ENT_QUOTES, 'UTF-8') . '</span>';
             echo '</a>';

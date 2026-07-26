@@ -1,6 +1,6 @@
-import { Link as LinkIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { campaignNavItems, centerNavItems, companyNavItems } from '../lib/publicNav';
+import { BrandMark } from './BrandMark';
 import { MemberAuthMenu } from './MemberAuthMenu';
 import { g5BbsUrl } from '../lib/urls';
 
@@ -11,7 +11,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-1 md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-6">
-              <LinkIcon className="w-6 h-6 text-emerald-400" />
+              <BrandMark className="w-6 h-6" />
               <span className="text-xl font-bold text-white tracking-tight">
                 온오프CPA
               </span>
