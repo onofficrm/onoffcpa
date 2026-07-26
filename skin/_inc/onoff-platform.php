@@ -104,18 +104,7 @@ if (!function_exists('onoff_platform_homepage_title')) {
      */
     function onoff_platform_homepage_title()
     {
-        if (onoff_platform_is_linkconnect()) {
-            onoff_platform_linkconnect_config();
-            if (function_exists('lc_settings_get')) {
-                $name = trim((string) lc_settings_get('siteName', ''));
-                if ($name !== '') {
-                    return $name;
-                }
-            }
-
-            return '링크커넥트';
-        }
-
+        // _site.config 사이트명 우선 (온오프CPA)
         if (function_exists('g5site_cfg')) {
             $name = trim((string) g5site_cfg('site_name', ''));
             if ($name !== '') {
@@ -123,10 +112,23 @@ if (!function_exists('onoff_platform_homepage_title')) {
             }
         }
 
+        if (onoff_platform_is_linkconnect()) {
+            onoff_platform_linkconnect_config();
+            if (function_exists('lc_settings_get')) {
+                $name = trim((string) lc_settings_get('siteName', ''));
+                // 마이그레이션 잔여값(링크커넥트)은 무시
+                if ($name !== '' && $name !== '링크커넥트') {
+                    return $name;
+                }
+            }
+
+            return '온오프CPA';
+        }
+
         global $config;
         $title = isset($config['cf_title']) ? trim(get_text($config['cf_title'])) : '';
 
-        return $title !== '' ? $title : '온오프빌더';
+        return $title !== '' ? $title : '온오프CPA';
     }
 }
 

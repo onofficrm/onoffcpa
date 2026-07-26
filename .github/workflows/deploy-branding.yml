@@ -23,6 +23,7 @@ jobs:
             "inc/linkconnect-spa-bootstrap.php"
             "cps/index.php"
             "extend/linkconnect-spa.extend.php"
+            "extend/linkconnect-member.extend.php"
             "go/lp/index.php"
             "skin/_inc/onoff-platform.php"
             "plugin/onoff-builder-bridge/lib/home.php"
@@ -73,9 +74,10 @@ jobs:
             mkdir -p "$ROOT/$(dirname "$file")"
             cp "$file" "$ROOT/$file"
           done
-          mkdir -p "$ROOT/plugin/linkconnect" "$ROOT/skin/member"
+          mkdir -p "$ROOT/plugin/linkconnect" "$ROOT/skin/member" "$ROOT/mobile/skin/member"
           cp -R plugin/linkconnect/layout "$ROOT/plugin/linkconnect/"
           cp -R skin/member/onoff "$ROOT/skin/member/"
+          cp -R mobile/skin/member/onoff "$ROOT/mobile/skin/member/"
           mkdir -p \
             "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect" \
             "$ROOT/plugin/onoff-builder-bridge/data/imports"

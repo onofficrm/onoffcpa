@@ -48,7 +48,7 @@ if (!function_exists('linkconnect_member_head_sub_before')) {
         }
 
         global $config;
-        $config['cf_title'] = '링크커넥트';
+        $config['cf_title'] = '온오프CPA';
     }
 }
 
