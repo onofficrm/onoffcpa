@@ -50,6 +50,9 @@ jobs:
             "plugin/linkconnect/admin/api/platform.php"
             "plugin/linkconnect/cron/platform_sync_outbox.php"
             "plugin/linkconnect/install/seed_personal_rehab_mp.php"
+            "plugin/linkconnect/install/apply_personal_rehab_thumbnails.php"
+            "plugin/linkconnect/install/assets/thumb-banktupt.jpg"
+            "plugin/linkconnect/install/assets/thumb-dasibom.jpg"
             "plugin/linkconnect/pages/cps.php"
             "plugin/linkconnect/inc/ai.php"
             "plugin/linkconnect/inc/campaign.php"
@@ -164,9 +167,15 @@ jobs:
           header('Content-Type: application/json; charset=utf-8');
           require_once __DIR__ . '/plugin/linkconnect/_common.php';
           if (!function_exists('lc_mp_seed_personal_rehab_pair')) {
-              require_once G5_PLUGIN_PATH . '/linkconnect/install/seed_personal_rehab_mp.php';
+            require_once G5_PLUGIN_PATH . '/linkconnect/install/seed_personal_rehab_mp.php';
           }
           echo json_encode(lc_mp_seed_personal_rehab_pair(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+          EOF
+          cat > apply_thumbs.php << 'EOF'
+          <?php
+          header('Content-Type: application/json; charset=utf-8');
+          require_once __DIR__ . '/plugin/linkconnect/install/apply_personal_rehab_thumbnails.php';
+          echo json_encode(lc_apply_personal_rehab_thumbnails(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
           EOF
           curl --fail --show-error --silent \
             --ftp-create-dirs \
@@ -183,6 +192,11 @@ jobs:
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -T seed_mp_run.php \
             "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/seed_mp_run.php"
+          curl --fail --show-error --silent \
+            --ftp-create-dirs \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T apply_thumbs.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/apply_thumbs.php"
           BASE=""
           for CAND in "https://onoffcpa.icrm.co.kr" "https://onoffcpa.iwinv.net"; do
             CODE=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 12 \
@@ -201,6 +215,9 @@ jobs:
           echo "=== SEED MP ADVERTISERS ==="
           curl -sS "${BASE}/seed_mp_run.php" || true
           echo
+          echo "=== APPLY PERSONAL REHAB THUMBNAILS ==="
+          curl -sS "${BASE}/apply_thumbs.php" || true
+          echo
           echo "=== HEALTH ==="
           curl -sS "${BASE}/plugin/linkconnect/api/platform/health.php" || true
           echo
@@ -216,6 +233,10 @@ jobs:
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -Q "DELE /public_html/seed_mp_run.php" \
             "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
+          curl --silent --show-error \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -Q "DELE /public_html/apply_thumbs.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
           echo "=== CAMPAIGNS ==="
-          curl -sS "${BASE}/plugin/linkconnect/api/campaigns.php?type=cpa" | head -c 1200
+          curl -sS "${BASE}/plugin/linkconnect/api/campaigns.php?type=cpa" | head -c 2000
           echo
