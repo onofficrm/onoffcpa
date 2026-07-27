@@ -2,6 +2,7 @@ import { ArrowRight, CheckCircle2, DollarSign, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { fetchPublicCampaigns, PublicCampaign } from '../lib/api';
+import { CPA_THUMBNAIL_ASPECT_CLASS } from '../lib/cpaThumbnail';
 import { cn } from '../lib/utils';
 
 const filters = ['전체', '고수익', '신규', '승인율 높은 상품', '법률', '병원', '보험', '교육', '부동산'];
@@ -70,7 +71,15 @@ export function CPAList() {
             <div className="col-span-full py-16 text-center text-slate-500">현재 진행 중인 CPA 상품이 없습니다.</div>
           ) : items.map((item) => (
             <div key={item.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:border-emerald-300 hover:shadow-xl transition-all group relative flex flex-col shadow-sm">
-              <div className="aspect-square overflow-hidden relative group bg-gradient-to-br from-emerald-500/10 to-cyan-500/10">
+              <div className={`${CPA_THUMBNAIL_ASPECT_CLASS} overflow-hidden relative group bg-gradient-to-br from-emerald-500/10 to-cyan-500/10`}>
+                {item.thumbnailUrl ? (
+                  <img
+                    src={item.thumbnailUrl}
+                    alt={item.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                ) : null}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
                 <div className="absolute top-3 left-3 right-3 flex justify-between items-start">
                   <span className="text-xs font-medium px-2.5 py-1 rounded-md bg-white/90 backdrop-blur-sm text-slate-700 shadow-sm">

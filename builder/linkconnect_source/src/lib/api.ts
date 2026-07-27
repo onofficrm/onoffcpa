@@ -124,6 +124,7 @@ export type PartnerCampaign = {
   badge: string;
   recommended: boolean;
   landingUrl: string;
+  thumbnailUrl?: string;
 };
 
 export type PartnerCampaignsResponse = {

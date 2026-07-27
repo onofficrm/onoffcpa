@@ -55,7 +55,7 @@ if ($action === 'generate_thumbnail') {
         'title'       => (string) ($campaign['cp_name'] ?? ''),
         'category'    => (string) ($campaign['cp_category'] ?? ''),
         'width'       => 1200,
-        'height'      => 750,
+        'height'      => 900,
         'mood'        => $opts['mood'],
         'includeText' => !empty($opts['includeText']),
         'overlayText' => $opts['overlayText'],

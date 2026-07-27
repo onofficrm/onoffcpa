@@ -15,6 +15,7 @@ import {
   saveAdminCampaign,
   updateAdminCampaignStatus,
 } from '../../lib/api';
+import { CPA_THUMBNAIL_ASPECT_CLASS, CPA_THUMBNAIL_SPEC, cpaThumbnailHint } from '../../lib/cpaThumbnail';
 
 const categoryOptions = ['금융', '법률', '병원', '교육', '생활서비스', '렌탈', '기타'];
 
@@ -416,14 +417,25 @@ export function AdminCampaigns() {
                   <div className="grid grid-cols-2 gap-4">
                     
                     <div className="col-span-2">
-                      <label className="block text-xs font-medium text-slate-500 mb-1.5">썸네일 이미지</label>
+                      <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                        썸네일 이미지
+                        <span className="ml-2 font-normal text-slate-400">
+                          {CPA_THUMBNAIL_SPEC.sizeLabel} ({CPA_THUMBNAIL_SPEC.ratioLabel})
+                        </span>
+                      </label>
                       <div className="flex items-start gap-4">
-                        <div className="w-24 h-24 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative group" onClick={handleThumbnailClick}>
-                          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+                        <div
+                          className={`w-44 ${CPA_THUMBNAIL_ASPECT_CLASS} rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative group`}
+                          onClick={handleThumbnailClick}
+                        >
+                          <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} />
                           {editForm.code !== '신규등록' ? (
-                            <img src="https://images.unsplash.com/photo-1557682250-33bd709cbe85?auto=format&fit=crop&q=80" alt="Thumbnail" className="w-full h-full object-cover" />
+                            <img src="https://images.unsplash.com/photo-1557682250-33bd709cbe85?auto=format&fit=crop&q=80&w=1200&h=900" alt="Thumbnail" className="w-full h-full object-cover" />
                           ) : (
-                            <Image className="w-8 h-8 text-slate-300" />
+                            <div className="text-center px-2">
+                              <Image className="w-7 h-7 text-slate-300 mx-auto mb-1" />
+                              <span className="text-[10px] text-slate-400 font-medium">{CPA_THUMBNAIL_SPEC.ratioLabel}</span>
+                            </div>
                           )}
                           {isEditMode && (
                             <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
@@ -431,21 +443,30 @@ export function AdminCampaigns() {
                             </div>
                           )}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           {isEditMode ? (
                             <div className="flex flex-col gap-2 h-full justify-center">
-                              <div className="border-2 border-dashed border-slate-200 rounded-xl p-2 flex flex-col items-center justify-center text-center hover:bg-slate-50 hover:border-cyan-300 transition-colors cursor-pointer flex-1" onClick={handleThumbnailClick}>
+                              <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-slate-50 hover:border-cyan-300 transition-colors cursor-pointer flex-1" onClick={handleThumbnailClick}>
                                 <Upload className="w-5 h-5 text-cyan-500 mb-1" />
-                                <span className="text-xs font-medium text-slate-600">업로드</span>
+                                <span className="text-xs font-medium text-slate-700">업로드</span>
+                                <span className="text-[11px] text-slate-400 mt-1">
+                                  {cpaThumbnailHint(true)}
+                                </span>
+                                <span className="text-[11px] text-slate-400">
+                                  {CPA_THUMBNAIL_SPEC.formats} · 최대 {CPA_THUMBNAIL_SPEC.maxMb}MB
+                                </span>
                               </div>
-                              <button onClick={handleAIGenerate} disabled={isGenerating} className="flex-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-colors shadow-sm disabled:opacity-50">
-                                {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />} AI 생성
+                              <p className="text-[11px] text-slate-500 leading-relaxed">
+                                {cpaThumbnailHint()}
+                              </p>
+                              <button onClick={handleAIGenerate} disabled={isGenerating} className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-colors shadow-sm disabled:opacity-50 py-2">
+                                {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />} AI 생성 ({CPA_THUMBNAIL_SPEC.ratioLabel})
                               </button>
                             </div>
                           ) : (
-
-                            <div className="h-24 flex items-center text-sm text-slate-500 bg-slate-50 rounded-xl px-4 border border-slate-100">
-                              등록된 썸네일 이미지가 없습니다.
+                            <div className="min-h-[5.5rem] flex flex-col justify-center text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3 border border-slate-100 gap-1">
+                              <span>등록된 썸네일 이미지가 없습니다.</span>
+                              <span className="text-[11px] text-slate-400">{cpaThumbnailHint(true)}</span>
                             </div>
                           )}
                         </div>
