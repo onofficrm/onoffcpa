@@ -163,7 +163,8 @@ if (!function_exists('lc_mp_adapter_push_inbound_lead')) {
 if (!function_exists('lc_mp_adapter_fetch_wallet_balance')) {
     /**
      * 피어 플랫폼 광고주 잔액 조회
-     * GET/POST {api_base_url}/plugin/linkconnect/api/platform/wallet_balance.php
+     * POST {api_base_url}/plugin/linkconnect/api/platform/remote_status.php
+     * body.command = wallet_balance
      *
      * @return array{ok:bool,message:string,balance?:int,platformCode?:string,http?:int}
      */
@@ -202,8 +203,9 @@ if (!function_exists('lc_mp_adapter_fetch_wallet_balance')) {
             return array('ok' => false, 'message' => 'peer adapter not configured (api_base_url / token)');
         }
 
-        $url = rtrim($base, '/') . '/plugin/linkconnect/api/platform/wallet_balance.php';
+        $url = rtrim($base, '/') . '/plugin/linkconnect/api/platform/remote_status.php';
         $body = json_encode(array(
+            'command'              => 'wallet_balance',
             'groupCode'            => (string) ($lookup['groupCode'] ?? ''),
             'externalMerchantId'   => (string) ($lookup['externalMerchantId'] ?? ''),
             'mtId'                 => (int) ($lookup['mtId'] ?? 0),

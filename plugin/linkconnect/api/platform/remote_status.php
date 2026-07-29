@@ -40,7 +40,27 @@ if ($expected === '' || $got === '' || !hash_equals($expected, $got)) {
     lc_api_error('invalid token', 'UNAUTHORIZED', 401);
 }
 
+// 피어 잔액 조회 (wallet_balance.php 미배포 환경 호환)
 $command = isset($body['command']) ? trim((string) $body['command']) : 'status_change';
+if ($command === 'wallet_balance') {
+    $lookup = array(
+        'groupCode'          => isset($body['groupCode']) ? trim((string) $body['groupCode']) : '',
+        'externalMerchantId' => isset($body['externalMerchantId']) ? trim((string) $body['externalMerchantId']) : '',
+        'mtId'               => isset($body['mtId']) ? (int) $body['mtId'] : 0,
+    );
+    $resolved = lc_mp_resolve_local_mt_for_balance_lookup($lookup);
+    if (empty($resolved['ok'])) {
+        lc_api_error((string) ($resolved['message'] ?? 'merchant not found'), 'NOT_FOUND', 404);
+    }
+    $mt_id = (int) $resolved['mt_id'];
+    $balance = function_exists('lc_wallet_get_balance') ? lc_wallet_get_balance($mt_id) : 0;
+    lc_api_success(array(
+        'mtId'         => $mt_id,
+        'balance'      => (int) $balance,
+        'platformCode' => lc_mp_local_platform_code(),
+    ));
+}
+
 $external_lead_id = isset($body['externalLeadId']) ? trim((string) $body['externalLeadId']) : '';
 $status = isset($body['status']) ? strtolower(trim((string) $body['status'])) : '';
 $comment = isset($body['comment']) ? trim((string) $body['comment']) : '';

@@ -47,36 +47,36 @@ p_lc=$(printf '%s' "$h_lc" | json_field "['data']['localPlatform']")
 check "ONOFFCPA health platform" "$([[ "$p_on" == "ONOFFCPA" ]] && echo 1 || echo 0)" "$p_on"
 check "LINKCONNECT health platform" "$([[ "$p_lc" == "LINKCONNECT" ]] && echo 1 || echo 0)" "$p_lc"
 
-# 2) wallet_balance reachability (401/400 = file present; 404 = not deployed)
+# 2) peer 잔액 API (remote_status wallet_balance 명령 — 기존 파일 경로)
 code_wb_on=$(curl -sS -o /tmp/wb_on.json -w '%{http_code}' --max-time 15 \
   -X POST -H 'Content-Type: application/json' \
   -H "X-LC-Platform-Token: $TOKEN" -H 'X-LC-Platform-Code: LINKCONNECT' \
-  -d '{"sourcePlatform":"LINKCONNECT","mtId":1}' \
-  "$ONOFF/plugin/linkconnect/api/platform/wallet_balance.php" || echo 000)
+  -d '{"command":"wallet_balance","sourcePlatform":"LINKCONNECT","mtId":1}' \
+  "$ONOFF/plugin/linkconnect/api/platform/remote_status.php" || echo 000)
 code_wb_lc=$(curl -sS -o /tmp/wb_lc.json -w '%{http_code}' --max-time 15 \
   -X POST -H 'Content-Type: application/json' \
   -H "X-LC-Platform-Token: $TOKEN" -H 'X-LC-Platform-Code: ONOFFCPA' \
-  -d '{"sourcePlatform":"ONOFFCPA","mtId":1}' \
-  "$LC/plugin/linkconnect/api/platform/wallet_balance.php" || echo 000)
-echo "wallet_balance ONOFF HTTP $code_wb_on body=$(head -c 200 /tmp/wb_on.json 2>/dev/null || true)"
-echo "wallet_balance LC    HTTP $code_wb_lc body=$(head -c 200 /tmp/wb_lc.json 2>/dev/null || true)"
-check "ONOFFCPA wallet_balance deployed" "$([[ "$code_wb_on" != "404" && "$code_wb_on" != "000" ]] && echo 1 || echo 0)" "http=$code_wb_on"
-check "LINKCONNECT wallet_balance deployed" "$([[ "$code_wb_lc" != "404" && "$code_wb_lc" != "000" ]] && echo 1 || echo 0)" "http=$code_wb_lc"
+  -d '{"command":"wallet_balance","sourcePlatform":"ONOFFCPA","mtId":1}' \
+  "$LC/plugin/linkconnect/api/platform/remote_status.php" || echo 000)
+echo "wallet via remote_status ONOFF HTTP $code_wb_on body=$(head -c 200 /tmp/wb_on.json 2>/dev/null || true)"
+echo "wallet via remote_status LC    HTTP $code_wb_lc body=$(head -c 200 /tmp/wb_lc.json 2>/dev/null || true)"
+check "ONOFFCPA wallet_balance command" "$([[ "$code_wb_on" == "200" || "$code_wb_on" == "401" || "$code_wb_on" == "404" ]] && [[ "$code_wb_on" != "000" ]] && echo 1 || echo 0)" "http=$code_wb_on"
+check "LINKCONNECT wallet_balance command" "$([[ "$code_wb_lc" == "200" || "$code_wb_lc" == "401" || "$code_wb_lc" == "404" ]] && [[ "$code_wb_lc" != "000" ]] && echo 1 || echo 0)" "http=$code_wb_lc"
 
-# 토큰이 맞으면 200(ok) 또는 404 merchant; 틀리면 401; 미배포면 404(파일)
 if [[ "$code_wb_on" == "401" ]]; then
-  check "ONOFFCPA accepts peer token (or seed peer config)" "0" "401 — run seed_mp on ONOFFCPA"
-elif [[ "$code_wb_on" == "200" || "$code_wb_on" == "400" ]]; then
-  check "ONOFFCPA peer token path reachable" "1" "http=$code_wb_on"
+  check "ONOFFCPA accepts peer token" "0" "401 — run seed_mp on ONOFFCPA"
+elif [[ "$code_wb_on" == "200" ]]; then
+  check "ONOFFCPA peer token ok" "1" "http=$code_wb_on"
 elif [[ "$code_wb_on" == "404" ]]; then
-  check "ONOFFCPA peer token path reachable" "0" "file not deployed yet"
+  # merchant not found is still OK for path/auth
+  check "ONOFFCPA peer token ok" "1" "merchant 404 after auth"
 fi
 if [[ "$code_wb_lc" == "401" ]]; then
-  check "LINKCONNECT accepts peer token (or seed peer config)" "0" "401 — run seed_mp on LINKCONNECT"
-elif [[ "$code_wb_lc" == "200" || "$code_wb_lc" == "400" ]]; then
-  check "LINKCONNECT peer token path reachable" "1" "http=$code_wb_lc"
+  check "LINKCONNECT accepts peer token" "0" "401 — run seed_mp on LINKCONNECT"
+elif [[ "$code_wb_lc" == "200" ]]; then
+  check "LINKCONNECT peer token ok" "1" "http=$code_wb_lc"
 elif [[ "$code_wb_lc" == "404" ]]; then
-  check "LINKCONNECT peer token path reachable" "0" "file not deployed yet"
+  check "LINKCONNECT peer token ok" "1" "merchant 404 after auth"
 fi
 
 # 3) optional audit endpoints if left by deploy workflow
