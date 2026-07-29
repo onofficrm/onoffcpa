@@ -37,6 +37,7 @@ jobs:
           ROOT=".deploy/linkconnect-mp"
           rm -rf "$ROOT"
           FILES=(
+            "plugin/linkconnect/config.php"
             "plugin/linkconnect/inc/conversion.php"
             "plugin/linkconnect/inc/wallet.php"
             "plugin/linkconnect/inc/platform.php"
@@ -58,15 +59,10 @@ jobs:
             mkdir -p "$ROOT/$(dirname "$file")"
             cp "$file" "$ROOT/$file"
           done
-          # config.php 는 ONOFFCPA 기본값이라 LC 서버에 그대로 올리면 플랫폼 코드가 깨짐.
-          # LINKCONNECT 로 패치한 복사본만 배포.
-          mkdir -p "$ROOT/plugin/linkconnect"
-          sed "s/define('LC_PLATFORM_CODE', 'ONOFFCPA');/define('LC_PLATFORM_CODE', 'LINKCONNECT');/" \
-            plugin/linkconnect/config.php > "$ROOT/plugin/linkconnect/config.php"
-          grep -q "LC_PLATFORM_CODE', 'LINKCONNECT'" "$ROOT/plugin/linkconnect/config.php"
           find "$ROOT" -name '._*' -delete 2>/dev/null || true
           test -f "$ROOT/plugin/linkconnect/api/platform/wallet_balance.php"
           echo "Bundle files: $(find "$ROOT" -type f | wc -l)"
+          echo "NOTE: LC server must set lc_platform_code=LINKCONNECT in _site.config.php"
 
       - name: FTP upload to LinkConnect
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

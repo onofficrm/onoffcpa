@@ -134,9 +134,12 @@ define('LC_FINAL_REJECTED', 'rejected');
 if (!defined('LC_MULTI_PLATFORM_ENABLED')) {
     define('LC_MULTI_PLATFORM_ENABLED', true);
 }
-/** 이 인스턴스의 플랫폼 코드 (온오프CPA 배포본) */
+/** 이 인스턴스의 플랫폼 코드 — _site.config.php `lc_platform_code` 우선 */
 if (!defined('LC_PLATFORM_CODE')) {
-    define('LC_PLATFORM_CODE', 'ONOFFCPA');
+    $lc_platform_from_site = function_exists('g5site_cfg')
+        ? strtoupper(trim((string) g5site_cfg('lc_platform_code', '')))
+        : '';
+    define('LC_PLATFORM_CODE', $lc_platform_from_site !== '' ? $lc_platform_from_site : 'ONOFFCPA');
 }
 /** 원격 링크커넥트 플랫폼 코드 (어댑터 식별용) */
 if (!defined('LC_PLATFORM_LINKCONNECT')) {

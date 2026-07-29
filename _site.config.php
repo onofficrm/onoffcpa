@@ -9,6 +9,8 @@ if (!defined('_GNUBOARD_')) {
 
 $site_config = array(
     'site_name'           => '온오프CPA',
+    /* 다중 플랫폼: 이 인스턴스 코드 (링크커넥트 서버는 LINKCONNECT) */
+    'lc_platform_code'    => 'ONOFFCPA',
     'site_desc'           => '온오프CPA는 광고주와 마케팅 파트너를 연결하는 CPA 제휴마케팅 플랫폼입니다. CPA광고 상품 참여, DB·전환 성과 확인, 수익 정산까지 한곳에서 관리할 수 있습니다.',
     'company_name'        => '온오프CPA',
     'ceo_name'            => '대표자명',
