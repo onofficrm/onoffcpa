@@ -5,7 +5,8 @@
  * - CPA-BANKTUPT (banktupt 랜딩)
  * - CPA-00011   (dasibom 랜딩)
  * 각 광고주를 독립 advertiser_group 으로 등록하고,
- * hub(management)=ONOFFCPA, 멤버십=양쪽. 승인/취소는 멤버 모두, 과금은 initiator만.
+ * hub(management)=ONOFFCPA, 멤버십=양쪽. 승인/취소는 멤버 모두.
+ * 과금: 온오프CPA 승인=온오프CPA만, 링크커넥트 승인=양쪽. 잔액 온오프CPA≥링크커넥트.
  *
  * 브라우저: /plugin/linkconnect/install/seed_personal_rehab_mp.php?action=run
  * 서버 1회 스크립트도 동일 파일 사용.

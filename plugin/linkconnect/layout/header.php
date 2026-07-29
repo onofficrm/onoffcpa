@@ -8,14 +8,34 @@ $lc_active_nav = isset($lc_active_nav) ? (string) $lc_active_nav : '';
 $lc_body_class = isset($lc_body_class) ? (string) $lc_body_class : 'lc-app';
 $lc_show_footer = !isset($lc_show_footer) || $lc_show_footer;
 $lc_company_nav_active = in_array($lc_active_nav, array('home', 'affiliate', 'notice'), true);
+
+if (is_file(G5_PATH . '/components/seo-meta.php')) {
+    include_once G5_PATH . '/components/seo-meta.php';
+}
+global $page_title, $page_description, $page_robots;
+if (empty($page_title)) {
+    $page_title = $lc_page_title;
+}
+if (empty($page_description) && function_exists('lc_site_desc')) {
+    $page_description = lc_site_desc();
+}
+if (function_exists('g5b_seo_should_noindex') && g5b_seo_should_noindex() && empty($page_robots)) {
+    $page_robots = 'noindex,nofollow';
+}
+$lc_seo = function_exists('g5b_seo_resolve') ? g5b_seo_resolve(true) : null;
 ?>
 <!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<?php if (is_array($lc_seo) && function_exists('g5b_seo_build_meta_html')) { ?>
+<title><?php echo lc_h($lc_seo['title']); ?></title>
+<?php echo g5b_seo_build_meta_html($lc_seo); ?>
+<?php } else { ?>
 <meta name="description" content="<?php echo lc_h(lc_site_desc()); ?>">
 <title><?php echo lc_h($lc_page_title . ' | ' . lc_site_name()); ?></title>
+<?php } ?>
 <?php lc_enqueue_assets(); ?>
 </head>
 <body class="<?php echo lc_h($lc_body_class); ?>">

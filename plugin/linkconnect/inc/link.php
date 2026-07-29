@@ -346,6 +346,34 @@ if (!function_exists('lc_link_landing_seo_meta')) {
             $robots = 'index,follow';
         }
 
+        if ($og_image === '' && $lk_code !== '') {
+            if (function_exists('lc_link_get_with_campaign')) {
+                $link_row = lc_link_get_with_campaign($lk_code);
+                if (is_array($link_row) && !empty($link_row['cp_id']) && function_exists('lc_campaign_thumbnail_public_url')) {
+                    $thumb = lc_campaign_thumbnail_public_url((int) $link_row['cp_id']);
+                    if ($thumb !== '') {
+                        $og_image = $thumb;
+                    }
+                }
+            }
+        }
+
+        if ($og_image === '') {
+            if (is_file(G5_PATH . '/components/seo-meta.php')) {
+                include_once G5_PATH . '/components/seo-meta.php';
+            }
+            if (function_exists('g5b_seo_default_og_image')) {
+                $default_og = g5b_seo_default_og_image();
+                $og_image = isset($default_og['url']) ? (string) $default_og['url'] : '';
+            } elseif (function_exists('g5site_cfg_url')) {
+                $og_image = g5site_cfg_url('og_image', '');
+            }
+        } elseif (function_exists('g5b_seo_absolute_url')) {
+            $og_image = g5b_seo_absolute_url($og_image);
+        } elseif (!preg_match('#^https?://#i', $og_image) && defined('G5_URL')) {
+            $og_image = rtrim(G5_URL, '/') . '/' . ltrim($og_image, '/');
+        }
+
         return array(
             'title'       => $title,
             'description' => $description,

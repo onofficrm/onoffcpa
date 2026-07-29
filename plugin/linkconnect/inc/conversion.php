@@ -501,14 +501,34 @@ if (!function_exists('lc_conversion_update_status')) {
         }
 
         if ($new_status === LC_STATUS_APPROVED) {
-            // 원격 ACK(원본/상대 플랫폼): 광고주 지갑 차감은 승인을 시작한 플랫폼에서만 수행.
-            // 여기서 다시 차감하면 이중 과금이 되므로 건너뛰고, 파트너 적립만 수행.
-            if (!$mp_remote_ack) {
+            // 공동 입점 잔액 사전 검사 (로컬 개시 승인만)
+            if (!$mp_remote_ack && function_exists('lc_mp_ensure_balances_for_approve')) {
+                $bal_check = lc_mp_ensure_balances_for_approve($mt_id, (int) $conversion['cv_price']);
+                if (empty($bal_check['ok'])) {
+                    return array(
+                        'ok'      => false,
+                        'message' => (string) ($bal_check['message'] ?? '광고비 잔액이 부족합니다.'),
+                    );
+                }
+            }
+
+            // 지갑 차감:
+            // - 로컬 개시: 항상 차감
+            // - 원격 ACK: primary(온오프CPA)만 차감 (링크커넥트 승인 → 양쪽 차감 규칙)
+            $should_charge = true;
+            if ($mp_remote_ack) {
+                $should_charge = function_exists('lc_mp_should_charge_wallet_on_approve')
+                    ? lc_mp_should_charge_wallet_on_approve(true)
+                    : false;
+            }
+
+            if ($should_charge) {
+                $memo = $conversion['cv_code'] . ($mp_remote_ack ? ' 피어승인 차감' : ' 승인 차감');
                 $deduct = lc_wallet_deduct_for_conversion(
                     $mt_id,
                     $cv_id,
                     (int) $conversion['cv_price'],
-                    $conversion['cv_code'] . ' 승인 차감'
+                    $memo
                 );
                 if (!$deduct['ok']) {
                     return $deduct;
@@ -660,6 +680,12 @@ if (!function_exists('lc_conversion_admin_final_status')) {
         } elseif ($action === 'approve') {
             // 취소/무효 → 승인: 광고비 차감 + 파트너 적립
             if ($mt_id > 0) {
+                if (function_exists('lc_mp_ensure_balances_for_approve')) {
+                    $bal_check = lc_mp_ensure_balances_for_approve($mt_id, $price);
+                    if (empty($bal_check['ok'])) {
+                        return array('ok' => false, 'message' => (string) ($bal_check['message'] ?? '잔액 부족'));
+                    }
+                }
                 $deduct = lc_wallet_deduct_for_conversion($mt_id, $cv_id, $price, $conversion['cv_code'] . ' 관리자 최종승인 차감');
                 if (!$deduct['ok']) {
                     return $deduct;
@@ -669,10 +695,15 @@ if (!function_exists('lc_conversion_admin_final_status')) {
                 lc_partner_credit_for_conversion($conversion);
             }
             lc_sql_query(" UPDATE `{$table}` SET cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "', cv_comment = '" . lc_sql_escape($memo_text) . "', cv_review_status = '', cv_reject_reason = '', cv_updated_at = NOW() WHERE cv_id = '{$cv_id}' ", false);
+            if ($mt_id > 0 && function_exists('lc_mp_on_local_conversion_status_changed')) {
+                lc_mp_on_local_conversion_status_changed($cv_id, $mt_id, LC_STATUS_APPROVED, $memo_text);
+            }
         } else {
-            // 승인 → 취소/무효: 광고비 환급 + 파트너 적립 회수
+            // 승인 → 취소/무효: 광고비 환급 + 파트너 적립 회수 (+ 피어 대칭 환불)
             if ($current === LC_STATUS_APPROVED) {
-                if ($mt_id > 0 && function_exists('lc_wallet_record')) {
+                if ($mt_id > 0 && function_exists('lc_wallet_refund_for_conversion')) {
+                    lc_wallet_refund_for_conversion($mt_id, $cv_id, abs($price), $conversion['cv_code'] . ' 관리자 최종취소 환급');
+                } elseif ($mt_id > 0 && function_exists('lc_wallet_record')) {
                     lc_wallet_record($mt_id, 'refund', abs($price), $conversion['cv_code'] . ' 관리자 최종취소 환급', 'conversion', $cv_id);
                 }
                 if (function_exists('lc_partner_debit_for_conversion')) {
@@ -680,6 +711,9 @@ if (!function_exists('lc_conversion_admin_final_status')) {
                 }
             }
             lc_sql_query(" UPDATE `{$table}` SET cv_status = '" . lc_sql_escape(LC_STATUS_REJECTED) . "', cv_comment = '" . lc_sql_escape($memo_text) . "', cv_reject_reason = '" . lc_sql_escape($memo_text) . "', cv_updated_at = NOW() WHERE cv_id = '{$cv_id}' ", false);
+            if ($current === LC_STATUS_APPROVED && $mt_id > 0 && function_exists('lc_mp_on_local_conversion_status_changed')) {
+                lc_mp_on_local_conversion_status_changed($cv_id, $mt_id, LC_STATUS_REJECTED, $memo_text);
+            }
         }
 
         lc_sql_query(" UPDATE `{$table}` SET

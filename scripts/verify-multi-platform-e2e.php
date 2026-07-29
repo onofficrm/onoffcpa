@@ -41,6 +41,7 @@ define('G5_TABLE_PREFIX', 'g5_');
 define('G5_DISPLAY_SQL_ERROR', false);
 define('LC_MULTI_PLATFORM_ENABLED', true);
 define('LC_PLATFORM_CODE', 'ONOFFCPA');
+define('LC_PLATFORM_ONOFFCPA', 'ONOFFCPA');
 define('LC_PLATFORM_LINKCONNECT', 'LINKCONNECT');
 define('LC_STATUS_PENDING', 'pending');
 define('LC_STATUS_APPROVED', 'approved');
@@ -73,11 +74,20 @@ function lc_conversion_generate_code() { static $n = 0; $n++; return 'CV-' . dat
 
 /* ── 외부 의존 스텁 (승인/반려 부수효과 무력화) ── */
 $GLOBALS['__wallet_deduct_calls'] = 0;
+$GLOBALS['__wallet_refund_calls'] = 0;
+function lc_wallet_get_balance($mt) {
+    return 999999999; // ensure_balances / 불변식 사전검사 통과
+}
 function lc_wallet_deduct_for_conversion($mt, $cv, $price, $memo) {
     $GLOBALS['__wallet_deduct_calls']++;
     return array('ok' => true);
 }
+function lc_wallet_refund_for_conversion($mt, $cv, $amount, $memo = '') {
+    $GLOBALS['__wallet_refund_calls']++;
+    return array('ok' => true, 'refunded' => true);
+}
 function lc_partner_credit_for_conversion($c) {}
+function lc_partner_debit_for_conversion($c) {}
 function lc_conversion_with_meta($cv) { return lc_conversion_get_by_id($cv); }
 function lc_conversion_apply_quality_feedback($cv, $opts) {}
 function lc_notification_emit_conversion($c, $ev) {}
@@ -163,9 +173,12 @@ $grp = lc_mp_create_group('희망법무법인(개인회생)', '123-45-67890');
 $gid = (int) $grp['group_id'];
 lc_mp_attach_membership($gid, 'ONOFFCPA', $MT_LOCAL, '', 'ONOFF-ADV-1');
 lc_mp_attach_membership($gid, 'LINKCONNECT', 0, 'LC-MERCH-9', 'LC-ADV-9');
-lc_mp_upsert_policy($gid, (int) $onoff['platform_id'], '공동 입점 — 멤버 모두 승인, 과금은 initiator');
+lc_mp_upsert_policy($gid, (int) $onoff['platform_id'], '공동 입점 — LC승인시 양쪽차감, ONOFFCPA승인시 primary만');
 check('local is management for co-enrolled advertiser', lc_mp_local_is_management_for_mt($MT_LOCAL) === true);
 check('local can mutate (dual member)', lc_mp_local_can_mutate_for_mt($MT_LOCAL) === true);
+check('local is primary wallet platform', lc_mp_local_is_primary_wallet_platform() === true);
+check('ACK approve should charge on primary', lc_mp_should_charge_wallet_on_approve(true) === true);
+check('local approve always charges', lc_mp_should_charge_wallet_on_approve(false) === true);
 
 /* 로컬 캠페인 (해당 광고주 소유) */
 lc_sql_query("INSERT INTO `{$cp}` (mt_id, cp_code, cp_name, cp_type, cp_status, cp_price)
@@ -370,9 +383,9 @@ check('missing platform row gets backoff (no tight loop)',
     is_array($obF6) && !empty($obF6['next_attempt_at']) && (int) $obF6['attempts'] === 1,
     'attempts=' . ($obF6['attempts'] ?? '?') . ' next=' . ($obF6['next_attempt_at'] ?? 'NULL'));
 
-echo "\n=== 시나리오 G: 원본(링크커넥트)에서도 승인 가능 + 미러 조회 ACK + 이중과금 방지 ===\n";
-/* 온오프CPA 입장에서 미러 건이 있고, 원본 플랫폼이 승인하면 external_lead_id=원본코드로 ACK.
-   apply_remote_status 가 lead_ref/cv_sub_id 로 미러를 찾아야 함. */
+echo "\n=== 시나리오 G: 원본(링크커넥트) 승인 → 미러(온오프CPA) ACK 차감 ===\n";
+/* 온오프CPA(primary)가 미러를 보유한 상태에서 원본(LC) 승인 ACK 수신 시
+   primary 지갑도 차감되어야 함 (양쪽 차감 규칙). */
 $inboundG = array(
     'externalLeadId' => 'LC-DB-SRC-9', 'status' => 'pending', 'name' => '양자승인',
     'phone' => '010-9999-0000', 'groupId' => $gid, 'localMtId' => $MT_LOCAL, 'localCampaignId' => $CP_LOCAL,
@@ -383,14 +396,24 @@ $convG = lc_mp_ensure_local_conversion_for_lead($refG, $inboundG);
 $CV_G = (int) $convG['cvId'];
 $deduct_before = (int) $GLOBALS['__wallet_deduct_calls'];
 
-/* 원본 쪽에서 승인했다고 가정 → 미러에 remote ACK (과금 스킵) */
+/* 원본(LC)에서 승인 → 미러(ONOFFCPA) remote ACK → primary 차감 */
 $ack = lc_mp_apply_remote_status('LC-DB-SRC-9', 'approved', '원본 플랫폼 승인');
 check('source-approve ACK finds mirror by externalLeadId', !empty($ack['ok']) && !empty($ack['applied']), json_encode($ack));
 $mir = lc_conversion_get_by_id($CV_G);
 check('mirror now approved via ACK', is_array($mir) && $mir['cv_status'] === LC_STATUS_APPROVED);
-check('ACK does NOT charge wallet (mp_remote_ack)',
-    (int) $GLOBALS['__wallet_deduct_calls'] === $deduct_before,
+check('ACK on primary DOES charge wallet (dual deduct rule)',
+    (int) $GLOBALS['__wallet_deduct_calls'] === $deduct_before + 1,
     "calls {$deduct_before}->" . $GLOBALS['__wallet_deduct_calls']);
+
+/* 승인 → 취소 ACK 환불 경로 */
+$deduct_mid = (int) $GLOBALS['__wallet_deduct_calls'];
+$GLOBALS['__wallet_refund_calls'] = 0;
+$ack_rej = lc_mp_apply_remote_status('LC-DB-SRC-9', 'rejected', '원본 승인취소');
+check('approved→rejected ACK applied with refund path', !empty($ack_rej['ok']) && !empty($ack_rej['applied']), json_encode($ack_rej));
+$mir2 = lc_conversion_get_by_id($CV_G);
+check('mirror now rejected after refund ACK', is_array($mir2) && $mir2['cv_status'] === LC_STATUS_REJECTED);
+check('refund helper invoked on peer cancel', (int) $GLOBALS['__wallet_refund_calls'] >= 1,
+    'refund_calls=' . $GLOBALS['__wallet_refund_calls']);
 
 /* 원본 로컬 DB 승인 시 피어 outbox 적재 (lead_ref 없는 원본) */
 lc_sql_query("INSERT INTO `{$cv}` (cv_code, cp_id, pt_id, cv_name, cv_phone, cv_status, cv_price, cv_partner_price, cv_channel, cv_created_at, cv_updated_at)
@@ -403,6 +426,9 @@ $ob_peer = sql_fetch(" SELECT * FROM `{$outbox_t}` WHERE idempotency_key LIKE 'p
 check('origin approve enqueues peer_status to LinkConnect',
     is_array($ob_peer) && (int) $ob_peer['target_platform_id'] === (int) $lc['platform_id'],
     is_array($ob_peer) ? $ob_peer['idempotency_key'] : 'none');
+check('origin local approve charged wallet once',
+    (int) $GLOBALS['__wallet_deduct_calls'] === $deduct_mid + 1,
+    'calls=' . $GLOBALS['__wallet_deduct_calls']);
 
 /* ── 요약 ── */
 $failed = array_filter($RESULTS, function ($r) { return !$r['ok']; });

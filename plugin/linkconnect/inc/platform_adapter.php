@@ -159,3 +159,98 @@ if (!function_exists('lc_mp_adapter_push_inbound_lead')) {
         return array('ok' => true, 'message' => 'pushed', 'http' => $http, 'body' => (string) $resp);
     }
 }
+
+if (!function_exists('lc_mp_adapter_fetch_wallet_balance')) {
+    /**
+     * 피어 플랫폼 광고주 잔액 조회
+     * GET/POST {api_base_url}/plugin/linkconnect/api/platform/wallet_balance.php
+     *
+     * @return array{ok:bool,message:string,balance?:int,platformCode?:string,http?:int}
+     */
+    function lc_mp_adapter_fetch_wallet_balance(array $platform, array $lookup)
+    {
+        if (!lc_mp_enabled()) {
+            return array('ok' => false, 'message' => 'multi-platform disabled');
+        }
+
+        $code = strtoupper((string) ($platform['platform_code'] ?? ''));
+        if (!empty($platform['is_local']) || $code === lc_mp_local_platform_code()) {
+            $resolved = function_exists('lc_mp_resolve_local_mt_for_balance_lookup')
+                ? lc_mp_resolve_local_mt_for_balance_lookup($lookup)
+                : array('ok' => false, 'message' => 'resolver missing');
+            if (empty($resolved['ok'])) {
+                return array('ok' => false, 'message' => (string) ($resolved['message'] ?? 'resolve failed'));
+            }
+            $bal = function_exists('lc_wallet_get_balance')
+                ? lc_wallet_get_balance((int) $resolved['mt_id'])
+                : 0;
+
+            return array(
+                'ok' => true,
+                'message' => 'local',
+                'balance' => (int) $bal,
+                'platformCode' => lc_mp_local_platform_code(),
+            );
+        }
+
+        $base = trim((string) ($platform['api_base_url'] ?? ''));
+        $token = trim((string) ($platform['outbound_token'] ?? ''));
+        if ($token === '') {
+            $token = trim((string) ($platform['webhook_secret'] ?? ''));
+        }
+        if ($base === '' || $token === '') {
+            return array('ok' => false, 'message' => 'peer adapter not configured (api_base_url / token)');
+        }
+
+        $url = rtrim($base, '/') . '/plugin/linkconnect/api/platform/wallet_balance.php';
+        $body = json_encode(array(
+            'groupCode'            => (string) ($lookup['groupCode'] ?? ''),
+            'externalMerchantId'   => (string) ($lookup['externalMerchantId'] ?? ''),
+            'mtId'                 => (int) ($lookup['mtId'] ?? 0),
+            'sourcePlatform'       => lc_mp_local_platform_code(),
+        ), JSON_UNESCAPED_UNICODE);
+
+        $ch = curl_init($url);
+        if ($ch === false) {
+            return array('ok' => false, 'message' => 'curl init failed');
+        }
+        curl_setopt_array($ch, array(
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => array(
+                'Content-Type: application/json',
+                'Accept: application/json',
+                'X-LC-Platform-Token: ' . $token,
+                'X-LC-Platform-Code: ' . lc_mp_local_platform_code(),
+            ),
+            CURLOPT_POSTFIELDS     => $body,
+            CURLOPT_TIMEOUT        => 8,
+            CURLOPT_CONNECTTIMEOUT => 4,
+        ));
+        $resp = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $err = curl_error($ch);
+        $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($errno) {
+            return array('ok' => false, 'message' => 'curl error: ' . $err, 'http' => $http);
+        }
+        if ($http < 200 || $http >= 300) {
+            return array('ok' => false, 'message' => 'remote HTTP ' . $http, 'http' => $http);
+        }
+        $decoded = json_decode((string) $resp, true);
+        if (!is_array($decoded) || empty($decoded['ok'])) {
+            return array('ok' => false, 'message' => 'remote rejected', 'http' => $http);
+        }
+        $data = isset($decoded['data']) && is_array($decoded['data']) ? $decoded['data'] : $decoded;
+
+        return array(
+            'ok'           => true,
+            'message'      => 'ok',
+            'balance'      => (int) ($data['balance'] ?? 0),
+            'platformCode' => (string) ($data['platformCode'] ?? $code),
+            'http'         => $http,
+        );
+    }
+}

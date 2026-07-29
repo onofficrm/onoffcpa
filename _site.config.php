@@ -9,7 +9,7 @@ if (!defined('_GNUBOARD_')) {
 
 $site_config = array(
     'site_name'           => '온오프CPA',
-    'site_desc'           => 'CPA 제휴마케팅 플랫폼',
+    'site_desc'           => '온오프CPA는 광고주와 마케팅 파트너를 연결하는 CPA 제휴마케팅 플랫폼입니다. CPA광고 상품 참여, DB·전환 성과 확인, 수익 정산까지 한곳에서 관리할 수 있습니다.',
     'company_name'        => '온오프CPA',
     'ceo_name'            => '대표자명',
     'business_no'         => '000-00-00000',
@@ -19,18 +19,22 @@ $site_config = array(
     'address'             => '주소를 입력하세요',
     'primary_color'       => '#2563eb',
     'secondary_color'     => '#64748b',
+    'theme_color'         => '#2563eb',
     'logo_path'           => '/img/brand/onoffcpa-mark.svg',
     /* 회원 스킨 강제 적용 (DB cf_member_skin 무관) — onoff = 온오프CPA 톤 회원 페이지 */
     'platform_member_skin' => 'onoff',
-    'og_image'            => '/img/common/og-image.jpg',
+    /* SNS/OG — 공개 접근 가능한 플랫폼 히어로 이미지 (img/common/og-image.jpg 미존재) */
+    'og_image'            => '/plugin/onoff-builder-bridge/imports/linkconnect/hero_dashboard_mockup.png',
+    'og_image_width'      => '1536',
+    'og_image_height'     => '1024',
     /* SEO (components/seo-meta.php) */
-    'seo_title'           => '온오프CPA',
-    'seo_description'     => '클릭을 수익으로, DB를 성과로 연결하는 CPA 제휴마케팅 플랫폼',
-    'main_keyword'        => '온오프CPA,CPA,제휴마케팅',
-    'sub_keywords'        => '',
-    'robots'              => 'index,follow',
+    'seo_title'           => '온오프CPA | CPA 제휴마케팅 플랫폼',
+    'seo_description'     => '온오프CPA는 광고주와 마케팅 파트너를 연결하는 CPA 제휴마케팅 플랫폼입니다. CPA광고 상품 참여, DB·전환 실시간 성과 확인, 광고주 DB 관리와 파트너 수익 정산까지 제공합니다.',
+    'main_keyword'        => '온오프CPA, CPA, CPA마케팅, CPA광고, 제휴마케팅, 어필리에이트, 성과형광고, DB마케팅, 전환마케팅, 광고주모집, 마케팅파트너, 파트너모집, CPA플랫폼, 온라인마케팅, 수익정산',
+    'sub_keywords'        => 'CPA상품, 제휴광고, 실적형마케팅, 퍼포먼스마케팅, 광고대행, 미디어바잉',
+    'robots'              => 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
     'consultation_text'   => '상담문의',
-    'footer_desc'         => '클릭을 수익으로, DB를 성과로 연결하는 제휴마케팅 플랫폼입니다.',
+    'footer_desc'         => '온오프CPA는 광고주와 마케팅 파트너를 연결하는 CPA 제휴마케팅 플랫폼입니다.',
     /* 문의 폼 → inquiry 게시판 (proc/inquiry-submit.php) */
     'inquiry_bo_table'        => 'inquiry',
     'inquiry_notify_enabled'  => true,

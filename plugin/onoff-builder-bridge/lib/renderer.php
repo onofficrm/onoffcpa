@@ -143,6 +143,26 @@ if (!function_exists('onoff_builder_render_standalone')) {
             echo '</div>';
         }
 
+        // 공통 SEO 메타 준비 (온오프CPA site_config + SPA 경로)
+        if (is_file(G5_PATH . '/components/seo-meta.php')) {
+            include_once G5_PATH . '/components/seo-meta.php';
+        }
+        if (function_exists('g5b_seo_prepare_spa_context')) {
+            g5b_seo_prepare_spa_context();
+        }
+        // 빌더 import 메타가 있으면 페이지 변수로 우선 반영 (홈 기본값은 site_config)
+        global $page_title, $page_description;
+        $home_id = function_exists('onoff_builder_get_home_bridge_id') ? onoff_builder_get_home_bridge_id() : '';
+        $is_home_spa = ($home_id !== '' && $id === $home_id);
+        if (!$is_home_spa) {
+            if ($title !== '' && empty($page_title)) {
+                $page_title = $title;
+            }
+            if ($desc !== '' && empty($page_description)) {
+                $page_description = $desc;
+            }
+        }
+
         if (preg_match('#<!DOCTYPE#i', $html) || preg_match('#<html#i', $html)) {
             $inject = onoff_builder_landing_context_script($id);
             if ($inject !== '' && stripos($html, 'LC_LANDING_CONTEXT') === false) {
@@ -152,16 +172,21 @@ if (!function_exists('onoff_builder_render_standalone')) {
                     $html = $inject . $html;
                 }
             }
-            if ($desc !== '' && stripos($html, '<meta name="description"') === false) {
-                $html = preg_replace(
-                    '#</head>#i',
-                    '<meta name="description" content="' . onoff_builder_escape($desc) . '"></head>',
-                    $html,
-                    1
-                );
-            }
-            if (stripos($html, '<title>') !== false && $title !== '') {
-                $html = preg_replace('#<title>.*?</title>#is', '<title>' . onoff_builder_escape($title) . '</title>', $html, 1);
+
+            if (function_exists('g5b_seo_inject_into_html') && function_exists('g5b_seo_resolve')) {
+                $html = g5b_seo_inject_into_html($html, g5b_seo_resolve(true));
+            } else {
+                if ($desc !== '' && stripos($html, '<meta name="description"') === false) {
+                    $html = preg_replace(
+                        '#</head>#i',
+                        '<meta name="description" content="' . onoff_builder_escape($desc) . '"></head>',
+                        $html,
+                        1
+                    );
+                }
+                if (stripos($html, '<title>') !== false && $title !== '') {
+                    $html = preg_replace('#<title>.*?</title>#is', '<title>' . onoff_builder_escape($title) . '</title>', $html, 1);
+                }
             }
             echo $html;
             return;
@@ -169,9 +194,15 @@ if (!function_exists('onoff_builder_render_standalone')) {
 
         echo '<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">';
         echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
-        echo '<title>' . onoff_builder_escape($title) . '</title>';
-        if ($desc !== '') {
-            echo '<meta name="description" content="' . onoff_builder_escape($desc) . '">';
+        if (function_exists('g5b_seo_resolve') && function_exists('g5b_seo_build_meta_html')) {
+            $seo = g5b_seo_resolve(true);
+            echo '<title>' . onoff_builder_escape($seo['title']) . '</title>';
+            echo g5b_seo_build_meta_html($seo);
+        } else {
+            echo '<title>' . onoff_builder_escape($title) . '</title>';
+            if ($desc !== '') {
+                echo '<meta name="description" content="' . onoff_builder_escape($desc) . '">';
+            }
         }
         echo onoff_builder_extract_head_assets($html);
         echo '<link rel="stylesheet" href="' . onoff_builder_escape(ONOFF_BUILDER_ASSETS_URL . '/css/frontend.css') . '">';

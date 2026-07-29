@@ -1494,6 +1494,11 @@ if (!function_exists('g5b_seo_meta_apply_context')) {
         global $bo_table, $wr_id, $write;
 
         if (defined('G5_IS_ADMIN') && G5_IS_ADMIN) {
+            global $page_robots;
+            if (empty($page_robots)) {
+                $page_robots = 'noindex,nofollow';
+            }
+            g5b_seo_meta_ensure_seo_init();
             return;
         }
 

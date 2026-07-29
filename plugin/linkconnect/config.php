@@ -142,6 +142,9 @@ if (!defined('LC_PLATFORM_CODE')) {
 if (!defined('LC_PLATFORM_LINKCONNECT')) {
     define('LC_PLATFORM_LINKCONNECT', 'LINKCONNECT');
 }
+if (!defined('LC_PLATFORM_ONOFFCPA')) {
+    define('LC_PLATFORM_ONOFFCPA', 'ONOFFCPA');
+}
 /**
  * 온오프CPA 공개 URL (다중 플랫폼 peer / 크론 / 시드용).
  * 우선: onoffcpa.icrm.co.kr  (신규 정식 도메인)
@@ -264,10 +267,14 @@ if (!function_exists('lc_site_desc')) {
     function lc_site_desc()
     {
         if (function_exists('g5site_cfg')) {
-            return g5site_cfg('site_desc', 'CPA 제휴마케팅 플랫폼');
+            $desc = g5site_cfg('seo_description', '');
+            if ($desc !== '') {
+                return $desc;
+            }
+            return g5site_cfg('site_desc', '광고주와 파트너를 연결하는 CPA 제휴마케팅 플랫폼입니다.');
         }
 
-        return 'CPA 제휴마케팅 플랫폼';
+        return '광고주와 파트너를 연결하는 CPA 제휴마케팅 플랫폼입니다.';
     }
 }
 

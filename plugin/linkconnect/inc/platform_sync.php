@@ -408,11 +408,56 @@ if (!function_exists('lc_mp_apply_remote_status')) {
             ? lc_mp_status_map_local($status)
             : strtolower((string) $status);
 
-        // 이미 동일/처리된 상태면 멱등 성공
+        // 이미 동일 상태면 멱등 성공
         if ((string) $conversion['cv_status'] === $status_local) {
             return array('ok' => true, 'message' => 'already in status', 'cvId' => $cv_id, 'applied' => false);
         }
-        if ((string) $conversion['cv_status'] !== (defined('LC_STATUS_PENDING') ? LC_STATUS_PENDING : 'pending')) {
+
+        $pending = defined('LC_STATUS_PENDING') ? LC_STATUS_PENDING : 'pending';
+        $approved = defined('LC_STATUS_APPROVED') ? LC_STATUS_APPROVED : 'approved';
+        $rejected = defined('LC_STATUS_REJECTED') ? LC_STATUS_REJECTED : 'rejected';
+
+        // 승인 → 취소(환급): pending 이 아닌 경우의 대칭 환불
+        if ((string) $conversion['cv_status'] === $approved
+            && in_array($status_local, array($rejected, 'canceled', 'cancelled'), true)) {
+            $price = (int) ($conversion['cv_price'] ?? 0);
+            if ($mt_id > 0 && $price > 0 && function_exists('lc_wallet_refund_for_conversion')) {
+                $refund = lc_wallet_refund_for_conversion(
+                    $mt_id,
+                    $cv_id,
+                    $price,
+                    (string) ($conversion['cv_code'] ?? '') . ' 피어승인취소 환급'
+                );
+                if (empty($refund['ok'])) {
+                    return array(
+                        'ok' => false,
+                        'message' => (string) ($refund['message'] ?? 'refund failed'),
+                        'cvId' => $cv_id,
+                    );
+                }
+            }
+            if (function_exists('lc_partner_debit_for_conversion')) {
+                lc_partner_debit_for_conversion($conversion);
+            }
+            $cv_table = lc_table('conversions');
+            $comment_esc = lc_sql_escape((string) $comment);
+            lc_sql_query(" UPDATE `{$cv_table}` SET
+                cv_status = '" . lc_sql_escape($rejected) . "',
+                cv_comment = '{$comment_esc}',
+                cv_reject_reason = '{$comment_esc}',
+                cv_updated_at = NOW()
+                WHERE cv_id = '{$cv_id}' ", false);
+
+            lc_mp_audit('inbound.remote_status_refund', array(
+                'cv_id' => $cv_id,
+                'external_lead_id' => $external_lead_id,
+                'status' => $rejected,
+            ));
+
+            return array('ok' => true, 'message' => 'refunded', 'cvId' => $cv_id, 'applied' => true);
+        }
+
+        if ((string) $conversion['cv_status'] !== $pending) {
             return array('ok' => true, 'message' => 'already processed', 'cvId' => $cv_id, 'applied' => false);
         }
 
@@ -698,7 +743,7 @@ if (!function_exists('lc_mp_on_local_conversion_status_changed')) {
      * - 단독 광고주 → no-op
      * - 미러본(lead_ref 있음) → 원본 플랫폼으로 status push
      * - 원본(lead_ref 없음) + 공동 입점 → 피어 플랫폼으로 status push
-     * 과금은 로컬 initiator 에서만 이미 수행됨. 상대는 mp_remote_ack 로 지갑 스킵.
+     * 지갑: 로컬 개시 차감 + (ACK 수신 시 primary/온오프CPA 추가 차감)
      */
     function lc_mp_on_local_conversion_status_changed($cv_id, $mt_id, $new_status, $comment = '')
     {

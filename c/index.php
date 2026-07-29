@@ -66,6 +66,8 @@ if (function_exists('lc_link_is_tracking_request_host') && lc_link_is_tracking_r
   <meta name="robots" content="<?php echo lc_h($seo['robots']); ?>">
   <link rel="canonical" href="<?php echo lc_h($seo['canonical']); ?>">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="<?php echo lc_h(function_exists('lc_site_name') ? lc_site_name() : '온오프CPA'); ?>">
+  <meta property="og:locale" content="ko_KR">
   <meta property="og:title" content="<?php echo lc_h($seo['title']); ?>">
   <?php if ($seo['description'] !== '') { ?>
   <meta property="og:description" content="<?php echo lc_h($seo['description']); ?>">
@@ -73,11 +75,16 @@ if (function_exists('lc_link_is_tracking_request_host') && lc_link_is_tracking_r
   <meta property="og:url" content="<?php echo lc_h($seo['canonical']); ?>">
   <?php if ($seo['ogImage'] !== '') { ?>
   <meta property="og:image" content="<?php echo lc_h($seo['ogImage']); ?>">
+  <meta property="og:image:alt" content="<?php echo lc_h($seo['title']); ?>">
   <?php } ?>
   <meta name="twitter:card" content="<?php echo $seo['ogImage'] !== '' ? 'summary_large_image' : 'summary'; ?>">
   <meta name="twitter:title" content="<?php echo lc_h($seo['title']); ?>">
   <?php if ($seo['description'] !== '') { ?>
   <meta name="twitter:description" content="<?php echo lc_h($seo['description']); ?>">
+  <?php } ?>
+  <?php if ($seo['ogImage'] !== '') { ?>
+  <meta name="twitter:image" content="<?php echo lc_h($seo['ogImage']); ?>">
+  <meta name="twitter:image:alt" content="<?php echo lc_h($seo['title']); ?>">
   <?php } ?>
   <link rel="stylesheet" href="<?php echo lc_h($asset_css); ?>">
 </head>
