@@ -6,18 +6,6 @@ name: Deploy LinkConnect MP wallet hotfix
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'plugin/linkconnect/inc/wallet.php'
-      - 'plugin/linkconnect/inc/platform_policy.php'
-      - 'plugin/linkconnect/inc/platform_adapter.php'
-      - 'plugin/linkconnect/inc/platform_sync.php'
-      - 'plugin/linkconnect/inc/conversion.php'
-      - 'plugin/linkconnect/api/platform/wallet_balance.php'
-      - 'plugin/linkconnect/install/seed_personal_rehab_mp.php'
-      - 'plugin/linkconnect/install/audit_dual_wallet_balances.php'
-      - '.github/workflows/deploy-linkconnect-mp.yml'
 
 jobs:
   deploy-linkconnect-mp:
