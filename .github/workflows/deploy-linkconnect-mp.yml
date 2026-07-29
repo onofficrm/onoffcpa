@@ -1,0 +1,140 @@
+name: Deploy LinkConnect MP wallet hotfix
+
+# 링크커넥트(피어)에 이중 지갑 관련 파일만 FTP 배포 + peer 시드/잔액 감사.
+# Secrets 필요: LC_FTP_SERVER, LC_FTP_USERNAME, LC_FTP_PASSWORD, LC_FTP_PORT
+# (없으면 job 이 실패하며 안내 — 온오프CPA 배포와 분리)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'plugin/linkconnect/inc/wallet.php'
+      - 'plugin/linkconnect/inc/platform_policy.php'
+      - 'plugin/linkconnect/inc/platform_adapter.php'
+      - 'plugin/linkconnect/inc/platform_sync.php'
+      - 'plugin/linkconnect/inc/conversion.php'
+      - 'plugin/linkconnect/api/platform/wallet_balance.php'
+      - 'plugin/linkconnect/install/seed_personal_rehab_mp.php'
+      - 'plugin/linkconnect/install/audit_dual_wallet_balances.php'
+      - '.github/workflows/deploy-linkconnect-mp.yml'
+
+jobs:
+  deploy-linkconnect-mp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require LC FTP secrets
+        env:
+          LC_FTP_SERVER: ${{ secrets.LC_FTP_SERVER }}
+          LC_FTP_USERNAME: ${{ secrets.LC_FTP_USERNAME }}
+          LC_FTP_PASSWORD: ${{ secrets.LC_FTP_PASSWORD }}
+          LC_FTP_PORT: ${{ secrets.LC_FTP_PORT }}
+        run: |
+          missing=0
+          [ -z "${LC_FTP_SERVER:-}" ] && echo "::error::LC_FTP_SERVER missing" && missing=1
+          [ -z "${LC_FTP_USERNAME:-}" ] && echo "::error::LC_FTP_USERNAME missing" && missing=1
+          [ -z "${LC_FTP_PASSWORD:-}" ] && echo "::error::LC_FTP_PASSWORD missing" && missing=1
+          [ -z "${LC_FTP_PORT:-}" ] && echo "::error::LC_FTP_PORT missing" && missing=1
+          if [ "$missing" = "1" ]; then
+            echo "::error::Add LinkConnect FTP secrets (LC_FTP_*) then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Prepare MP hotfix bundle
+        run: |
+          ROOT=".deploy/linkconnect-mp"
+          rm -rf "$ROOT"
+          FILES=(
+            "plugin/linkconnect/config.php"
+            "plugin/linkconnect/inc/conversion.php"
+            "plugin/linkconnect/inc/wallet.php"
+            "plugin/linkconnect/inc/platform.php"
+            "plugin/linkconnect/inc/platform_db.php"
+            "plugin/linkconnect/inc/platform_policy.php"
+            "plugin/linkconnect/inc/platform_adapter.php"
+            "plugin/linkconnect/inc/platform_sync.php"
+            "plugin/linkconnect/api/platform/health.php"
+            "plugin/linkconnect/api/platform/inbound_lead.php"
+            "plugin/linkconnect/api/platform/status_change.php"
+            "plugin/linkconnect/api/platform/remote_status.php"
+            "plugin/linkconnect/api/platform/wallet_balance.php"
+            "plugin/linkconnect/install/seed_personal_rehab_mp.php"
+            "plugin/linkconnect/install/audit_dual_wallet_balances.php"
+            "plugin/linkconnect/admin/api/platform.php"
+            "plugin/linkconnect/cron/platform_sync_outbox.php"
+          )
+          for file in "${FILES[@]}"; do
+            mkdir -p "$ROOT/$(dirname "$file")"
+            cp "$file" "$ROOT/$file"
+          done
+          find "$ROOT" -name '._*' -delete 2>/dev/null || true
+          test -f "$ROOT/plugin/linkconnect/api/platform/wallet_balance.php"
+          echo "Bundle files: $(find "$ROOT" -type f | wc -l)"
+
+      - name: FTP upload to LinkConnect
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.LC_FTP_SERVER }}
+          username: ${{ secrets.LC_FTP_USERNAME }}
+          password: ${{ secrets.LC_FTP_PASSWORD }}
+          port: ${{ secrets.LC_FTP_PORT }}
+          parallel: 1
+          protocol: ftp
+          local-dir: .deploy/linkconnect-mp/
+          server-dir: /public_html/
+          state-name: linkconnect-mp-wallet-v1
+          log-level: minimal
+          timeout: 600000
+
+      - name: Seed peer + audit balances on LinkConnect
+        env:
+          LC_FTP_SERVER: ${{ secrets.LC_FTP_SERVER }}
+          LC_FTP_USERNAME: ${{ secrets.LC_FTP_USERNAME }}
+          LC_FTP_PASSWORD: ${{ secrets.LC_FTP_PASSWORD }}
+          LC_FTP_PORT: ${{ secrets.LC_FTP_PORT }}
+        run: |
+          cat > seed_mp_run.php << 'EOF'
+          <?php
+          header('Content-Type: application/json; charset=utf-8');
+          require_once __DIR__ . '/plugin/linkconnect/_common.php';
+          if (!function_exists('lc_mp_seed_personal_rehab_pair')) {
+            require_once G5_PLUGIN_PATH . '/linkconnect/install/seed_personal_rehab_mp.php';
+          }
+          echo json_encode(lc_mp_seed_personal_rehab_pair(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+          EOF
+          cat > audit_dual_wallet.php << 'EOF'
+          <?php
+          header('Content-Type: application/json; charset=utf-8');
+          require_once __DIR__ . '/plugin/linkconnect/install/audit_dual_wallet_balances.php';
+          echo json_encode(lc_mp_audit_dual_wallet_balances(array('fix' => true)), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+          EOF
+          curl --fail --show-error --silent --ftp-create-dirs \
+            --user "${LC_FTP_USERNAME}:${LC_FTP_PASSWORD}" \
+            -T seed_mp_run.php \
+            "ftp://${LC_FTP_SERVER}:${LC_FTP_PORT}/public_html/seed_mp_run.php"
+          curl --fail --show-error --silent --ftp-create-dirs \
+            --user "${LC_FTP_USERNAME}:${LC_FTP_PASSWORD}" \
+            -T audit_dual_wallet.php \
+            "ftp://${LC_FTP_SERVER}:${LC_FTP_PORT}/public_html/audit_dual_wallet.php"
+          BASE="https://linkconnect.co.kr"
+          echo "=== HEALTH ==="
+          curl -sS "${BASE}/plugin/linkconnect/api/platform/health.php" || true
+          echo
+          echo "=== SEED MP ==="
+          curl -sS "${BASE}/seed_mp_run.php" || true
+          echo
+          echo "=== AUDIT+FIX ==="
+          curl -sS "${BASE}/audit_dual_wallet.php" || true
+          echo
+          echo "=== WALLET_BALANCE HEAD ==="
+          curl -sS -o /dev/null -w 'http=%{http_code}\n' -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{}' "${BASE}/plugin/linkconnect/api/platform/wallet_balance.php" || true
+          curl --silent --show-error --user "${LC_FTP_USERNAME}:${LC_FTP_PASSWORD}" \
+            -Q "DELE /public_html/seed_mp_run.php" "ftp://${LC_FTP_SERVER}:${LC_FTP_PORT}/" || true
+          curl --silent --show-error --user "${LC_FTP_USERNAME}:${LC_FTP_PASSWORD}" \
+            -Q "DELE /public_html/audit_dual_wallet.php" "ftp://${LC_FTP_SERVER}:${LC_FTP_PORT}/" || true

@@ -23,10 +23,10 @@ $site_config = array(
     'logo_path'           => '/img/brand/onoffcpa-mark.svg',
     /* 회원 스킨 강제 적용 (DB cf_member_skin 무관) — onoff = 온오프CPA 톤 회원 페이지 */
     'platform_member_skin' => 'onoff',
-    /* SNS/OG — 공개 접근 가능한 플랫폼 히어로 이미지 (img/common/og-image.jpg 미존재) */
-    'og_image'            => '/plugin/onoff-builder-bridge/imports/linkconnect/hero_dashboard_mockup.png',
-    'og_image_width'      => '1536',
-    'og_image_height'     => '1024',
+    /* SNS/OG — 온오프CPA 전용 1200×630 */
+    'og_image'            => '/img/brand/og-onoffcpa.jpg',
+    'og_image_width'      => '1200',
+    'og_image_height'     => '630',
     /* SEO (components/seo-meta.php) */
     'seo_title'           => '온오프CPA | CPA 제휴마케팅 플랫폼',
     'seo_description'     => '온오프CPA는 광고주와 마케팅 파트너를 연결하는 CPA 제휴마케팅 플랫폼입니다. CPA광고 상품 참여, DB·전환 실시간 성과 확인, 광고주 DB 관리와 파트너 수익 정산까지 제공합니다.',

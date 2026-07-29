@@ -30,14 +30,20 @@ jobs:
             "favicon.svg"
             "img/brand/onoffcpa-mark.svg"
             "img/brand/onoffcpa-mark.png"
+            "img/brand/og-onoffcpa.jpg"
             "img/brand/favicon.svg"
             "img/brand/favicon.png"
             "img/brand/favicon-32.png"
             "img/brand/apple-touch-icon.png"
+            "img/common/og-image.jpg"
+            "components/seo-meta.php"
+            "lib/seo-meta.lib.php"
             "plugin/onoff-builder-bridge/lib/home.php"
+            "plugin/onoff-builder-bridge/lib/renderer.php"
             "plugin/linkconnect/_common.php"
             "plugin/linkconnect/config.php"
             "plugin/linkconnect/inc/conversion.php"
+            "plugin/linkconnect/inc/wallet.php"
             "plugin/linkconnect/inc/platform.php"
             "plugin/linkconnect/inc/platform_db.php"
             "plugin/linkconnect/inc/platform_policy.php"
@@ -47,9 +53,11 @@ jobs:
             "plugin/linkconnect/api/platform/inbound_lead.php"
             "plugin/linkconnect/api/platform/status_change.php"
             "plugin/linkconnect/api/platform/remote_status.php"
+            "plugin/linkconnect/api/platform/wallet_balance.php"
             "plugin/linkconnect/admin/api/platform.php"
             "plugin/linkconnect/cron/platform_sync_outbox.php"
             "plugin/linkconnect/install/seed_personal_rehab_mp.php"
+            "plugin/linkconnect/install/audit_dual_wallet_balances.php"
             "plugin/linkconnect/install/apply_personal_rehab_thumbnails.php"
             "plugin/linkconnect/install/assets/thumb-banktupt.jpg"
             "plugin/linkconnect/install/assets/thumb-dasibom.jpg"
@@ -171,6 +179,12 @@ jobs:
           }
           echo json_encode(lc_mp_seed_personal_rehab_pair(), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
           EOF
+          cat > audit_dual_wallet.php << 'EOF'
+          <?php
+          header('Content-Type: application/json; charset=utf-8');
+          require_once __DIR__ . '/plugin/linkconnect/install/audit_dual_wallet_balances.php';
+          echo json_encode(lc_mp_audit_dual_wallet_balances(array('fix' => false)), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+          EOF
           cat > apply_thumbs.php << 'EOF'
           <?php
           header('Content-Type: application/json; charset=utf-8');
@@ -195,6 +209,11 @@ jobs:
           curl --fail --show-error --silent \
             --ftp-create-dirs \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T audit_dual_wallet.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/audit_dual_wallet.php"
+          curl --fail --show-error --silent \
+            --ftp-create-dirs \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -T apply_thumbs.php \
             "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/apply_thumbs.php"
           BASE=""
@@ -215,12 +234,21 @@ jobs:
           echo "=== SEED MP ADVERTISERS ==="
           curl -sS "${BASE}/seed_mp_run.php" || true
           echo
+          echo "=== DUAL WALLET AUDIT ==="
+          curl -sS "${BASE}/audit_dual_wallet.php" || true
+          echo
           echo "=== APPLY PERSONAL REHAB THUMBNAILS ==="
           curl -sS "${BASE}/apply_thumbs.php" || true
           echo
           echo "=== HEALTH ==="
           curl -sS "${BASE}/plugin/linkconnect/api/platform/health.php" || true
           echo
+          echo "=== WALLET_BALANCE ==="
+          curl -sS -o /dev/null -w 'http=%{http_code}\n' -X POST \
+            -H 'Content-Type: application/json' -d '{}' \
+            "${BASE}/plugin/linkconnect/api/platform/wallet_balance.php" || true
+          echo "=== OG IMAGE ==="
+          curl -sS -o /dev/null -w 'og=%{http_code}\n' "${BASE}/img/brand/og-onoffcpa.jpg" || true
           curl --silent --show-error \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -Q "DELE /public_html/rename_site.php" \
@@ -232,6 +260,10 @@ jobs:
           curl --silent --show-error \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
             -Q "DELE /public_html/seed_mp_run.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
+          curl --silent --show-error \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -Q "DELE /public_html/audit_dual_wallet.php" \
             "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
           curl --silent --show-error \
             --user "${FTP_USERNAME}:${FTP_PASSWORD}" \

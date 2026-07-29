@@ -232,7 +232,7 @@ header('Content-Type: text/html; charset=utf-8');
 <html lang="ko"><head><meta charset="UTF-8"><title>개인회생 MP 시딩</title></head>
 <body style="font-family:sans-serif;max-width:640px;margin:2rem auto;">
 <h1>개인회생 광고주 2곳 다중 플랫폼 시딩</h1>
-<p>banktupt / dasibom 각각 별도 그룹. 멤버 양쪽 승인 가능(과금=승인자, 상대 ACK). hub=온오프CPA.</p>
+<p>banktupt / dasibom 각각 별도 그룹. 멤버 양쪽 승인 가능. 과금: 온오프CPA승인=primary만, 링크커넥트승인=양쪽. hub=온오프CPA.</p>
 <p><a href="?action=run">실행</a></p>
 </body></html>
 <?php
