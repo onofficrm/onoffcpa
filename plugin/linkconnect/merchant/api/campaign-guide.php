@@ -50,14 +50,14 @@ if ($method === 'POST') {
     if ($action === 'create') {
         $result = lc_campaign_promo_guide_create($mt_id, $cp_id);
         if (empty($result['ok'])) {
-            $code = isset($result['guide']) ? 'ALREADY_EXISTS' : 'CREATE_FAILED';
-            lc_api_error($result['message'], $code, 400);
+            lc_api_error($result['message'], 'CREATE_FAILED', 400);
         }
 
         lc_api_success(array(
             'message' => $result['message'],
             'guide'   => lc_campaign_promo_guide_to_api($result['guide']),
             'csrfToken' => lc_campaign_promo_guide_csrf_token(),
+            'created' => !empty($result['created']),
         ));
     }
 

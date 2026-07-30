@@ -16,6 +16,8 @@ import {
   updateAdminCampaignStatus,
 } from '../../lib/api';
 import { CPA_THUMBNAIL_ASPECT_CLASS, CPA_THUMBNAIL_SPEC, cpaThumbnailHint } from '../../lib/cpaThumbnail';
+import { promoGuideStatusLabel, promoGuideStatusStyle } from '../../lib/campaignPromoGuide';
+import { AdminCampaignPromoGuidePanel } from '../../components/admin/AdminCampaignPromoGuidePanel';
 
 const categoryOptions = ['금융', '법률', '병원', '교육', '생활서비스', '렌탈', '기타'];
 
@@ -105,6 +107,7 @@ export function AdminCampaigns() {
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [guidePanel, setGuidePanel] = useState<AdminCampaign | null>(null);
 
   const loadCampaigns = useCallback(async () => {
     setLoading(true);
@@ -311,6 +314,7 @@ export function AdminCampaigns() {
                   <tr>
                     <th className="px-4 py-3 font-medium">상품명/코드</th>
                     <th className="px-4 py-3 font-medium">광고주/유형</th>
+                    <th className="px-4 py-3 font-medium text-center">홍보 가이드</th>
                     <th className="px-4 py-3 font-medium text-right">파트너 단가</th>
                     <th className="px-4 py-3 font-medium text-right">광고주 단가/마진</th>
                     <th className="px-4 py-3 font-medium text-right">접수 DB</th>
@@ -322,13 +326,16 @@ export function AdminCampaigns() {
                 <tbody className="divide-y divide-slate-100">
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-10 text-center text-slate-500">불러오는 중...</td>
+                      <td colSpan={9} className="px-4 py-10 text-center text-slate-500">불러오는 중...</td>
                     </tr>
                   ) : campaigns.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-10 text-center text-slate-500">등록된 광고상품이 없습니다.</td>
+                      <td colSpan={9} className="px-4 py-10 text-center text-slate-500">등록된 광고상품이 없습니다.</td>
                     </tr>
-                  ) : campaigns.map((campaign) => (
+                  ) : campaigns.map((campaign) => {
+                    const pg = campaign.promoGuide;
+                    const guideStatus = pg?.exists ? (pg.status ?? 'draft') : 'none';
+                    return (
                     <tr
                       key={campaign.id}
                       className={`hover:bg-slate-50 transition-colors cursor-pointer ${selectedCampaign?.id === campaign.id ? 'bg-cyan-50/50' : ''}`}
@@ -348,6 +355,15 @@ export function AdminCampaigns() {
                           {campaign.type}
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        {pg?.exists ? (
+                          <span className={`inline-flex px-2 py-1 rounded-lg text-xs font-bold border ${promoGuideStatusStyle(guideStatus)}`}>
+                            {pg.statusLabel || promoGuideStatusLabel(guideStatus)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">미등록</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="font-bold text-slate-900 text-base">{campaign.partnerPrice.toLocaleString()}원</div>
                       </td>
@@ -366,10 +382,20 @@ export function AdminCampaigns() {
                         <StatusBadge status={campaign.status} />
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
-                        <button className="px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 rounded text-xs font-bold transition-colors">관리</button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGuidePanel(campaign);
+                          }}
+                          className="px-3 py-1.5 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 rounded text-xs font-bold transition-colors"
+                        >
+                          가이드
+                        </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -718,6 +744,16 @@ export function AdminCampaigns() {
           </div>
         )}
       </div>
+
+      {guidePanel ? (
+        <AdminCampaignPromoGuidePanel
+          campaignId={guidePanel.id}
+          campaignName={guidePanel.name}
+          advertiserName={guidePanel.advertiser}
+          onClose={() => setGuidePanel(null)}
+          onUpdated={loadCampaigns}
+        />
+      ) : null}
     </AdminLayout>
   );
 }

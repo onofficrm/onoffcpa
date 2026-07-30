@@ -1,7 +1,8 @@
 import { AdvertiserLayout } from '../../layouts/AdvertiserLayout';
 import { SummaryCard, StatusBadge } from '../../components/advertiser/AdvertiserShared';
-import { Target, CheckCircle2, PlayCircle, PauseCircle, BarChart3, Edit3, Pause, Wand2, Loader2 } from 'lucide-react';
+import { Target, CheckCircle2, PlayCircle, PauseCircle, BarChart3, Edit3, Pause, Wand2, Loader2, BookOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { fetchMerchantCampaigns, MerchantCampaign } from '../../lib/api';
 
 export function AdvertiserCampaigns() {
@@ -125,6 +126,14 @@ export function AdvertiserCampaigns() {
                   <td className="px-5 py-4 text-right font-bold text-slate-900 whitespace-nowrap">{camp.dbCount}건</td>
                   <td className="px-5 py-4 text-center whitespace-nowrap">
                     <div className="flex items-center justify-center gap-2">
+                      <Link
+                        to={`/advertiser/campaigns/${camp.id}/guide`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-lg transition-colors"
+                        title="홍보 가이드 관리"
+                      >
+                        <BookOpen size={14} />
+                        홍보 가이드 관리
+                      </Link>
                       <button className="p-1.5 text-slate-400 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors" title="리포트">
                         <BarChart3 size={18} />
                       </button>

@@ -124,8 +124,63 @@ export type PartnerCampaign = {
   badge: string;
   recommended: boolean;
   landingUrl: string;
+  trackingBaseUrl?: string;
   thumbnailUrl?: string;
+  hasPublishedGuide?: boolean;
+  campaignType?: 'cpa' | 'cps';
+  merchantCode?: string;
+  promoUrl?: string;
 };
+
+export type PartnerPromoGuideImage = {
+  id: number;
+  assetId: number;
+  originalFilename: string;
+  mimeType: string;
+  fileSize: number;
+  imageTitle: string;
+  sortOrder: number;
+  downloadUrl: string;
+};
+
+export type PartnerPromoGuideConfirmation = {
+  confirmed: boolean;
+  confirmedAt: string;
+  guideUpdatedAt: string;
+  guideId: number;
+};
+
+export type PartnerPromoGuideDetail = {
+  campaign: PartnerCampaign;
+  guide: {
+    id: number;
+    guideId: number;
+    campaignId: number;
+    promotionPoints: string[];
+    recommendedKeywords: string[];
+    forbiddenWords: string[];
+    precautions: string[];
+    validDbRules: string[];
+    invalidDbRules: string[];
+    approvalType: 'free' | 'first_review' | 'all_review';
+    guideStatus: string;
+    updatedAt: string;
+    publishedAt: string;
+    images: PartnerPromoGuideImage[];
+  };
+  confirmation: PartnerPromoGuideConfirmation;
+};
+
+export function fetchPartnerPromoGuide(cpId: number) {
+  return partnerApiGet<PartnerPromoGuideDetail>('campaign-guide.php', { cpId: String(cpId) });
+}
+
+export function confirmPartnerPromoGuide(cpId: number) {
+  return partnerApiPost<{ message: string; confirmation: PartnerPromoGuideConfirmation }>('campaign-guide.php', {
+    action: 'confirm',
+    cpId,
+  });
+}
 
 export type PartnerCampaignsResponse = {
   items: PartnerCampaign[];
@@ -152,6 +207,8 @@ export type PartnerLink = {
   channel: string;
   subId: string;
   url: string;
+  landingUrl?: string;
+  trackingBaseUrl?: string;
   clicks: number;
   received: number;
   approved: number;
@@ -214,6 +271,22 @@ export function createPartnerLink(payload: { campaignId: number; channel?: strin
   return partnerApiPost<{ message: string; link: PartnerLink | null }>('links.php', payload);
 }
 
+/** CPA /r/{code} → /s/{short} 숏링크 (linkId / code / campaignId) */
+export function buildPartnerCpaShortlink(
+  payload: { linkId: number } | { code: string } | { campaignId: number },
+) {
+  return partnerApiPost<{
+    message: string;
+    shortUrl: string;
+    promoUrl: string;
+    shortCode: string;
+    link?: PartnerLink | null;
+  }>('links.php', {
+    action: 'shortlink',
+    ...payload,
+  });
+}
+
 export function fetchPartnerConversions(filters?: { status?: string; q?: string; rejected?: boolean }) {
   return partnerApiGet<{ items: PartnerConversion[]; summary: PartnerDashboardResponse['summary']; total: number }>(
     'conversions.php',
@@ -270,7 +343,34 @@ export async function merchantApiPost<T>(endpoint: string, payload?: Record<stri
   const body = await parseJson<ApiSuccessBody<T> | ApiErrorBody>(response);
   if (!body.ok) {
     const errBody = body as ApiErrorBody;
-    throw new PartnerApiError(errBody.error, errBody.code, response.status);
+    const extra = errBody.data && typeof errBody.data === 'object' ? (errBody.data as Record<string, unknown>) : undefined;
+    const err = new PartnerApiError(errBody.error, errBody.code, response.status);
+    if (extra?.errors) {
+      (err as PartnerApiError & { fieldErrors?: Record<string, string> }).fieldErrors = extra.errors as Record<string, string>;
+    }
+    throw err;
+  }
+
+  return (body as ApiSuccessBody<T>).data;
+}
+
+export async function merchantApiPostFormData<T>(endpoint: string, formData: FormData): Promise<T> {
+  const response = await fetch(`${MERCHANT_API_BASE}/${endpoint}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+    body: formData,
+  });
+
+  const body = await parseJson<ApiSuccessBody<T> | ApiErrorBody>(response);
+  if (!body.ok) {
+    const errBody = body as ApiErrorBody;
+    const extra = errBody.data && typeof errBody.data === 'object' ? (errBody.data as Record<string, unknown>) : undefined;
+    const err = new PartnerApiError(errBody.error, errBody.code, response.status);
+    if (extra?.errors) {
+      (err as PartnerApiError & { fieldErrors?: Record<string, string> }).fieldErrors = extra.errors as Record<string, string>;
+    }
+    throw err;
   }
 
   return (body as ApiSuccessBody<T>).data;
@@ -704,6 +804,20 @@ export function fetchAdminConversions(filters?: { status?: string }) {
   });
 }
 
+export type AdminCampaignPromoGuideSummary = {
+  exists: boolean;
+  guideId?: number;
+  status?: string;
+  statusLabel?: string;
+  hasPoints?: boolean;
+  keywordCount?: number;
+  forbiddenCount?: number;
+  imageCount?: number;
+  updatedAt?: string;
+  publishedAt?: string;
+  revisionReason?: string;
+};
+
 export type AdminCampaign = {
   id: number;
   code: string;
@@ -732,7 +846,75 @@ export type AdminCampaign = {
   landingUrl: string;
   badge: string;
   recommended: boolean;
+  promoGuide?: AdminCampaignPromoGuideSummary;
+  thumbnailUrl?: string;
 };
+
+export type AdminPromoGuideDetail = {
+  exists: boolean;
+  guideId?: number;
+  campaignId?: number;
+  campaignName?: string;
+  campaignStatus?: string;
+  promotionPoints?: string[];
+  recommendedKeywords?: string[];
+  forbiddenWords?: string[];
+  precautions?: string[];
+  validDbRules?: string[];
+  invalidDbRules?: string[];
+  approvalType?: 'free' | 'first_review' | 'all_review';
+  guideStatus?: string;
+  guideStatusLabel?: string;
+  revisionReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
+  images?: Array<{
+    id: number;
+    assetId: number;
+    originalFilename: string;
+    mimeType: string;
+    fileSize: number;
+    imageTitle: string;
+    sortOrder: number;
+    downloadUrl: string;
+  }>;
+};
+
+export type AdminPromoGuideLog = {
+  id: number;
+  guideId: number;
+  campaignId: number;
+  actorType: string;
+  actorId: string;
+  fromStatus: string;
+  fromStatusLabel: string;
+  toStatus: string;
+  toStatusLabel: string;
+  summary: string;
+  revisionReason: string;
+  createdAt: string;
+};
+
+export function fetchAdminPromoGuide(cpId: number) {
+  return adminApiGet<AdminPromoGuideDetail>('campaign-guide.php', { cpId: String(cpId) });
+}
+
+export function fetchAdminPromoGuideLogs(guideId: number) {
+  return adminApiGet<{ items: AdminPromoGuideLog[] }>('campaign-guide.php', {
+    guideId: String(guideId),
+    logs: '1',
+  });
+}
+
+export function adminPromoGuideAction(payload: {
+  action: 'publish' | 'hide' | 'review' | 'draft' | 'request_revision';
+  guideId: number;
+  cpId?: number;
+  reason?: string;
+}) {
+  return adminApiPost<{ message: string; guide: AdminPromoGuideDetail | null }>('campaign-guide.php', payload);
+}
 
 export type AdminCampaignSummary = {
   total: number;
@@ -787,6 +969,152 @@ export function fetchMerchantCampaigns(filters?: { status?: string }) {
   return merchantApiGet<{ items: MerchantCampaign[]; summary: MerchantCampaignSummary; dbReady: boolean }>(
     'campaigns.php',
     { status: filters?.status ?? '' },
+  );
+}
+
+export type MerchantPromoGuideImage = {
+  id: number;
+  assetId: number;
+  originalFilename: string;
+  mimeType: string;
+  fileSize: number;
+  imageTitle: string;
+  sortOrder: number;
+  downloadUrl: string;
+};
+
+export type MerchantPromoGuideLimits = {
+  promotion_points: number;
+  recommended_keywords: number;
+  forbidden_words: number;
+  precautions: number;
+  valid_db_rules: number;
+  invalid_db_rules: number;
+  images: number;
+};
+
+export type MerchantPromoGuideData = {
+  exists: boolean;
+  id?: number;
+  campaignId?: number;
+  campaignName?: string;
+  guideId?: number;
+  promotionPoints?: string[];
+  recommendedKeywords?: string[];
+  forbiddenWords?: string[];
+  precautions?: string[];
+  validDbRules?: string[];
+  invalidDbRules?: string[];
+  approvalType?: 'free' | 'first_review' | 'all_review';
+  guideStatus?: string;
+  guideStatusLabel?: string;
+  revisionReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
+  images?: MerchantPromoGuideImage[];
+  limits?: MerchantPromoGuideLimits;
+  maxImageBytes?: number;
+  skipReview?: boolean;
+  csrfToken?: string;
+};
+
+export type MerchantPromoGuideSaveResponse = {
+  message: string;
+  guide: MerchantPromoGuideData | null;
+  csrfToken?: string;
+};
+
+export function fetchMerchantPromoGuide(cpId: number) {
+  return merchantApiGet<MerchantPromoGuideData>('campaign-guide.php', { cpId: String(cpId) });
+}
+
+export function saveMerchantPromoGuideDraft(cpId: number, csrfToken: string, payload: Record<string, unknown>) {
+  return merchantApiPost<MerchantPromoGuideSaveResponse>('campaign-guide.php', {
+    action: 'save_draft',
+    cpId,
+    csrfToken,
+    ...payload,
+  });
+}
+
+export function updateMerchantPromoGuide(cpId: number, csrfToken: string, payload: Record<string, unknown>) {
+  return merchantApiPost<MerchantPromoGuideSaveResponse>('campaign-guide.php', {
+    action: 'update',
+    cpId,
+    csrfToken,
+    ...payload,
+  });
+}
+
+export function submitMerchantPromoGuideReview(cpId: number, csrfToken: string, payload?: Record<string, unknown>) {
+  return merchantApiPost<MerchantPromoGuideSaveResponse>('campaign-guide.php', {
+    action: 'submit_review',
+    cpId,
+    csrfToken,
+    payload,
+  });
+}
+
+export function publishMerchantPromoGuide(cpId: number, csrfToken: string, payload?: Record<string, unknown>) {
+  return merchantApiPost<MerchantPromoGuideSaveResponse>('campaign-guide.php', {
+    action: 'publish',
+    cpId,
+    csrfToken,
+    payload,
+  });
+}
+
+export function createMerchantPromoGuide(cpId: number, csrfToken: string) {
+  return merchantApiPost<MerchantPromoGuideSaveResponse>('campaign-guide.php', {
+    action: 'create',
+    cpId,
+    csrfToken,
+  });
+}
+
+export function uploadMerchantPromoGuideImage(cpId: number, csrfToken: string, file: File, imageTitle = '') {
+  const form = new FormData();
+  form.append('action', 'upload');
+  form.append('cpId', String(cpId));
+  form.append('csrfToken', csrfToken);
+  form.append('file', file);
+  if (imageTitle) form.append('imageTitle', imageTitle);
+  return merchantApiPostFormData<{ message: string; asset: MerchantPromoGuideImage; csrfToken?: string }>(
+    'campaign-guide-asset.php',
+    form,
+  );
+}
+
+export function deleteMerchantPromoGuideImage(assetId: number, csrfToken: string) {
+  return merchantApiPost<{ message: string; csrfToken?: string }>('campaign-guide-asset.php', {
+    action: 'delete',
+    assetId,
+    csrfToken,
+  });
+}
+
+export function sortMerchantPromoGuideImages(cpId: number, csrfToken: string, assetIds: number[]) {
+  return merchantApiPost<{ message: string; guide: MerchantPromoGuideData | null; csrfToken?: string }>(
+    'campaign-guide-asset.php',
+    {
+      action: 'sort',
+      cpId,
+      csrfToken,
+      assetIds,
+    },
+  );
+}
+
+export function updateMerchantPromoGuideImageTitle(assetId: number, csrfToken: string, imageTitle: string) {
+  return merchantApiPost<{ message: string; asset: MerchantPromoGuideImage; csrfToken?: string }>(
+    'campaign-guide-asset.php',
+    {
+      action: 'update_title',
+      assetId,
+      csrfToken,
+      imageTitle,
+    },
   );
 }
 
@@ -870,12 +1198,38 @@ async function publicApiPost<T>(endpoint: string, payload?: Record<string, unkno
 
 export type PublicCampaign = PartnerCampaign;
 
-export function fetchPublicCampaigns(filters?: { category?: string; q?: string; type?: string }) {
+export function fetchPublicCampaigns(filters?: {
+  category?: string;
+  q?: string;
+  type?: string;
+  id?: number | string;
+  code?: string;
+}) {
   return publicApiGet<{ items: PublicCampaign[]; categories: string[]; dbReady: boolean }>('campaigns.php', {
     category: filters?.category ?? '',
     q: filters?.q ?? '',
     type: filters?.type ?? '',
+    id: filters?.id != null ? String(filters.id) : '',
+    code: filters?.code ?? '',
   });
+}
+
+export async function fetchPublicCpaCampaign(codeOrId: string) {
+  const key = codeOrId.trim();
+  if (!key) {
+    throw new Error('캠페인 코드가 없습니다.');
+  }
+  const byCode = await fetchPublicCampaigns({ type: 'cpa', code: key });
+  if (byCode.items[0]) {
+    return byCode.items[0];
+  }
+  if (/^\d+$/.test(key)) {
+    const byId = await fetchPublicCampaigns({ type: 'cpa', id: key });
+    if (byId.items[0]) {
+      return byId.items[0];
+    }
+  }
+  throw new Error('캠페인을 찾을 수 없습니다.');
 }
 
 export type PartnerSettlementSummary = {
@@ -1649,6 +2003,45 @@ export function fetchAdminAiSummary() {
 
 export function fetchMerchantAiSummary() {
   return merchantApiPost<{ summary: string; fallback: boolean }>('ai.php', { action: 'summary' });
+}
+
+export function generateMerchantCampaignPromo(payload: {
+  cpId: number;
+  title?: string;
+  targetAudience?: string;
+  category?: string;
+}) {
+  return merchantApiPost<{ copies: AiPromoCopy[]; fallback: boolean; message?: string }>('ai.php', {
+    action: 'promo',
+    ...payload,
+  });
+}
+
+export type AiImageGeneratePayload = {
+  mood?: string;
+  includeText?: boolean;
+  overlayText?: string;
+  extra?: string;
+};
+
+export function generateMerchantPromoImageAi(
+  payload: {
+    cpId: number;
+    width?: number;
+    height?: number;
+    imageTitle?: string;
+  } & AiImageGeneratePayload,
+) {
+  return merchantApiPost<{
+    message: string;
+    asset: {
+      id: number;
+      downloadUrl: string;
+      originalFilename: string;
+      imageTitle?: string;
+    } | null;
+    prompt?: string;
+  }>('ai.php', { action: 'generate_promo_image', ...payload });
 }
 
 /* ─────────────────────────── 콜디비 (Call DB) ─────────────────────────── */

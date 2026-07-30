@@ -12,6 +12,7 @@ import { Events } from './pages/Events';
 import { EventDetail } from './pages/EventDetail';
 import { CenterSelect } from './pages/CenterSelect';
 import { CpaList } from './pages/cpa/CpaList';
+import { CpaCampaignDetail } from './pages/cpa/CpaCampaignDetail';
 import { PartnerDashboard } from './pages/partner/Dashboard';
 import { PartnerSearch } from './pages/partner/PartnerSearch';
 import { PartnerLinks } from './pages/partner/PartnerLinks';
@@ -24,6 +25,7 @@ import { PartnerReport } from './pages/partner/PartnerReport';
 import { PartnerCall } from './pages/partner/PartnerCall';
 
 import { AdvertiserCampaigns } from './pages/advertiser/AdvertiserCampaigns';
+import { AdvertiserCampaignGuide } from './pages/advertiser/AdvertiserCampaignGuide';
 import { AdvertiserDb } from './pages/advertiser/AdvertiserDb';
 import { AdvertiserCall } from './pages/advertiser/AdvertiserCall';
 import { AdvertiserBilling } from './pages/advertiser/AdvertiserBilling';
@@ -70,6 +72,7 @@ export default function App() {
           <Route path="affiliate" element={<Affiliate />} />
           <Route path="select-center" element={<CenterSelect />} />
           <Route path="cpa-list" element={<CpaList />} />
+          <Route path="cpa/:code" element={<CpaCampaignDetail />} />
           <Route path="events" element={<Events />} />
           <Route path="events/detail" element={<EventDetail />} />
           <Route path="notice" element={<NoticeList />} />
@@ -100,6 +103,7 @@ export default function App() {
           <Route element={<AdvertiserContractAccessGuard />}>
             <Route path="advertiser" element={<AdvertiserDashboard />} />
             <Route path="advertiser/campaigns" element={<AdvertiserCampaigns />} />
+            <Route path="advertiser/campaigns/:cpId/guide" element={<AdvertiserCampaignGuide />} />
             <Route path="advertiser/db" element={<AdvertiserDb />} />
             <Route path="advertiser/call" element={<AdvertiserCall />} />
             <Route path="advertiser/billing" element={<AdvertiserBilling />} />

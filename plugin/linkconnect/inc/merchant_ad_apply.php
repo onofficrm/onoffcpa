@@ -531,7 +531,7 @@ if (!function_exists('lc_merchant_ad_apply_admin_list')) {
         $items = array();
         if ($result) {
             while ($row = sql_fetch_array($result)) {
-                $api = lc_merchant_ad_apply_to_api($row, false);
+                $api = lc_merchant_ad_apply_to_api($row, true);
                 $mt_id = (int) ($row['maa_mt_id'] ?? 0);
                 $merchant = $mt_id > 0 && function_exists('lc_get_merchant_by_id') ? lc_get_merchant_by_id($mt_id) : null;
                 $api['merchantCode'] = is_array($merchant) ? (string) ($merchant['mt_code'] ?? '') : '';
