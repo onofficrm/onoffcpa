@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../layouts/AdminLayout';
 import { SummaryCard } from '../../components/admin/AdminShared';
@@ -52,10 +52,10 @@ export function AdminContracts() {
   const [currentVersion, setCurrentVersion] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<AdminContractDetail | null>(null);
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const initialStatus = searchParams.get('status') || '';
-  const validStatus = STATUS_OPTIONS.some(([value]) => value === initialStatus) ? initialStatus : '';
-  const [statusFilter, setStatusFilter] = useState(validStatus);
+  const statusFromUrl = searchParams.get('status') || '';
+  const statusFilter = STATUS_OPTIONS.some(([value]) => value === statusFromUrl) ? statusFromUrl : '';
   const [versionFilter, setVersionFilter] = useState('');
   const [signedFrom, setSignedFrom] = useState('');
   const [signedTo, setSignedTo] = useState('');
@@ -72,14 +72,36 @@ export function AdminContracts() {
   const [addendumTitle, setAddendumTitle] = useState('특약사항');
   const [addendumBody, setAddendumBody] = useState('');
   const [addendumSaving, setAddendumSaving] = useState(false);
+  const hasLoadedRef = useRef(false);
+  const loadSeqRef = useRef(0);
 
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedId) ?? null,
     [items, selectedId],
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const setStatusFilter = useCallback(
+    (value: string) => {
+      const current = searchParams.get('status') || '';
+      const upcoming = value || '';
+      if (current === upcoming) return;
+      const next = new URLSearchParams(searchParams);
+      if (value) {
+        next.set('status', value);
+      } else {
+        next.delete('status');
+      }
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  const load = useCallback(async (opts?: { soft?: boolean }) => {
+    const soft = opts?.soft ?? hasLoadedRef.current;
+    const seq = ++loadSeqRef.current;
+    if (!soft) {
+      setLoading(true);
+    }
     setError('');
     try {
       const data = await fetchAdminContracts({
@@ -90,20 +112,18 @@ export function AdminContracts() {
         signedFrom,
         signedTo,
       });
+      if (seq !== loadSeqRef.current) return;
       setItems(data.items);
       setSummary(data.summary);
       setCurrentVersion(data.currentVersion);
-      const ensure = data.customEnsureAdv0008;
-      if (ensure?.ok && ensure.applied && ensure.message) {
-        setSeedMessage(ensure.message);
-        if (ensure.mcId) {
-          setSelectedId(ensure.mcId);
-        }
-      }
+      hasLoadedRef.current = true;
     } catch (err) {
+      if (seq !== loadSeqRef.current) return;
       setError(err instanceof Error ? err.message : '계약 목록을 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [searchQuery, statusFilter, versionFilter, mtIdFilter, signedFrom, signedTo]);
 
@@ -122,31 +142,20 @@ export function AdminContracts() {
   }, []);
 
   useEffect(() => {
-    load();
+    const timer = window.setTimeout(() => {
+      setSearchQuery(searchInput.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    void load();
   }, [load]);
-
-  useEffect(() => {
-    const fromUrl = searchParams.get('status') || '';
-    const next = STATUS_OPTIONS.some(([value]) => value === fromUrl) ? fromUrl : '';
-    setStatusFilter((prev) => (prev === next ? prev : next));
-  }, [searchParams]);
-
-  useEffect(() => {
-    const current = searchParams.get('status') || '';
-    if (statusFilter === current) return;
-    const next = new URLSearchParams(searchParams);
-    if (statusFilter) {
-      next.set('status', statusFilter);
-    } else {
-      next.delete('status');
-    }
-    setSearchParams(next, { replace: true });
-  }, [statusFilter, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (selectedId) {
       setDetailTab('document');
-      loadDetail(selectedId);
+      void loadDetail(selectedId);
     } else {
       setDetail(null);
     }
@@ -176,7 +185,7 @@ export function AdminContracts() {
       });
       setDetail(result.detail);
       setStatusReason('');
-      await load();
+      await load({ soft: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '상태 변경에 실패했습니다.');
     } finally {
@@ -351,8 +360,8 @@ export function AdminContracts() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="회사명, ADV-코드, 아이디, 사업자번호, 계약번호"
                 className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm"
               />
@@ -376,7 +385,7 @@ export function AdminContracts() {
           </div>
 
           <div className="max-h-[65vh] overflow-y-auto divide-y divide-slate-100">
-            {loading ? (
+            {loading && items.length === 0 ? (
               <p className="p-6 text-sm text-slate-500">불러오는 중...</p>
             ) : items.length === 0 ? (
               <div className="p-6 text-sm text-slate-600 space-y-3">
