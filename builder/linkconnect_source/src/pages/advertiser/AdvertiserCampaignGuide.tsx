@@ -103,7 +103,9 @@ export function AdvertiserCampaignGuide() {
 
   const maxImageBytes = guideMeta?.maxImageBytes ?? 2097152;
   const skipReview = Boolean(guideMeta?.skipReview);
-  const guideStatus = (guideMeta?.guideStatus ?? 'draft') as PromoGuideStatus;
+  const guideStatus = (
+    exists && guideMeta?.guideStatus ? guideMeta.guideStatus : exists ? 'draft' : 'none'
+  ) as PromoGuideStatus | 'none';
   const revisionReason = guideMeta?.revisionReason ?? '';
   const readOnly = guideStatus === 'review';
   const isPublishedEdit = guideStatus === 'published';

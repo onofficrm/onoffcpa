@@ -908,12 +908,12 @@ export function fetchAdminPromoGuideLogs(guideId: number) {
 }
 
 export function adminPromoGuideAction(payload: {
-  action: 'publish' | 'hide' | 'review' | 'draft' | 'request_revision';
-  guideId: number;
+  action: 'publish' | 'hide' | 'review' | 'draft' | 'request_revision' | 'create';
+  guideId?: number;
   cpId?: number;
   reason?: string;
 }) {
-  return adminApiPost<{ message: string; guide: AdminPromoGuideDetail | null }>('campaign-guide.php', payload);
+  return adminApiPost<{ message: string; guide: AdminPromoGuideDetail | null; created?: boolean }>('campaign-guide.php', payload);
 }
 
 export type AdminCampaignSummary = {

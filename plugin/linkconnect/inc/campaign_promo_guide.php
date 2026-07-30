@@ -1109,14 +1109,25 @@ if (!function_exists('lc_campaign_promo_guide_save_content')) {
         $cpg_id = (int) $guide['cpg_id'];
         $table = lc_campaign_promo_guide_table();
         $new_status = $status;
+        $mt_id = (int) $mt_id;
+        $cp_id = (int) $cp_id;
+
+        $encoded_points = lc_campaign_promo_guide_encode_json_list($data['promotion_points']);
+        $encoded_keywords = lc_campaign_promo_guide_encode_json_list($data['recommended_keywords']);
+        $encoded_forbidden = lc_campaign_promo_guide_encode_json_list($data['forbidden_words']);
+        $encoded_precautions = lc_campaign_promo_guide_encode_json_list($data['precautions']);
+        $encoded_valid = lc_campaign_promo_guide_encode_json_list($data['valid_db_rules']);
+        $encoded_invalid = lc_campaign_promo_guide_encode_json_list($data['invalid_db_rules']);
 
         $sets = array(
-            "cpg_promotion_points = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($data['promotion_points'])) . "'",
-            "cpg_recommended_keywords = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($data['recommended_keywords'])) . "'",
-            "cpg_forbidden_words = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($data['forbidden_words'])) . "'",
-            "cpg_precautions = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($data['precautions'])) . "'",
-            "cpg_valid_db_rules = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($data['valid_db_rules'])) . "'",
-            "cpg_invalid_db_rules = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($data['invalid_db_rules'])) . "'",
+            // 소유권은 위에서 검증했으므로 저장 시 현재 광고주로 맞춤 (구 mt_id 불일치로 0건 업데이트 방지)
+            "cpg_mt_id = '{$mt_id}'",
+            "cpg_promotion_points = '" . lc_sql_escape($encoded_points) . "'",
+            "cpg_recommended_keywords = '" . lc_sql_escape($encoded_keywords) . "'",
+            "cpg_forbidden_words = '" . lc_sql_escape($encoded_forbidden) . "'",
+            "cpg_precautions = '" . lc_sql_escape($encoded_precautions) . "'",
+            "cpg_valid_db_rules = '" . lc_sql_escape($encoded_valid) . "'",
+            "cpg_invalid_db_rules = '" . lc_sql_escape($encoded_invalid) . "'",
             "cpg_approval_type = '" . lc_sql_escape($data['approval_type']) . "'",
             "cpg_updated_at = NOW()",
         );
@@ -1129,15 +1140,38 @@ if (!function_exists('lc_campaign_promo_guide_save_content')) {
             $sets[] = "cpg_revision_reason = ''";
         }
 
+        // cpg_id 기준으로만 갱신 (사전 assert_owner 완료). mt_id 조건은 0건 성공 위장 원인이었음.
         $sql = " UPDATE `{$table}` SET " . implode(', ', $sets) . "
-            WHERE cpg_id = '{$cpg_id}' AND cpg_mt_id = '" . (int) $mt_id . "' AND cpg_cp_id = '" . (int) $cp_id . "' LIMIT 1 ";
+            WHERE cpg_id = '{$cpg_id}' AND cpg_cp_id = '{$cp_id}' LIMIT 1 ";
 
         if (lc_sql_query($sql, false) === false) {
             return array('ok' => false, 'message' => '홍보 가이드 저장에 실패했습니다.');
         }
 
+        if (function_exists('lc_sql_affected_rows') && lc_sql_affected_rows() < 1) {
+            // MySQL은 값이 동일하면 affected=0 일 수 있어, 재조회로 실제 반영 여부 확인
+            $probe = lc_campaign_promo_guide_get_by_id($cpg_id);
+            if (!is_array($probe) || (int) ($probe['cpg_cp_id'] ?? 0) !== $cp_id) {
+                return array('ok' => false, 'message' => '홍보 가이드 저장에 실패했습니다. (대상 행 없음)');
+            }
+        }
+
         $updated = lc_campaign_promo_guide_get_by_id($cpg_id);
-        if (is_array($updated) && $status !== $new_status) {
+        if (!is_array($updated)) {
+            return array('ok' => false, 'message' => '저장 후 가이드를 불러오지 못했습니다.');
+        }
+
+        // 핵심 필드가 요청값과 다르면 저장 실패로 처리
+        $saved_points = lc_campaign_promo_guide_decode_json_list((string) ($updated['cpg_promotion_points'] ?? ''));
+        if (count($data['promotion_points']) > 0 && $saved_points !== $data['promotion_points']) {
+            // 순서만 다른 경우는 허용, 내용 누락만 실패
+            $missing = array_diff($data['promotion_points'], $saved_points);
+            if (count($missing) > 0) {
+                return array('ok' => false, 'message' => '홍보 가이드 내용이 DB에 반영되지 않았습니다. 다시 저장해 주세요.');
+            }
+        }
+
+        if ($status !== $new_status) {
             lc_campaign_promo_guide_write_log($updated, $status, $new_status, '광고주 내용 저장', 'merchant');
         }
 

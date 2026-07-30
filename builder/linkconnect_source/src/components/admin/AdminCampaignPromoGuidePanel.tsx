@@ -45,7 +45,7 @@ export function AdminCampaignPromoGuidePanel({ campaignId, campaignName, adverti
       const data = await fetchAdminPromoGuide(campaignId);
       const normalized = {
         ...data,
-        exists: Boolean(data.exists) || Boolean(data.guideId) || Boolean((data as { id?: number }).id),
+        exists: Boolean(data.exists) || Boolean(data.guideId),
       };
       setGuide(normalized);
       if (normalized.guideId) {
@@ -100,6 +100,33 @@ export function AdminCampaignPromoGuidePanel({ campaignId, campaignName, adverti
     }
   };
 
+  const createGuide = async () => {
+    setActing(true);
+    setError('');
+    setMessage('');
+    try {
+      const result = await adminPromoGuideAction({
+        action: 'create',
+        cpId: campaignId,
+      });
+      setMessage(result.message);
+      if (result.guide) {
+        setGuide({ ...result.guide, exists: true, campaignName, campaignId });
+        if (result.guide.guideId) {
+          const logData = await fetchAdminPromoGuideLogs(result.guide.guideId);
+          setLogs(logData.items);
+        }
+      } else {
+        await load();
+      }
+      onUpdated?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '가이드 생성에 실패했습니다.');
+    } finally {
+      setActing(false);
+    }
+  };
+
   const status = guide?.guideStatus ?? 'draft';
 
   return (
@@ -124,9 +151,20 @@ export function AdminCampaignPromoGuidePanel({ campaignId, campaignName, adverti
           ) : error && !guide?.exists ? (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
           ) : !guide?.exists && !(guide?.guideId) ? (
-            <div className="py-8 text-center space-y-3">
+            <div className="py-8 text-center space-y-4">
               <p className="text-sm text-slate-500">등록된 홍보 가이드가 없습니다.</p>
-              <p className="text-xs text-slate-400">광고주가 가이드를 저장하면 여기에 내용·소재가 표시됩니다.</p>
+              <p className="text-xs text-slate-400">
+                광고주가 아직 저장하지 않았거나, 저장이 실패했을 수 있습니다. 가이드 껍데기를 만든 뒤 광고주 화면에서 내용을 다시 저장해 주세요.
+              </p>
+              <button
+                type="button"
+                disabled={acting}
+                onClick={() => void createGuide()}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 text-white text-sm font-bold hover:bg-cyan-700 disabled:opacity-50"
+              >
+                {acting ? <Loader2 size={16} className="animate-spin" /> : null}
+                가이드 생성 (관리자)
+              </button>
             </div>
           ) : (
             <>

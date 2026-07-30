@@ -55,6 +55,7 @@ export const PROMO_GUIDE_LIMITS_DEFAULT: PromoGuideLimits = {
 
 export function promoGuideStatusLabel(status: PromoGuideStatus | string): string {
   const map: Record<string, string> = {
+    none: '미작성',
     draft: '작성 중',
     review: '검토 대기',
     revision: '수정 요청',
@@ -66,6 +67,7 @@ export function promoGuideStatusLabel(status: PromoGuideStatus | string): string
 
 export function promoGuideStatusStyle(status: PromoGuideStatus | string): string {
   const map: Record<string, string> = {
+    none: 'bg-slate-50 text-slate-400 border-slate-200',
     draft: 'bg-slate-100 text-slate-700 border-slate-200',
     review: 'bg-amber-50 text-amber-800 border-amber-200',
     revision: 'bg-orange-50 text-orange-800 border-orange-200',

@@ -77,10 +77,15 @@ if ($method === 'POST') {
         }
         $mt_id = (int) ($campaign['mt_id'] ?? 0);
         $result = lc_campaign_promo_guide_create($mt_id, $cp_id);
-        if (empty($result['ok'])) {
-            lc_api_error($result['message'], 'CREATE_FAILED', 400);
+        if (empty($result['ok']) || empty($result['guide'])) {
+            lc_api_error($result['message'] ?? '가이드 생성에 실패했습니다.', 'CREATE_FAILED', 400);
         }
-        $cpg_id = (int) $result['guide']['cpg_id'];
+
+        lc_api_success(array(
+            'message' => !empty($result['created']) ? '홍보 가이드를 생성했습니다.' : '이미 등록된 홍보 가이드입니다.',
+            'guide'   => lc_campaign_promo_guide_to_api($result['guide'], null, true),
+            'created' => !empty($result['created']),
+        ));
     }
 
     if ($cpg_id <= 0) {
