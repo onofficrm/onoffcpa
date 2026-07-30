@@ -1216,26 +1216,31 @@ if (!function_exists('lc_campaign_promo_guide_submit_review')) {
         $cpg_id = (int) $guide['cpg_id'];
         $table = lc_campaign_promo_guide_table();
         $review = lc_sql_escape(LC_CPG_STATUS_REVIEW);
+        $mt_id = (int) $mt_id;
+        $cp_id = (int) $cp_id;
 
         $ok = lc_sql_query(" UPDATE `{$table}` SET
+            cpg_mt_id = '{$mt_id}',
             cpg_status = '{$review}',
             cpg_revision_reason = '',
             cpg_updated_at = NOW()
-            WHERE cpg_id = '{$cpg_id}' AND cpg_mt_id = '" . (int) $mt_id . "' AND cpg_cp_id = '" . (int) $cp_id . "' LIMIT 1 ", false);
+            WHERE cpg_id = '{$cpg_id}' AND cpg_cp_id = '{$cp_id}' LIMIT 1 ", false);
 
         if ($ok === false) {
             return array('ok' => false, 'message' => '검토 요청에 실패했습니다.');
         }
 
         $updated = lc_campaign_promo_guide_get_by_id($cpg_id);
-        if (is_array($updated)) {
-            lc_campaign_promo_guide_write_log($updated, $status, LC_CPG_STATUS_REVIEW, '광고주 검토 요청', 'merchant');
+        if (!is_array($updated) || (string) ($updated['cpg_status'] ?? '') !== LC_CPG_STATUS_REVIEW) {
+            return array('ok' => false, 'message' => '검토 요청이 DB에 반영되지 않았습니다. 다시 시도해 주세요.');
         }
+
+        lc_campaign_promo_guide_write_log($updated, $status, LC_CPG_STATUS_REVIEW, '광고주 검토 요청', 'merchant');
 
         return array(
             'ok'      => true,
-            'message' => '관리자 검토가 요청되었습니다.',
-            'guide'   => lc_campaign_promo_guide_get_by_id($cpg_id),
+            'message' => '검토 요청이 접수되었습니다.',
+            'guide'   => $updated,
         );
     }
 }
