@@ -471,6 +471,7 @@ export type AdminDashboardResponse = {
     pendingCharge: number;
     pendingPartners: number;
     pendingMerchants: number;
+    pendingContracts?: number;
     pendingSettlements?: number;
     pendingInspections?: number;
   };
@@ -1796,4 +1797,389 @@ export function fetchPartnerCallLogs() {
 
 export function requestPartnerCallNumber(payload: { cpId: number; memo?: string }) {
   return partnerApiPost<{ message: string; carId?: number }>('call.php', { action: 'request', ...payload });
+}
+export type MerchantContractParty = {
+  companyName: string;
+  representativeName: string;
+  businessNumber: string;
+  companyAddress: string;
+  companyPhone: string;
+};
+
+export type MerchantContractForm = {
+  companyName: string;
+  representativeName: string;
+  businessNumber: string;
+  companyAddress: string;
+  companyPhone: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  signerName: string;
+  signerPosition: string;
+  signerPhone: string;
+  signerEmail: string;
+  negotiatedTerms?: string;
+  specialClauses?: string;
+  step: number;
+  agreements: {
+    readAll: boolean;
+    hasAuthority: boolean;
+    electronic: boolean;
+    noModify: boolean;
+  };
+  agreementCheckedAt?: string;
+};
+
+export type MerchantContractSummary = {
+  id: number;
+  advertiserId: number;
+  contractCode: string;
+  contractVersion: string;
+  status: string;
+  statusLabel: string;
+  companyName: string;
+  signerName: string;
+  signedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  pdfDownloadUrl: string;
+};
+
+export type MerchantContractState = {
+  contractVersion: string;
+  status: string;
+  statusLabel: string;
+  isSigned: boolean;
+  isApprovalPending: boolean;
+  isRejected: boolean;
+  rejectionReason?: string;
+  canWrite: boolean;
+  requiresContract: boolean;
+  partyB: MerchantContractParty;
+  form: MerchantContractForm;
+  contractHtml: string;
+  contract: MerchantContractSummary | null;
+  documentPreviewUrl: string;
+  documentPdfUrl: string;
+  signedPdfDownloadUrl: string;
+  csrfToken: string;
+  hasSignature: boolean;
+};
+
+export function fetchMerchantContract() {
+  return merchantApiGet<MerchantContractState>('contract.php');
+}
+
+export function saveMerchantContractDraft(payload: Record<string, unknown>) {
+  return merchantApiPost<{ message: string; contract: MerchantContractSummary | null; state: MerchantContractState }>(
+    'contract.php',
+    { action: 'draft', ...payload },
+  );
+}
+
+export function uploadMerchantContractSignature(payload: { csrfToken: string; signatureDataUrl: string }) {
+  return merchantApiPost<{ message: string; hasSignature: boolean; state: MerchantContractState }>('contract.php', {
+    action: 'signature',
+    ...payload,
+  });
+}
+
+export function validateMerchantContract(payload: Record<string, unknown>) {
+  return merchantApiPost<{ message: string; validated: boolean; state: MerchantContractState }>('contract.php', payload);
+}
+
+export function signMerchantContract(payload: Record<string, unknown>) {
+  return merchantApiPost<{
+    message: string;
+    alreadySigned: boolean;
+    contract: MerchantContractSummary | null;
+    state: MerchantContractState;
+  }>('contract.php', payload);
+}
+
+export type MerchantContractRead = {
+  id: number;
+  advertiserId: number;
+  contractVersion: string;
+  status: string;
+  statusLabel: string;
+  contractCode: string;
+  companyName: string;
+  representativeName: string;
+  businessNumber: string;
+  companyAddress: string;
+  companyPhone: string;
+  signerName: string;
+  signerPosition: string;
+  signerPhone: string;
+  signerEmail: string;
+  negotiatedTerms?: string;
+  specialClauses?: string;
+  signedAt: string;
+  signedIp: string;
+  userAgent: string;
+  createdAt: string;
+  pdfHash: string;
+  pdfHashMasked: string;
+  agreements: Record<string, boolean>;
+  agreementCheckedAt: string;
+  partyB: MerchantContractParty;
+  contractHtml: string;
+  signatureUrl: string;
+  documentPreviewUrl: string;
+  documentPdfUrl: string;
+  isReadOnly: boolean;
+  isFullySigned: boolean;
+  canAddAddendum?: boolean;
+  campaignId?: number;
+};
+
+export type MerchantContractAddendum = {
+  id: number;
+  contractId: number;
+  advertiserId: number;
+  seq: number;
+  title: string;
+  body: string;
+  status: string;
+  createdByType: string;
+  createdBy: string;
+  voidedAt: string;
+  voidReason: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MerchantContractCampaignItem = {
+  id: number;
+  code: string;
+  name: string;
+  type: string;
+  status: string;
+  statusCode: string;
+  cpa: number;
+  contractViewable?: boolean;
+  contractStatusLabel?: string;
+};
+
+export type MerchantContractHistoryItem = {
+  id: number;
+  contractVersion: string;
+  contractCode: string;
+  status: string;
+  statusLabel: string;
+  signedAt: string;
+  createdAt: string;
+  isFullySigned: boolean;
+  isCurrentVersion: boolean;
+};
+
+export type MerchantContractReadResponse = {
+  contract: MerchantContractRead;
+  history: MerchantContractHistoryItem[];
+  campaigns?: MerchantContractCampaignItem[];
+  campaign?: MerchantContractCampaignItem | null;
+  addenda?: MerchantContractAddendum[];
+  csrfToken?: string;
+};
+
+export function fetchMerchantContractRead(options?: { version?: string; cpId?: number } | string) {
+  const query: Record<string, string> = { mode: 'read' };
+  if (typeof options === 'string') {
+    if (options) query.version = options;
+  } else if (options) {
+    if (options.version) query.version = options.version;
+    if (options.cpId && options.cpId > 0) query.cpId = String(options.cpId);
+  }
+  return merchantApiGet<MerchantContractReadResponse>('contract.php', query);
+}
+
+export type AdminContractListItem = {
+  id: number;
+  advertiserId: number;
+  advertiserCode?: string;
+  companyName: string;
+  representativeName: string;
+  businessNumber: string;
+  signerName: string;
+  contractVersion: string;
+  status: string;
+  statusLabel: string;
+  contractCode: string;
+  signedAt: string;
+  createdAt: string;
+  isFullySigned: boolean;
+};
+
+export type AdminContractSummary = {
+  total: number;
+  signed: number;
+  reviewPending: number;
+  rejected: number;
+  pending: number;
+  inProgress: number;
+  cancelled: number;
+  expired: number;
+  renewal: number;
+};
+
+export type AdminContractDetail = {
+  contract: MerchantContractRead;
+  listItem: AdminContractListItem;
+  merchant: { id: number; code: string; company: string; status: string } | null;
+  companyCompare: Record<string, { contract: string; current: string; changed: boolean }>;
+  companySnapshot: Record<string, unknown> | null;
+  history: MerchantContractHistoryItem[];
+  addenda?: MerchantContractAddendum[];
+  statusLogs: Array<{
+    id: number;
+    adminId: string;
+    oldStatus: string;
+    newStatus: string;
+    oldLabel: string;
+    newLabel: string;
+    reason: string;
+    ip: string;
+    userAgent: string;
+    createdAt: string;
+  }>;
+  signLogs: Array<{
+    id: number;
+    result: string;
+    message: string;
+    signedAt: string;
+    ip: string;
+    userAgent: string;
+    pdfHash: string;
+    createdAt: string;
+  }>;
+  documentPreviewUrl: string;
+  documentPdfUrl: string;
+  signatureUrl: string;
+};
+
+export function fetchAdminContracts(filters?: {
+  q?: string;
+  status?: string;
+  version?: string;
+  mtId?: number;
+  signedFrom?: string;
+  signedTo?: string;
+  page?: number;
+  limit?: number;
+}) {
+  return adminApiGet<{
+    items: AdminContractListItem[];
+    total: number;
+    page: number;
+    limit: number;
+    summary: AdminContractSummary;
+    dbReady: boolean;
+    currentVersion: string;
+    customEnsureAdv0008?: {
+      ok?: boolean;
+      message?: string;
+      skipped?: boolean;
+      applied?: boolean;
+      mcId?: number;
+      contractCode?: string;
+    };
+  }>('contracts.php', {
+    q: filters?.q ?? '',
+    status: filters?.status ?? '',
+    version: filters?.version ?? '',
+    mtId: filters?.mtId ? String(filters.mtId) : '',
+    signedFrom: filters?.signedFrom ?? '',
+    signedTo: filters?.signedTo ?? '',
+    page: filters?.page ? String(filters.page) : '1',
+    limit: filters?.limit ? String(filters.limit) : '30',
+  });
+}
+
+export function fetchAdminContractDetail(mcId: number) {
+  return adminApiGet<AdminContractDetail>('contracts.php', { mcId: String(mcId) });
+}
+
+export function updateAdminContractStatus(payload: {
+  mcId: number;
+  action: 'approve' | 'reject' | 'cancel' | 'expire' | 'requireRenewal';
+  reason: string;
+}) {
+  return adminApiPost<{ message: string; detail: AdminContractDetail }>('contracts.php', payload);
+}
+
+export function addAdminContractAddendum(payload: {
+  mcId: number;
+  title?: string;
+  body: string;
+}) {
+  return adminApiPost<{ message: string; addendum: MerchantContractAddendum | null; detail: AdminContractDetail }>(
+    'contracts.php',
+    {
+      action: 'add_addendum',
+      mcId: payload.mcId,
+      title: payload.title ?? '특약사항',
+      body: payload.body,
+    },
+  );
+}
+
+export function voidAdminContractAddendum(payload: { addendumId: number; reason?: string }) {
+  return adminApiPost<{ message: string; addendum: MerchantContractAddendum | null; detail: AdminContractDetail | null }>(
+    'contracts.php',
+    {
+      action: 'void_addendum',
+      addendumId: payload.addendumId,
+      reason: payload.reason ?? '',
+    },
+  );
+}
+
+export function addMerchantContractAddendum(payload: {
+  csrfToken: string;
+  body: string;
+  title?: string;
+  version?: string;
+}) {
+  return merchantApiPost<{
+    message: string;
+    addendum: MerchantContractAddendum | null;
+    data: MerchantContractReadResponse | null;
+  }>('contract.php', {
+    action: 'add_addendum',
+    csrfToken: payload.csrfToken,
+    body: payload.body,
+    title: payload.title ?? '특약사항',
+    version: payload.version ?? '',
+  });
+}
+
+export function seedAdminDemoContract(mtId?: number) {
+  return adminApiPost<{ message: string; skipped?: boolean; contractCode?: string; mtId?: number }>('contracts.php', {
+    action: 'seed_demo',
+    mtId: mtId ?? 0,
+  });
+}
+
+export function applyAdminCustomContractDocument(payload?: {
+  mtId?: number;
+  mtCode?: string;
+  documentKey?: string;
+  force?: boolean;
+}) {
+  return adminApiPost<{
+    message: string;
+    skipped?: boolean;
+    contractCode?: string;
+    mtId?: number;
+    mcId?: number;
+    detail?: AdminContractDetail | null;
+  }>('contracts.php', {
+    action: 'apply_custom_document',
+    mtId: payload?.mtId ?? 0,
+    mtCode: payload?.mtCode ?? 'ADV-0008',
+    documentKey: payload?.documentKey ?? 'adv-0008-moduicheolge',
+    force: payload?.force ?? true,
+  });
 }

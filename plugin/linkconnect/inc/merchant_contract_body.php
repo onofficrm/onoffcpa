@@ -64,7 +64,7 @@ HTML;
     <p class="lc-contract-version">계약서 버전: {$esc($version)}</p>
     <h1>CPA 광고 제휴 계약서</h1>
     <p class="lc-contract-lead">
-      {$a_display}(이하 &quot;갑&quot;이라 한다)와 CPA 광고 플랫폼 &apos;온오프CPA&apos;를 운영하는 {$b_name}(이하 &quot;을&quot;이라 한다)는
+      {$a_display}(이하 &quot;갑&quot;이라 한다)와 CPA 광고 플랫폼 &apos;링크커넥트&apos;를 운영하는 {$b_name}(이하 &quot;을&quot;이라 한다)는
       온라인 CPA(Cost Per Action) 마케팅 업무 제휴와 관련하여 상호 신의성실의 원칙에 따라 다음과 같이 계약을 체결한다.
     </p>
   </header>

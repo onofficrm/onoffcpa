@@ -337,6 +337,7 @@ if (!function_exists('lc_merchant_contract_admin_list_item_to_api')) {
         return array(
             'id'               => (int) ($contract['mc_id'] ?? 0),
             'advertiserId'     => (int) ($contract['mc_mt_id'] ?? 0),
+            'advertiserCode'   => (string) ($contract['mt_code'] ?? $contract['advertiser_code'] ?? ''),
             'companyName'      => (string) ($contract['mc_company_name'] ?? ''),
             'representativeName' => (string) ($contract['mc_representative_name'] ?? ''),
             'businessNumber'   => (string) ($contract['mc_business_number'] ?? ''),
@@ -378,6 +379,8 @@ if (!function_exists('lc_merchant_contract_admin_list_for_api')) {
         }
 
         $table = lc_merchant_contract_table();
+        $mt_table = lc_table('merchants');
+        $has_merchant_table = lc_db_table_exists($mt_table);
         $where = array('1=1');
         $q = trim((string) ($filters['q'] ?? ''));
         $status = trim((string) ($filters['status'] ?? ''));
@@ -387,14 +390,14 @@ if (!function_exists('lc_merchant_contract_admin_list_for_api')) {
         $signed_to = trim((string) ($filters['signedTo'] ?? ''));
 
         if ($mt_id > 0) {
-            $where[] = "mc_mt_id = '{$mt_id}'";
+            $where[] = "c.mc_mt_id = '{$mt_id}'";
         }
 
         if ($status !== '' && $status !== 'all') {
             if ($status === 'unsigned') {
-                $where[] = "mc_status IN ('" . lc_sql_escape(LC_MERCHANT_CONTRACT_STATUS_PENDING) . "','" . lc_sql_escape(LC_MERCHANT_CONTRACT_STATUS_IN_PROGRESS) . "')";
+                $where[] = "c.mc_status IN ('" . lc_sql_escape(LC_MERCHANT_CONTRACT_STATUS_PENDING) . "','" . lc_sql_escape(LC_MERCHANT_CONTRACT_STATUS_IN_PROGRESS) . "')";
             } else {
-                $where[] = "mc_status = '" . lc_sql_escape($status) . "'";
+                $where[] = "c.mc_status = '" . lc_sql_escape($status) . "'";
             }
         }
 
@@ -403,23 +406,39 @@ if (!function_exists('lc_merchant_contract_admin_list_for_api')) {
             if ($version === '') {
                 return array('items' => array(), 'total' => 0, 'summary' => array());
             }
-            $where[] = "mc_contract_version = '" . lc_sql_escape($version) . "'";
+            $where[] = "c.mc_contract_version = '" . lc_sql_escape($version) . "'";
         }
 
         if ($signed_from !== '') {
-            $where[] = "mc_signed_at >= '" . lc_sql_escape($signed_from . ' 00:00:00') . "'";
+            $where[] = "c.mc_signed_at >= '" . lc_sql_escape($signed_from . ' 00:00:00') . "'";
         }
         if ($signed_to !== '') {
-            $where[] = "mc_signed_at <= '" . lc_sql_escape($signed_to . ' 23:59:59') . "'";
+            $where[] = "c.mc_signed_at <= '" . lc_sql_escape($signed_to . ' 23:59:59') . "'";
         }
 
         if ($q !== '') {
             $q_esc = lc_sql_escape('%' . $q . '%');
-            $where[] = "(mc_company_name LIKE '{$q_esc}' OR mc_representative_name LIKE '{$q_esc}' OR mc_business_number LIKE '{$q_esc}' OR mc_signer_name LIKE '{$q_esc}' OR mc_contract_code LIKE '{$q_esc}' OR CAST(mc_mt_id AS CHAR) LIKE '{$q_esc}')";
+            $q_parts = array(
+                "c.mc_company_name LIKE '{$q_esc}'",
+                "c.mc_representative_name LIKE '{$q_esc}'",
+                "c.mc_business_number LIKE '{$q_esc}'",
+                "c.mc_signer_name LIKE '{$q_esc}'",
+                "c.mc_contract_code LIKE '{$q_esc}'",
+                "CAST(c.mc_mt_id AS CHAR) LIKE '{$q_esc}'",
+            );
+            if ($has_merchant_table) {
+                $q_parts[] = "m.mt_code LIKE '{$q_esc}'";
+                $q_parts[] = "m.mt_company LIKE '{$q_esc}'";
+                $q_parts[] = "m.mb_id LIKE '{$q_esc}'";
+            }
+            $where[] = '(' . implode(' OR ', $q_parts) . ')';
         }
 
         $where_sql = implode(' AND ', $where);
-        $count_row = lc_sql_fetch(" SELECT COUNT(*) AS cnt FROM `{$table}` WHERE {$where_sql} ");
+        $from_sql = $has_merchant_table
+            ? " `{$table}` c LEFT JOIN `{$mt_table}` m ON m.mt_id = c.mc_mt_id "
+            : " `{$table}` c ";
+        $count_row = lc_sql_fetch(" SELECT COUNT(*) AS cnt FROM {$from_sql} WHERE {$where_sql} ");
         $total = (int) ($count_row['cnt'] ?? 0);
 
         $page = max(1, (int) ($filters['page'] ?? 1));
@@ -427,8 +446,11 @@ if (!function_exists('lc_merchant_contract_admin_list_for_api')) {
         $offset = ($page - 1) * $limit;
 
         $review_pending = lc_sql_escape(LC_MERCHANT_CONTRACT_STATUS_REVIEW_PENDING);
-        $result = lc_sql_query(" SELECT * FROM `{$table}` WHERE {$where_sql}
-            ORDER BY (mc_status = '{$review_pending}') DESC, mc_updated_at DESC, mc_id DESC
+        $select_sql = $has_merchant_table
+            ? "c.*, m.mt_code AS mt_code"
+            : "c.*, '' AS mt_code";
+        $result = lc_sql_query(" SELECT {$select_sql} FROM {$from_sql} WHERE {$where_sql}
+            ORDER BY (c.mc_status = '{$review_pending}') DESC, c.mc_updated_at DESC, c.mc_id DESC
             LIMIT {$offset}, {$limit} ", false);
         $items = array();
         if ($result) {
@@ -472,6 +494,10 @@ if (!function_exists('lc_merchant_contract_admin_list_for_api')) {
                 }
             }
         }
+
+        // summary.total should be overall count, not filtered — restore previous behavior
+        $all_total_row = lc_sql_fetch(" SELECT COUNT(*) AS cnt FROM `{$table}` ");
+        $summary['total'] = (int) ($all_total_row['cnt'] ?? $total);
 
         return array(
             'items'   => $items,
@@ -518,7 +544,12 @@ if (!function_exists('lc_merchant_contract_admin_detail_for_api')) {
 
         return array(
             'contract'       => $read,
-            'listItem'       => lc_merchant_contract_admin_list_item_to_api($contract),
+            'listItem'       => array_merge(
+                lc_merchant_contract_admin_list_item_to_api($contract),
+                array(
+                    'advertiserCode' => is_array($merchant) ? (string) ($merchant['mt_code'] ?? '') : '',
+                )
+            ),
             'merchant'       => is_array($merchant) ? array(
                 'id'      => (int) ($merchant['mt_id'] ?? 0),
                 'code'    => (string) ($merchant['mt_code'] ?? ''),

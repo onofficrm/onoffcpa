@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LayoutDashboard, Users, Building2, Briefcase, Database, ShieldAlert, CreditCard, Receipt, Code, MessageSquare, Settings, Search, Menu, ChevronRight, Gift, ScrollText, ClipboardList, AlertTriangle, PhoneCall } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, Briefcase, Database, ShieldAlert, CreditCard, Receipt, Code, MessageSquare, Settings, Search, Menu, ChevronRight, Gift, ScrollText, ClipboardList, AlertTriangle, PhoneCall, FileText } from 'lucide-react';
 import { MemberAuthMenu } from '../components/MemberAuthMenu';
 import { getLcAuth, getMemberDisplayName } from '../lib/auth';
 import { queueScrollTo } from '../lib/navigation';
@@ -21,6 +21,7 @@ const sidebarGroups = [
     items: [
       { id: 'partners', label: '파트너 관리', icon: <Users size={20} />, path: '/admin/partners' },
       { id: 'advertisers', label: '광고주 관리', icon: <Building2 size={20} />, path: '/admin/advertisers' },
+      { id: 'contracts', label: '광고주 계약', icon: <FileText size={20} />, path: '/admin/contracts' },
       { id: 'campaigns', label: '광고상품 관리', icon: <Briefcase size={20} />, path: '/admin/campaigns' },
     ],
   },

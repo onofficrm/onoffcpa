@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AdminLayout } from '../../layouts/AdminLayout';
 import { SummaryCard, StatusBadge } from '../../components/admin/AdminShared';
 import { 
   Building2, Database, ShieldAlert, CreditCard, 
-  ServerCrash, RefreshCw, AlertCircle
+  ServerCrash, RefreshCw, AlertCircle, FileText
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, ComposedChart, Line, CartesianGrid } from 'recharts';
 import { fetchAdminDashboard, fetchAdminAiSummary } from '../../lib/api';
@@ -72,6 +73,7 @@ export function AdminDashboard() {
     pendingCharge: 2,
     pendingPartners: 1,
     pendingMerchants: 1,
+    pendingContracts: 0,
   });
   const [chartData, setChartData] = useState(fallbackChartData);
   const [recentItems, setRecentItems] = useState(recentDb);
@@ -171,6 +173,24 @@ export function AdminDashboard() {
     <AdminLayout activeMenu="dashboard" title="관리자 통합 대시보드" description="온오프CPA 운영 현황과 주요 이슈를 한눈에 확인하세요.">
       <AiReportInsight title="AI 운영 브리핑" fetchSummary={fetchAdminAiSummary} />
 
+      {(summary.pendingContracts ?? 0) > 0 ? (
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <FileText className="text-amber-600 shrink-0 mt-0.5" size={20} />
+            <div>
+              <p className="font-bold text-amber-900">광고주 계약 승인 대기 {summary.pendingContracts}건</p>
+              <p className="text-sm text-amber-800/80 mt-0.5">서명 완료된 계약서를 검토한 뒤 승인 또는 반려해 주세요.</p>
+            </div>
+          </div>
+          <Link
+            to="/admin/contracts?status=review_pending"
+            className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold shrink-0"
+          >
+            계약 승인하러 가기
+          </Link>
+        </div>
+      ) : null}
+
       {/* 8 Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <SummaryCard title="오늘 접수 DB" value={String(summary.todayReceived)} suffix="건" />
@@ -180,6 +200,13 @@ export function AdminDashboard() {
         
         <SummaryCard title="오늘 매출" value={summary.todayRevenue.toLocaleString()} suffix="원" color="cyan" highlight />
         <SummaryCard title="승인 대기 DB" value={String(summary.pendingDb)} suffix="건" />
+        <SummaryCard
+          title="계약 승인 대기"
+          value={String(summary.pendingContracts ?? 0)}
+          suffix="건"
+          color="yellow"
+          highlight={(summary.pendingContracts ?? 0) > 0}
+        />
         <SummaryCard title="충전 대기" value={String(summary.pendingCharge)} suffix="건" color="blue" highlight />
         <SummaryCard title="승인 대기 파트너" value={String(summary.pendingPartners)} suffix="명" dark />
       </div>

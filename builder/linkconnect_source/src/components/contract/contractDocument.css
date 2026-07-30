@@ -1,0 +1,289 @@
+.contract-document-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.contract-document-viewer__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.contract-document-viewer__title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.contract-document-viewer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.contract-document-viewer__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.625rem;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.contract-document-viewer__btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.contract-document-viewer__btn--primary {
+  border-color: #0891b2;
+  color: #0e7490;
+}
+
+.contract-document-viewer__canvas {
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  background: #e2e8f0;
+  padding: 1rem;
+}
+
+.contract-document-viewer__paper {
+  max-width: 820px;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2.5rem 2.75rem;
+}
+
+@media (max-width: 640px) {
+  .contract-document-viewer__paper {
+    padding: 1.5rem 1.25rem;
+  }
+}
+
+.contract-document-viewer__sign-footer {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px dashed #cbd5e1;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.contract-document-viewer__sign-footer p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #475569;
+}
+
+.contract-document-viewer__sign-footer img {
+  max-height: 5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.5rem;
+}
+
+.contract-document-viewer--fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.contract-document-viewer--fullscreen .contract-document-viewer__canvas {
+  flex: 1;
+  max-height: none;
+}
+
+.lc-contract-document {
+  max-width: 820px;
+  margin: 0 auto;
+  color: #0f172a;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+.lc-contract-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.lc-contract-version {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+
+.lc-contract-header h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 0 0 0.75rem;
+}
+
+.lc-contract-lead {
+  color: #475569;
+  margin: 0;
+}
+
+.lc-contract-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 640px) {
+  .lc-contract-parties {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lc-contract-party {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.lc-contract-party h2 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0891b2;
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lc-contract-party dl {
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.lc-contract-party dt {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.lc-contract-party dd {
+  margin: 0 0 0.5rem;
+  font-weight: 500;
+}
+
+.lc-contract-article {
+  margin-bottom: 1.5rem;
+}
+
+.lc-contract-article h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: #1e293b;
+}
+
+.lc-contract-article p,
+.lc-contract-article ol {
+  margin: 0;
+  color: #334155;
+}
+
+.lc-contract-article ol {
+  padding-left: 1.25rem;
+}
+
+.lc-contract-article li {
+  margin-bottom: 0.35rem;
+}
+
+.lc-contract-extra-terms {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.lc-contract-extra-body {
+  margin-top: 0.75rem;
+  padding: 1rem 1.15rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  white-space: pre-wrap;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.lc-contract-addendum-meta {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.lc-contract-campaign-schedule {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.lc-contract-campaign-schedule dl {
+  display: grid;
+  grid-template-columns: 11rem 1fr;
+  gap: 0.4rem 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.lc-contract-campaign-schedule dt {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.lc-contract-campaign-schedule dd {
+  margin: 0;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .contract-document-viewer__print-target,
+  .contract-document-viewer__print-target * {
+    visibility: visible;
+  }
+
+  .contract-document-viewer__print-target {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  .contract-document-viewer__toolbar,
+  .contract-document-viewer--fullscreen {
+    display: none !important;
+  }
+}
