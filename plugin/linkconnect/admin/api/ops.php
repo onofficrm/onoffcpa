@@ -89,6 +89,29 @@ if ($method === 'POST') {
         if (!function_exists('lc_campaign_ensure_hasugu_cpa')) {
             lc_api_error('hasugu_cpa 캠페인 모듈을 찾을 수 없습니다.', 'NOT_FOUND', 500);
         }
+        $opts = array('activate' => true);
+        if (isset($body['advertiserMbId']) && trim((string) $body['advertiserMbId']) !== '') {
+            $opts['advertiser_mb_id'] = trim((string) $body['advertiserMbId']);
+        } else {
+            $opts['advertiser_mb_id'] = 'drainpolice';
+        }
+        if (isset($body['mtId']) && (int) $body['mtId'] > 0) {
+            $opts['mt_id'] = (int) $body['mtId'];
+        }
+        if (array_key_exists('activate', $body) && empty($body['activate'])) {
+            unset($opts['activate']);
+        }
+        $result = lc_campaign_ensure_hasugu_cpa($opts);
+        if (!$result['ok']) {
+            lc_api_error($result['message'], 'APPLY_FAILED', 400);
+        }
+        lc_api_success($result);
+    }
+
+    if ($action === 'apply_modemo_campaign') {
+        if (!function_exists('lc_campaign_ensure_modemo')) {
+            lc_api_error('modemo 캠페인 모듈을 찾을 수 없습니다.', 'NOT_FOUND', 500);
+        }
         $opts = array();
         if (isset($body['advertiserMbId']) && trim((string) $body['advertiserMbId']) !== '') {
             $opts['advertiser_mb_id'] = trim((string) $body['advertiserMbId']);
@@ -99,7 +122,7 @@ if ($method === 'POST') {
         if (!empty($body['activate'])) {
             $opts['activate'] = true;
         }
-        $result = lc_campaign_ensure_hasugu_cpa($opts);
+        $result = lc_campaign_ensure_modemo($opts);
         if (!$result['ok']) {
             lc_api_error($result['message'], 'APPLY_FAILED', 400);
         }

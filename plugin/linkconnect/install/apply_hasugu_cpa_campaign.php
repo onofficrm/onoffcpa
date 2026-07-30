@@ -44,15 +44,17 @@ if ($action === 'run' || $is_cli) {
         alert('campaign_hasugu_cpa.php를 로드할 수 없습니다.');
     }
 
-    $opts = array();
+    $opts = array('activate' => true);
     if (isset($_REQUEST['advertiser_mb_id']) && trim((string) $_REQUEST['advertiser_mb_id']) !== '') {
         $opts['advertiser_mb_id'] = trim((string) $_REQUEST['advertiser_mb_id']);
+    } else {
+        $opts['advertiser_mb_id'] = 'drainpolice';
     }
     if (isset($_REQUEST['mt_id']) && (int) $_REQUEST['mt_id'] > 0) {
         $opts['mt_id'] = (int) $_REQUEST['mt_id'];
     }
-    if (!empty($_REQUEST['activate'])) {
-        $opts['activate'] = true;
+    if (isset($_REQUEST['activate']) && (string) $_REQUEST['activate'] === '0') {
+        unset($opts['activate']);
     }
 
     $result = lc_campaign_ensure_hasugu_cpa($opts);
@@ -85,7 +87,7 @@ header('Content-Type: text/html; charset=utf-8');
 </head>
 <body style="font-family:sans-serif;max-width:640px;margin:2rem auto;padding:1rem;">
   <h1>hasugu_cpa CPA 광고상품 등록</h1>
-  <p>하수구·배관 상담 DB(CPA-HASUGU)를 등록합니다. 광고주 미지정 시 일시중지 상태로 생성됩니다.</p>
+  <p>하수구·배관 상담 DB(CPA-HASUGU)를 등록합니다. ADV-0007(drainpolice)이 있으면 자동 연결·활성화합니다.</p>
   <p><a href="?action=run">실행</a></p>
 </body>
 </html>

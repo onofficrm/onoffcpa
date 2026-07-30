@@ -5,7 +5,7 @@ if (!defined('_GNUBOARD_')) {
 
 if (!function_exists('lc_hasugu_cpa_campaign_definition')) {
     /**
-     * 하수구/배관 CPA 광고상품 정의 (광고주 연결 전에도 등록 가능).
+     * 하수구/배관 CPA 광고상품 정의 (ADV-0007 / drainpolice).
      *
      * @return array<string,mixed>
      */
@@ -21,10 +21,10 @@ if (!function_exists('lc_hasugu_cpa_campaign_definition')) {
             'avg_time'           => '1.5일',
             'allowed_channels'   => '블로그, 카페, 지식iN, SNS',
             'forbidden_channels' => '허위광고, 브랜드 사칭, 스팸문자',
-            'description'        => '하수구막힘·싱크대막힘·변기막힘·악취·역류 상담 DB. hasugu_cpa 랜딩 연동.',
+            'description'        => '하수구막힘·싱크대막힘·변기막힘·악취·역류 상담 DB. hasugu_cpa 랜딩 연동 (ADV-0007).',
             'badge'              => '신규',
             'recommended'        => true,
-            // 광고주 미연결 시 일시중지 — 연결 후 운영중으로 전환
+            // 광고주 미연결 시 일시중지 — ADV-0007 연결 후 운영중으로 전환
             'status'             => 'paused',
         );
     }
@@ -76,6 +76,21 @@ if (!function_exists('lc_campaign_ensure_hasugu_cpa')) {
             }
         }
 
+        // ADV-0007(김우주/drainpolice) 자동 연결 시도
+        if ($mt_id <= 0 && function_exists('lc_sql_fetch')) {
+            $merchants = lc_table('merchants');
+            $adv = lc_sql_fetch(" SELECT mt_id FROM `{$merchants}` WHERE mt_code = 'ADV-0007' LIMIT 1 ");
+            if ($adv) {
+                $mt_id = (int) $adv['mt_id'];
+            }
+        }
+        if ($mt_id <= 0 && function_exists('lc_get_merchant_by_mb_id')) {
+            $by_mb = lc_get_merchant_by_mb_id('drainpolice');
+            if (is_array($by_mb)) {
+                $mt_id = (int) ($by_mb['mt_id'] ?? 0);
+            }
+        }
+
         $status = (string) $def['status'];
         if ($mt_id > 0 && !empty($options['activate'])) {
             $status = LC_STATUS_ACTIVE;
@@ -118,9 +133,12 @@ if (!function_exists('lc_campaign_ensure_hasugu_cpa')) {
 
             return array(
                 'ok'      => true,
-                'message' => '하수구 CPA 캠페인을 갱신했습니다.',
+                'message' => $next_mt > 0
+                    ? '하수구 CPA 캠페인을 ADV-0007에 연결·갱신했습니다.'
+                    : '하수구 CPA 캠페인을 갱신했습니다.',
                 'cpId'    => $cp_id,
                 'created' => false,
+                'mtId'    => $next_mt,
             );
         }
 
@@ -163,10 +181,11 @@ if (!function_exists('lc_campaign_ensure_hasugu_cpa')) {
         return array(
             'ok'      => true,
             'message' => $mt_id > 0
-                ? '하수구 CPA 캠페인을 생성했습니다.'
+                ? '하수구 CPA 캠페인을 ADV-0007에 연결·생성했습니다.'
                 : '하수구 CPA 캠페인을 광고주 미연결(일시중지) 상태로 등록했습니다.',
             'cpId'    => $cp_id,
             'created' => true,
+            'mtId'    => $mt_id,
         );
     }
 }

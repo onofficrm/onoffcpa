@@ -821,7 +821,8 @@ if (!function_exists('onoff_builder_rewrite_asset_paths')) {
         }
 
         $root_assets = onoff_builder_get_import_root_assets_url($id);
-        $entry_assets = onoff_builder_get_import_base_url($id, $entry_path) . 'assets/';
+        $entry_base = onoff_builder_get_import_base_url($id, $entry_path);
+        $entry_assets = $entry_base . 'assets/';
 
         $patterns = array(
             '#\ssrc=(["\'])/assets/#i'   => ' src=$1' . $root_assets,
@@ -830,8 +831,12 @@ if (!function_exists('onoff_builder_rewrite_asset_paths')) {
             '#\shref=(["\'])\./assets/#i' => ' href=$1' . $entry_assets,
             '#\ssrc=(["\'])assets/#i'    => ' src=$1' . $entry_assets,
             '#\shref=(["\'])assets/#i'   => ' href=$1' . $entry_assets,
-            '#\shref=(["\'])\./(favicon[^"\']*)#i' => ' href=$1' . onoff_builder_get_import_base_url($id, $entry_path) . '$2',
-            '#\shref=(["\'])\./(apple-touch-icon[^"\']*)#i' => ' href=$1' . onoff_builder_get_import_base_url($id, $entry_path) . '$2',
+            // Next.js public/ 정적 이미지 (basePath 미적용 산출물 보정)
+            '#\ssrc=(["\'])/images/#i'   => ' src=$1' . $entry_base . 'images/',
+            '#\ssrcset=(["\'])/images/#i' => ' srcset=$1' . $entry_base . 'images/',
+            '#\shref=(["\'])/images/#i'  => ' href=$1' . $entry_base . 'images/',
+            '#\shref=(["\'])\./(favicon[^"\']*)#i' => ' href=$1' . $entry_base . '$2',
+            '#\shref=(["\'])\./(apple-touch-icon[^"\']*)#i' => ' href=$1' . $entry_base . '$2',
         );
 
         foreach ($patterns as $pattern => $replacement) {
@@ -902,6 +907,13 @@ if (!function_exists('onoff_builder_render_import_page')) {
             ? onoff_builder_resolve_import_entry($id, $meta)
             : (isset($meta['entry']) && $meta['entry'] !== '' ? $meta['entry'] : 'index.html');
         if ($entry === '') {
+            $dir = function_exists('onoff_builder_project_dir') ? onoff_builder_project_dir($id) : '';
+            $has_index = ($dir !== '' && is_file($dir . '/index.html'));
+            $is_vite_src = ($dir !== '' && function_exists('onoff_builder_is_vite_source_project')
+                && onoff_builder_is_vite_source_project($dir));
+            if (!$has_index && !$is_vite_src) {
+                onoff_builder_render_page_error('랜딩 파일이 아직 배포되지 않았습니다. 잠시 후 다시 확인해 주세요. (imports/' . $id . '/index.html)');
+            }
             $message = function_exists('onoff_builder_vite_source_message')
                 ? onoff_builder_vite_source_message()
                 : '빌드가 필요한 프로젝트입니다. 디자인 화면에서 [배포하고 바로 적용]을 실행해 주세요.';
@@ -927,23 +939,42 @@ if (!function_exists('onoff_builder_render_import_page')) {
 
         if ($id === 'linkconnect') {
             $lc_plugin = defined('G5_PATH') ? G5_PATH . '/plugin/linkconnect' : '';
+            $lc_common = $lc_plugin !== '' ? $lc_plugin . '/_common.php' : '';
             $lc_config = $lc_plugin !== '' ? $lc_plugin . '/config.php' : '';
             $lc_auth = $lc_plugin !== '' ? $lc_plugin . '/inc/auth_bootstrap.php' : '';
-            if ($lc_config !== '' && is_file($lc_config)) {
-                include_once $lc_config;
-            }
-            if ($lc_plugin !== '') {
-                foreach (array('db.php', 'partner.php', 'merchant.php', 'wallet.php', 'conversion.php', 'admin.php') as $lc_inc_file) {
-                    $lc_inc_path = $lc_plugin . '/inc/' . $lc_inc_file;
-                    if (is_file($lc_inc_path)) {
-                        include_once $lc_inc_path;
+
+            // API와 동일한 부트스트랩으로 로그인·파트너·광고주 세션을 안정적으로 주입
+            if ($lc_common !== '' && is_file($lc_common)) {
+                include_once $lc_common;
+            } else {
+                if ($lc_config !== '' && is_file($lc_config)) {
+                    include_once $lc_config;
+                }
+                if ($lc_plugin !== '') {
+                    foreach (array(
+                        'db.php',
+                        'partner.php',
+                        'merchant.php',
+                        'merchant_contract_config.php',
+                        'merchant_contract.php',
+                        'merchant_contract_access.php',
+                        'wallet.php',
+                        'conversion.php',
+                        'admin.php',
+                        'impersonate.php',
+                    ) as $lc_inc_file) {
+                        $lc_inc_path = $lc_plugin . '/inc/' . $lc_inc_file;
+                        if (is_file($lc_inc_path)) {
+                            include_once $lc_inc_path;
+                        }
                     }
                 }
             }
+
             if ($lc_auth !== '' && is_file($lc_auth)) {
                 include_once $lc_auth;
             }
-            if ($lc_auth !== '' && is_file($lc_auth) && function_exists('lc_inject_auth_bootstrap')) {
+            if (function_exists('lc_inject_auth_bootstrap')) {
                 $html = lc_inject_auth_bootstrap($html);
             }
 
@@ -953,7 +984,7 @@ if (!function_exists('onoff_builder_render_import_page')) {
             }
         }
 
-        if ($id === 'banktupt' || $id === 'dasibom' || $id === 'hasugu_cpa') {
+        if ($id === 'banktupt' || $id === 'dasibom' || $id === 'hasugu_cpa' || $id === 'modemo') {
             $lc_common = defined('G5_PATH') ? G5_PATH . '/plugin/linkconnect/_common.php' : '';
             if ($lc_common !== '' && is_file($lc_common)) {
                 include_once $lc_common;

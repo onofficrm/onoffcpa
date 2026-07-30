@@ -6,9 +6,12 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($method === 'GET') {
     lc_api_require_admin();
 
-    // hasugu_cpa 랜딩은 배포됐지만 광고상품 행이 없을 수 있음 → 목록 조회 시 1회 보정
+    // hasugu_cpa / modemo 랜딩은 배포됐지만 광고상품 행이 없을 수 있음 → 목록 조회 시 1회 보정
     if (lc_db_installed() && function_exists('lc_campaign_ensure_hasugu_cpa')) {
-        lc_campaign_ensure_hasugu_cpa();
+        lc_campaign_ensure_hasugu_cpa(array('activate' => true));
+    }
+    if (lc_db_installed() && function_exists('lc_campaign_ensure_modemo')) {
+        lc_campaign_ensure_modemo(array('activate' => true));
     }
 
     $filters = array(
