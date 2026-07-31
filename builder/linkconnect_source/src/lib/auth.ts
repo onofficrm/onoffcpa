@@ -194,12 +194,9 @@ export function getMerchantContractMenuLabel(auth: LcAuth = getLcAuth()): string
   return '계약 정보';
 }
 
-/** 계약 체결 후 광고등록 신청 메뉴 표시 */
-export function shouldShowMerchantAdApplyMenu(auth: LcAuth = getLcAuth()): boolean {
-  if (!auth.isMerchant && !auth.isActiveMerchant) {
-    return false;
-  }
-  return Boolean(auth.merchantContractSigned);
+/** 광고등록 신청 메뉴 — 광고주센터에서는 더 이상 제공하지 않음 (이메일·별도 서식 접수) */
+export function shouldShowMerchantAdApplyMenu(_auth: LcAuth = getLcAuth()): boolean {
+  return false;
 }
 
 /** 사이드바 CPA 계약 메뉴 표시 여부 */

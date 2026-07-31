@@ -1,14 +1,13 @@
 import React from 'react';
 import { ImpersonateBanner } from '../components/ImpersonateBanner';
 import { SuperAdminWidget, SuperAdminHeaderButton } from '../components/SuperAdminWidget';
-import { LayoutDashboard, FileText, Target, Wallet, BarChart3, MessageSquare, PhoneCall, Megaphone, ScrollText, ClipboardPen } from 'lucide-react';
+import { LayoutDashboard, FileText, Target, Wallet, BarChart3, MessageSquare, PhoneCall, Megaphone, ScrollText } from 'lucide-react';
 import { MemberAuthMenu } from '../components/MemberAuthMenu';
 import { CenterTopBar } from '../components/CenterTopBar';
 import {
   getLcAuth,
   getMerchantContractMenuLabel,
   getMerchantContractPath,
-  shouldShowMerchantAdApplyMenu,
   shouldShowMerchantContractMenu,
   shouldShowMerchantContractNotice,
 } from '../lib/auth';
@@ -35,7 +34,6 @@ export function AdvertiserLayout({
   const auth = getLcAuth();
   const showContractGraceBanner = shouldShowMerchantContractNotice(auth) && auth.merchantContractGraceActive;
   const showContractMenu = shouldShowMerchantContractMenu(auth);
-  const showAdApplyMenu = shouldShowMerchantAdApplyMenu(auth);
   const contractLabel = getMerchantContractMenuLabel(auth);
   const contractPath = getMerchantContractPath(auth);
   const contractBadge =
@@ -69,15 +67,6 @@ export function AdvertiserLayout({
                 badge={contractBadge}
                 active={activeMenu === 'contract'}
                 to={contractPath}
-                accent="cyan"
-              />
-            ) : null}
-            {showAdApplyMenu ? (
-              <CenterNavItem
-                icon={<ClipboardPen size={20} />}
-                label="광고 등록 신청하기"
-                active={activeMenu === 'ad-apply'}
-                to="/advertiser/ad-apply"
                 accent="cyan"
               />
             ) : null}
