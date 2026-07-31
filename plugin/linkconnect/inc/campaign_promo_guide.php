@@ -909,6 +909,7 @@ if (!function_exists('lc_campaign_promo_guide_to_api')) {
         $asset_api = array_map('lc_campaign_promo_guide_asset_to_api', $assets);
 
         $data = array(
+            'exists'             => true,
             'id'                 => $cpg_id,
             'guideId'            => $cpg_id,
             'campaignId'         => (int) ($row['cpg_cp_id'] ?? 0),
