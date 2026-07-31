@@ -1031,7 +1031,8 @@ if (!function_exists('lc_campaign_promo_guide_create')) {
             cpg_created_at = NOW(),
             cpg_updated_at = NOW() ", false);
 
-        if ($ok === false) {
+        // mysqli 예외 시 null 이 올 수 있어 === false 만으로는 부족
+        if (!$ok) {
             // UNIQUE 충돌 등 → 기존 행 재조회
             $race = lc_campaign_promo_guide_get_by_cp_id($cp_id);
             if (is_array($race)) {
@@ -1047,12 +1048,19 @@ if (!function_exists('lc_campaign_promo_guide_create')) {
                 }
             }
 
-            return array('ok' => false, 'message' => '홍보 가이드 생성에 실패했습니다.');
+            $err = function_exists('lc_sql_error') ? trim((string) lc_sql_error()) : '';
+            return array(
+                'ok'      => false,
+                'message' => '홍보 가이드 생성에 실패했습니다.' . ($err !== '' ? ' (' . $err . ')' : ''),
+            );
         }
 
-        $guide = lc_campaign_promo_guide_get_by_cp_id($cp_id);
-        if (!is_array($guide)) {
-            return array('ok' => false, 'message' => '홍보 가이드 생성 후 조회에 실패했습니다.');
+        $insert_id = (int) lc_sql_insert_id();
+        $guide = $insert_id > 0
+            ? lc_campaign_promo_guide_get_by_id($insert_id)
+            : lc_campaign_promo_guide_get_by_cp_id($cp_id);
+        if (!is_array($guide) || (int) ($guide['cpg_cp_id'] ?? 0) !== $cp_id) {
+            return array('ok' => false, 'message' => '홍보 가이드 생성 후 조회에 실패했습니다. DB 반영을 확인해 주세요.');
         }
 
         return array('ok' => true, 'message' => '홍보 가이드가 생성되었습니다.', 'guide' => $guide, 'created' => true);
@@ -1145,8 +1153,12 @@ if (!function_exists('lc_campaign_promo_guide_save_content')) {
         $sql = " UPDATE `{$table}` SET " . implode(', ', $sets) . "
             WHERE cpg_id = '{$cpg_id}' AND cpg_cp_id = '{$cp_id}' LIMIT 1 ";
 
-        if (lc_sql_query($sql, false) === false) {
-            return array('ok' => false, 'message' => '홍보 가이드 저장에 실패했습니다.');
+        if (!lc_sql_query($sql, false)) {
+            $err = function_exists('lc_sql_error') ? trim((string) lc_sql_error()) : '';
+            return array(
+                'ok'      => false,
+                'message' => '홍보 가이드 저장에 실패했습니다.' . ($err !== '' ? ' (' . $err . ')' : ''),
+            );
         }
 
         if (function_exists('lc_sql_affected_rows') && lc_sql_affected_rows() < 1) {
@@ -1162,11 +1174,22 @@ if (!function_exists('lc_campaign_promo_guide_save_content')) {
             return array('ok' => false, 'message' => '저장 후 가이드를 불러오지 못했습니다.');
         }
 
-        // 핵심 필드가 요청값과 다르면 저장 실패로 처리
-        $saved_points = lc_campaign_promo_guide_decode_json_list((string) ($updated['cpg_promotion_points'] ?? ''));
-        if (count($data['promotion_points']) > 0 && $saved_points !== $data['promotion_points']) {
-            // 순서만 다른 경우는 허용, 내용 누락만 실패
-            $missing = array_diff($data['promotion_points'], $saved_points);
+        // 요청한 리스트 값이 DB에 빠졌으면 저장 실패로 처리 (성공 위장 방지)
+        $verify_fields = array(
+            'promotion_points'      => 'cpg_promotion_points',
+            'recommended_keywords'  => 'cpg_recommended_keywords',
+            'forbidden_words'       => 'cpg_forbidden_words',
+            'precautions'           => 'cpg_precautions',
+            'valid_db_rules'        => 'cpg_valid_db_rules',
+            'invalid_db_rules'      => 'cpg_invalid_db_rules',
+        );
+        foreach ($verify_fields as $data_key => $column) {
+            $requested = isset($data[$data_key]) && is_array($data[$data_key]) ? $data[$data_key] : array();
+            if (count($requested) === 0) {
+                continue;
+            }
+            $saved = lc_campaign_promo_guide_decode_json_list((string) ($updated[$column] ?? ''));
+            $missing = array_diff($requested, $saved);
             if (count($missing) > 0) {
                 return array('ok' => false, 'message' => '홍보 가이드 내용이 DB에 반영되지 않았습니다. 다시 저장해 주세요.');
             }

@@ -191,14 +191,18 @@ export function AdvertiserCampaignGuide() {
     const created = await createMerchantPromoGuide(cpId, token);
     if (created.csrfToken) setCsrfToken(created.csrfToken);
     setExists(true);
+    // 생성 직후 가이드는 빈 초안이다. applyGuideData로 폼을 덮어쓰면
+    // 사용자가 이미 입력한 내용이 지워진 채 저장되는 버그가 난다.
     if (created.guide) {
-      applyGuideData({
+      setGuideMeta((prev) => ({
+        ...(prev ?? {}),
         ...created.guide,
         exists: true,
         csrfToken: created.csrfToken ?? token,
-        campaignName: created.guide.campaignName || campaignName,
+        campaignName: created.guide.campaignName || campaignName || prev?.campaignName || '',
         skipReview,
-      });
+      }));
+      if (created.guide.campaignName) setCampaignName(created.guide.campaignName);
     }
     return created.csrfToken ?? token;
   };
@@ -213,6 +217,9 @@ export function AdvertiserCampaignGuide() {
       return false;
     }
 
+    // 가이드 생성 전에 페이로드를 고정한다 (생성 응답이 폼을 건드리지 못하게).
+    const payload = buildPromoGuidePayload(form, limits);
+
     setSaving(true);
     try {
       let token = csrfToken;
@@ -223,7 +230,6 @@ export function AdvertiserCampaignGuide() {
       }
       token = await ensureGuideExists(token);
 
-      const payload = buildPromoGuidePayload(form, limits);
       let response;
 
       if (mode === 'draft') {
@@ -237,8 +243,23 @@ export function AdvertiserCampaignGuide() {
       }
 
       if (response.csrfToken) setCsrfToken(response.csrfToken);
+
+      const savedPoints = Array.isArray(response.guide?.promotionPoints)
+        ? response.guide.promotionPoints.filter((v) => String(v).trim())
+        : [];
+      const sentPoints = Array.isArray(payload.promotionPoints)
+        ? payload.promotionPoints.filter((v) => String(v).trim())
+        : [];
+      if (sentPoints.length > 0 && savedPoints.length === 0) {
+        setExists(true);
+        setLoadError('저장 응답에 홍보 포인트가 없습니다. 네트워크/권한을 확인한 뒤 다시 저장해 주세요.');
+        return false;
+      }
+
       if (response.guide) {
         applyGuideData({ ...response.guide, exists: true, skipReview, campaignName });
+      } else {
+        setExists(true);
       }
       if (!options?.silent) {
         setSuccess(response.message);
