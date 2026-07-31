@@ -584,29 +584,383 @@ if (!function_exists('lc_campaign_promo_guide_assert_campaign_owner')) {
     }
 }
 
+if (!function_exists('lc_campaign_promo_guide_content_score')) {
+    /**
+     * 행에 실제 홍보 내용이 얼마나 들어있는지 점수화 (빈 최신행이 옛 내용을 가리는 문제 방지)
+     *
+     * @param array<string,mixed> $row
+     */
+    function lc_campaign_promo_guide_content_score(array $row)
+    {
+        $score = 0;
+        $fields = array(
+            'cpg_promotion_points',
+            'cpg_recommended_keywords',
+            'cpg_forbidden_words',
+            'cpg_precautions',
+            'cpg_valid_db_rules',
+            'cpg_invalid_db_rules',
+        );
+        foreach ($fields as $field) {
+            $score += count(lc_campaign_promo_guide_decode_json_list((string) ($row[$field] ?? '')));
+        }
+
+        return $score;
+    }
+}
+
+if (!function_exists('lc_campaign_promo_guide_list_by_cp_id')) {
+    /**
+     * @return array<int,array<string,mixed>>
+     */
+    function lc_campaign_promo_guide_list_by_cp_id($cp_id)
+    {
+        $cp_id = (int) $cp_id;
+        if (!lc_db_installed() || $cp_id <= 0) {
+            return array();
+        }
+
+        $table = lc_campaign_promo_guide_table();
+        $rows = array();
+        $result = lc_sql_query(
+            " SELECT * FROM `{$table}`
+              WHERE cpg_cp_id = '{$cp_id}'
+              ORDER BY cpg_updated_at DESC, cpg_id DESC ",
+            false
+        );
+        if ($result) {
+            while ($row = sql_fetch_array($result)) {
+                if (is_array($row) && !empty($row['cpg_id'])) {
+                    $rows[] = $row;
+                }
+            }
+        }
+
+        return $rows;
+    }
+}
+
+if (!function_exists('lc_campaign_promo_guide_pick_richest_row')) {
+    /**
+     * @param array<int,array<string,mixed>> $rows
+     * @return array<string,mixed>|null
+     */
+    function lc_campaign_promo_guide_pick_richest_row(array $rows)
+    {
+        if (count($rows) === 0) {
+            return null;
+        }
+
+        $best = null;
+        $best_score = -1;
+        $best_updated = '';
+        $best_id = 0;
+        foreach ($rows as $row) {
+            if (!is_array($row) || empty($row['cpg_id'])) {
+                continue;
+            }
+            $score = lc_campaign_promo_guide_content_score($row);
+            $updated = (string) ($row['cpg_updated_at'] ?? '');
+            $id = (int) $row['cpg_id'];
+            if (
+                $score > $best_score
+                || ($score === $best_score && $updated > $best_updated)
+                || ($score === $best_score && $updated === $best_updated && $id > $best_id)
+            ) {
+                $best = $row;
+                $best_score = $score;
+                $best_updated = $updated;
+                $best_id = $id;
+            }
+        }
+
+        return $best;
+    }
+}
+
 if (!function_exists('lc_campaign_promo_guide_get_by_cp_id')) {
     function lc_campaign_promo_guide_get_by_cp_id($cp_id)
     {
+        $rows = lc_campaign_promo_guide_list_by_cp_id($cp_id);
+        $picked = lc_campaign_promo_guide_pick_richest_row($rows);
+
+        return is_array($picked) ? $picked : null;
+    }
+}
+
+if (!function_exists('lc_campaign_promo_guide_merge_list_fields')) {
+    /**
+     * 여러 행/소스에서 리스트 필드를 합쳐 비어 있지 않은 최댓값으로 채움
+     *
+     * @param array<int,array<string,mixed>> $rows
+     * @return array<string,array<int,string>>
+     */
+    function lc_campaign_promo_guide_merge_list_fields(array $rows)
+    {
+        $map = array(
+            'promotion_points'     => 'cpg_promotion_points',
+            'recommended_keywords' => 'cpg_recommended_keywords',
+            'forbidden_words'      => 'cpg_forbidden_words',
+            'precautions'          => 'cpg_precautions',
+            'valid_db_rules'       => 'cpg_valid_db_rules',
+            'invalid_db_rules'     => 'cpg_invalid_db_rules',
+        );
+        $merged = array();
+        foreach ($map as $key => $column) {
+            $items = array();
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                foreach (lc_campaign_promo_guide_decode_json_list((string) ($row[$column] ?? '')) as $item) {
+                    if (!in_array($item, $items, true)) {
+                        $items[] = $item;
+                    }
+                }
+            }
+            $merged[$key] = $items;
+        }
+
+        return $merged;
+    }
+}
+
+if (!function_exists('lc_campaign_promo_guide_split_multiline')) {
+    /**
+     * @return array<int,string>
+     */
+    function lc_campaign_promo_guide_split_multiline($text, $max_items = 10)
+    {
+        $text = trim((string) $text);
+        if ($text === '') {
+            return array();
+        }
+
+        // JSON 배열이면 decode
+        if ($text[0] === '[') {
+            $decoded = lc_campaign_promo_guide_decode_json_list($text);
+            if (count($decoded) > 0) {
+                return array_slice($decoded, 0, (int) $max_items);
+            }
+        }
+
+        $parts = preg_split('/[\r\n]+|[,;|]+/u', $text) ?: array();
+        $items = array();
+        foreach ($parts as $part) {
+            $part = lc_campaign_promo_guide_sanitize_text($part, 500);
+            if ($part !== '' && !in_array($part, $items, true)) {
+                $items[] = $part;
+            }
+            if (count($items) >= (int) $max_items) {
+                break;
+            }
+        }
+
+        return $items;
+    }
+}
+
+if (!function_exists('lc_campaign_promo_guide_recover_content')) {
+    /**
+     * 중복 가이드·광고신청서 등에서 내용을 찾아 캠페인 가이드에 복구
+     *
+     * @return array{ok:bool,message:string,guide?:array,recovered?:bool,sources?:array}
+     */
+    function lc_campaign_promo_guide_recover_content($mt_id, $cp_id, $dry_run = false)
+    {
         if (!lc_db_installed()) {
-            return null;
+            return array('ok' => false, 'message' => 'DB가 설치되지 않았습니다.');
         }
 
+        lc_campaign_promo_guide_db_ensure_schema();
+
+        $mt_id = (int) $mt_id;
         $cp_id = (int) $cp_id;
-        if ($cp_id <= 0) {
-            return null;
+        $owner = lc_campaign_promo_guide_assert_campaign_owner($mt_id, $cp_id);
+        if (empty($owner['ok'])) {
+            return array('ok' => false, 'message' => $owner['message']);
         }
-        $table = lc_campaign_promo_guide_table();
 
-        // 최신 행 우선 (과거 중복 행이 있어도 내용 있는 가이드를 찾도록)
-        $row = lc_sql_fetch(
-            " SELECT * FROM `{$table}`
-              WHERE cpg_cp_id = '{$cp_id}'
-              ORDER BY cpg_updated_at DESC, cpg_id DESC
-              LIMIT 1 ",
+        $sources = array();
+        $rows = lc_campaign_promo_guide_list_by_cp_id($cp_id);
+        if (count($rows) > 0) {
+            $sources[] = 'guides_by_cp_id:' . count($rows);
+        }
+
+        // 동일 광고주의 다른 캠페인 가이드 (내용만 참고)
+        $table = lc_campaign_promo_guide_table();
+        $mt_rows = array();
+        $result = lc_sql_query(
+            " SELECT * FROM `{$table}` WHERE cpg_mt_id = '{$mt_id}' ORDER BY cpg_updated_at DESC, cpg_id DESC ",
             false
         );
+        if ($result) {
+            while ($row = sql_fetch_array($result)) {
+                if (is_array($row) && (int) ($row['cpg_cp_id'] ?? 0) !== $cp_id) {
+                    $mt_rows[] = $row;
+                }
+            }
+        }
+        if (count($mt_rows) > 0) {
+            $sources[] = 'guides_by_mt_id_other_cp:' . count($mt_rows);
+        }
 
-        return is_array($row) && !empty($row['cpg_id']) ? $row : null;
+        $merged = lc_campaign_promo_guide_merge_list_fields($rows);
+        // 같은 캠페인 행이 비어 있을 때만 다른 캠페인 내용을 보조로 쓰지 않음 —
+        // 하수구 전용 복구는 동일 cp_id + 광고신청서만 사용
+        $approval = LC_CPG_APPROVAL_FREE;
+        foreach ($rows as $row) {
+            $type = lc_campaign_promo_guide_valid_approval_type($row['cpg_approval_type'] ?? '');
+            if ($type !== LC_CPG_APPROVAL_FREE) {
+                $approval = $type;
+                break;
+            }
+        }
+
+        // 광고 신청서에서 보강
+        if (function_exists('lc_merchant_ad_apply_db_ensure_schema')) {
+            lc_merchant_ad_apply_db_ensure_schema();
+        }
+        if (function_exists('lc_merchant_ad_apply_get_latest_for_merchant')) {
+            $apply = lc_merchant_ad_apply_get_latest_for_merchant($mt_id);
+            if (is_array($apply)) {
+                $sources[] = 'ad_apply:' . (int) ($apply['maa_id'] ?? 0);
+                $limits = lc_campaign_promo_guide_limits();
+                if (count($merged['promotion_points']) === 0) {
+                    $from_sell = lc_campaign_promo_guide_split_multiline($apply['maa_selling_points'] ?? '', $limits['promotion_points']);
+                    if (count($from_sell) === 0 && trim((string) ($apply['maa_intro'] ?? '')) !== '') {
+                        $from_sell = lc_campaign_promo_guide_split_multiline($apply['maa_intro'], $limits['promotion_points']);
+                    }
+                    $merged['promotion_points'] = $from_sell;
+                }
+                if (count($merged['recommended_keywords']) === 0) {
+                    $merged['recommended_keywords'] = lc_campaign_promo_guide_split_multiline(
+                        $apply['maa_recommended_keywords'] ?? '',
+                        $limits['recommended_keywords']
+                    );
+                }
+                if (count($merged['forbidden_words']) === 0) {
+                    $merged['forbidden_words'] = lc_campaign_promo_guide_split_multiline(
+                        $apply['maa_forbidden_keywords'] ?? '',
+                        $limits['forbidden_words']
+                    );
+                }
+                if (count($merged['precautions']) === 0) {
+                    $merged['precautions'] = lc_campaign_promo_guide_split_multiline(
+                        $apply['maa_precautions'] ?? '',
+                        $limits['precautions']
+                    );
+                }
+            }
+        }
+
+        $total = 0;
+        foreach ($merged as $list) {
+            $total += count($list);
+        }
+
+        $canonical = lc_campaign_promo_guide_pick_richest_row($rows);
+        if (!is_array($canonical)) {
+            if ($total === 0) {
+                return array(
+                    'ok'        => true,
+                    'message'   => '복구할 홍보 가이드 내용이 DB/광고신청서에 없습니다.',
+                    'recovered' => false,
+                    'sources'   => $sources,
+                );
+            }
+            if ($dry_run) {
+                return array(
+                    'ok'        => true,
+                    'message'   => '복구 가능 (가이드 행 없음, 광고신청서 등에서 생성 예정)',
+                    'recovered' => true,
+                    'sources'   => $sources,
+                    'preview'   => $merged,
+                );
+            }
+            $created = lc_campaign_promo_guide_create($mt_id, $cp_id);
+            if (empty($created['ok']) || empty($created['guide'])) {
+                return array('ok' => false, 'message' => $created['message'] ?? '가이드 생성 실패');
+            }
+            $canonical = $created['guide'];
+        }
+
+        $current_score = lc_campaign_promo_guide_content_score($canonical);
+        if ($total === 0) {
+            return array(
+                'ok'        => true,
+                'message'   => '복구할 추가 내용이 없습니다. (현재도 비어 있음)',
+                'guide'     => $canonical,
+                'recovered' => false,
+                'sources'   => $sources,
+            );
+        }
+
+        if ($dry_run) {
+            return array(
+                'ok'          => true,
+                'message'     => '복구 미리보기',
+                'recovered'   => $total > $current_score,
+                'sources'     => $sources,
+                'currentScore'=> $current_score,
+                'preview'     => $merged,
+                'guide'       => $canonical,
+            );
+        }
+
+        $cpg_id = (int) $canonical['cpg_id'];
+        $status = lc_campaign_promo_guide_valid_status($canonical['cpg_status'] ?? LC_CPG_STATUS_DRAFT);
+        if ($status === LC_CPG_STATUS_REVIEW) {
+            // 검토 중이어도 내용 복구는 허용 (빈 검토 건 보정)
+        }
+
+        $sets = array(
+            "cpg_mt_id = '{$mt_id}'",
+            "cpg_promotion_points = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($merged['promotion_points'])) . "'",
+            "cpg_recommended_keywords = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($merged['recommended_keywords'])) . "'",
+            "cpg_forbidden_words = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($merged['forbidden_words'])) . "'",
+            "cpg_precautions = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($merged['precautions'])) . "'",
+            "cpg_valid_db_rules = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($merged['valid_db_rules'])) . "'",
+            "cpg_invalid_db_rules = '" . lc_sql_escape(lc_campaign_promo_guide_encode_json_list($merged['invalid_db_rules'])) . "'",
+            "cpg_approval_type = '" . lc_sql_escape($approval) . "'",
+            "cpg_updated_at = NOW()",
+        );
+
+        $sql = " UPDATE `{$table}` SET " . implode(', ', $sets) . "
+            WHERE cpg_id = '{$cpg_id}' AND cpg_cp_id = '{$cp_id}' LIMIT 1 ";
+        if (!lc_sql_query($sql, false)) {
+            return array('ok' => false, 'message' => '복구 저장에 실패했습니다.');
+        }
+
+        // 중복 빈 행 정리: 동일 cp_id의 다른 행에서 소재를 대표 행으로 옮기고 삭제
+        foreach ($rows as $row) {
+            $other_id = (int) ($row['cpg_id'] ?? 0);
+            if ($other_id <= 0 || $other_id === $cpg_id) {
+                continue;
+            }
+            $assets_table = lc_campaign_promo_guide_asset_table();
+            if (function_exists('lc_db_table_exists') && lc_db_table_exists($assets_table)) {
+                lc_sql_query(
+                    " UPDATE `{$assets_table}` SET cpga_cpg_id = '{$cpg_id}', cpga_mt_id = '{$mt_id}'
+                      WHERE cpga_cpg_id = '{$other_id}' ",
+                    false
+                );
+            }
+            lc_sql_query(" DELETE FROM `{$table}` WHERE cpg_id = '{$other_id}' AND cpg_cp_id = '{$cp_id}' LIMIT 1 ", false);
+        }
+
+        $fresh = lc_campaign_promo_guide_get_by_id($cpg_id);
+        if (is_array($fresh)) {
+            lc_campaign_promo_guide_write_log($fresh, (string) ($canonical['cpg_status'] ?? ''), (string) ($fresh['cpg_status'] ?? ''), '관리자 내용 복구', 'admin');
+        }
+
+        return array(
+            'ok'        => true,
+            'message'   => $total > $current_score ? '이전 홍보 가이드 내용을 복구했습니다.' : '이미 동일 수준 내용이 있습니다. 최신 행으로 정리했습니다.',
+            'guide'     => is_array($fresh) ? $fresh : $canonical,
+            'recovered' => $total > $current_score,
+            'sources'   => $sources,
+        );
     }
 }
 
@@ -2203,6 +2557,14 @@ if (!function_exists('lc_campaign_promo_guide_merchant_view')) {
         $campaign_name = is_array($campaign) ? (string) ($campaign['cp_name'] ?? '') : '';
 
         $guide = lc_campaign_promo_guide_get_by_cp_id($cp_id);
+        // 빈 가이드/미등록이면 중복행·광고신청서에서 자동 복구 시도
+        if (!is_array($guide) || lc_campaign_promo_guide_content_score($guide) === 0) {
+            $recovered = lc_campaign_promo_guide_recover_content($mt_id, $cp_id, false);
+            if (!empty($recovered['ok']) && !empty($recovered['guide']) && is_array($recovered['guide'])) {
+                $guide = $recovered['guide'];
+            }
+        }
+
         if (!is_array($guide)) {
             return array(
                 'ok'      => true,

@@ -32,6 +32,16 @@ if ($method === 'GET') {
         $guide = lc_campaign_promo_guide_get_by_id($cpg_id);
     } elseif ($cp_id > 0) {
         $guide = lc_campaign_promo_guide_get_by_cp_id($cp_id);
+        $campaign = lc_campaign_get_by_id($cp_id);
+        if (is_array($campaign)) {
+            $mt_id = (int) ($campaign['mt_id'] ?? 0);
+            if ($mt_id > 0 && (!is_array($guide) || lc_campaign_promo_guide_content_score($guide) === 0)) {
+                $recovered = lc_campaign_promo_guide_recover_content($mt_id, $cp_id, false);
+                if (!empty($recovered['ok']) && !empty($recovered['guide']) && is_array($recovered['guide'])) {
+                    $guide = $recovered['guide'];
+                }
+            }
+        }
     } else {
         lc_api_error('가이드 ID 또는 광고상품 ID가 필요합니다.', 'INVALID_REQUEST', 400);
     }
