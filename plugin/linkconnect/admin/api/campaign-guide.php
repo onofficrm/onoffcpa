@@ -43,6 +43,32 @@ if ($method === 'GET') {
         ));
     }
 
+    // 슈퍼관리자 디버그: DB 원본/중복 행 확인
+    if (isset($_GET['debug']) && (string) $_GET['debug'] !== '' && function_exists('lc_is_super_admin') && lc_is_super_admin()) {
+        $cp_id_dbg = (int) ($guide['cpg_cp_id'] ?? $cp_id);
+        $table = lc_campaign_promo_guide_table();
+        $rows = array();
+        $result = lc_sql_query(" SELECT cpg_id, cpg_mt_id, cpg_cp_id, cpg_status, cpg_updated_at, cpg_promotion_points, cpg_recommended_keywords FROM `{$table}` WHERE cpg_cp_id = '{$cp_id_dbg}' ORDER BY cpg_id DESC ", false);
+        if ($result) {
+            while ($row = sql_fetch_array($result)) {
+                $rows[] = array(
+                    'cpg_id' => (int) $row['cpg_id'],
+                    'cpg_mt_id' => (int) $row['cpg_mt_id'],
+                    'cpg_status' => (string) $row['cpg_status'],
+                    'updated_at' => (string) $row['cpg_updated_at'],
+                    'points' => lc_campaign_promo_guide_decode_json_list((string) $row['cpg_promotion_points']),
+                    'keywords' => lc_campaign_promo_guide_decode_json_list((string) $row['cpg_recommended_keywords']),
+                );
+            }
+        }
+        lc_api_success(array(
+            'exists' => true,
+            'guide' => lc_campaign_promo_guide_to_api($guide, null, true),
+            'debugRows' => $rows,
+            'campaignMtId' => (int) ((lc_campaign_get_by_id($cp_id_dbg)['mt_id'] ?? 0)),
+        ));
+    }
+
     $api = lc_campaign_promo_guide_to_api($guide, null, true);
     $api['exists'] = true;
 
