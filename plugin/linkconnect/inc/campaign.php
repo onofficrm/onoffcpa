@@ -1052,6 +1052,10 @@ if (!function_exists('lc_campaign_save')) {
             return array('ok' => false, 'message' => '광고주 차감 단가는 파트너 지급 단가 이상이어야 합니다.');
         }
 
+        if (function_exists('lc_db_run_migrations')) {
+            lc_db_run_migrations();
+        }
+
         $table = lc_table('campaigns');
         $fields = array(
             'cp_name'               => $name,
@@ -1066,9 +1070,15 @@ if (!function_exists('lc_campaign_save')) {
             'cp_description'        => isset($payload['description']) ? trim((string) $payload['description']) : '',
             'cp_landing_url'        => isset($payload['landingUrl']) ? trim((string) $payload['landingUrl']) : '',
             'cp_tracking_base_url'  => '',
-            'cp_badge'              => isset($payload['badge']) ? trim((string) $payload['badge']) : '',
-            'cp_recommended'        => !empty($payload['recommended']) ? 1 : 0,
         );
+
+        // badge / recommended 는 폼에서 안 보내면 기존 값 유지 (미전송 시 추천 해제 → 메인 상위 노출 순서가 바뀌던 버그)
+        if (array_key_exists('badge', $payload)) {
+            $fields['cp_badge'] = trim((string) $payload['badge']);
+        }
+        if (array_key_exists('recommended', $payload)) {
+            $fields['cp_recommended'] = !empty($payload['recommended']) ? 1 : 0;
+        }
 
         if (array_key_exists('trackingBaseUrl', $payload)) {
             $tracking_raw = trim((string) $payload['trackingBaseUrl']);
@@ -1111,12 +1121,21 @@ if (!function_exists('lc_campaign_save')) {
             }
             $sets[] = 'cp_updated_at = NOW()';
 
-            lc_sql_query(" UPDATE `{$table}` SET " . implode(', ', $sets) . " WHERE cp_id = '{$cp_id}' ", false);
+            $ok = lc_sql_query(" UPDATE `{$table}` SET " . implode(', ', $sets) . " WHERE cp_id = '{$cp_id}' LIMIT 1 ", false);
+            if (!$ok) {
+                $err = function_exists('lc_sql_error') ? trim((string) lc_sql_error()) : '';
+                return array(
+                    'ok'      => false,
+                    'message' => '광고상품 저장에 실패했습니다.' . ($err !== '' ? ' (' . $err . ')' : ''),
+                );
+            }
         } else {
             $code = lc_campaign_generate_code();
             $status = isset($fields['cp_status']) ? $fields['cp_status'] : LC_STATUS_DRAFT;
+            $badge = isset($fields['cp_badge']) ? (string) $fields['cp_badge'] : '';
+            $recommended = isset($fields['cp_recommended']) ? (int) $fields['cp_recommended'] : 0;
 
-            lc_sql_query(" INSERT INTO `{$table}` SET
+            $insert_ok = lc_sql_query(" INSERT INTO `{$table}` SET
                 mt_id = '{$mt_id}',
                 cp_code = '" . lc_sql_escape($code) . "',
                 cp_name = '" . lc_sql_escape($fields['cp_name']) . "',
@@ -1132,34 +1151,56 @@ if (!function_exists('lc_campaign_save')) {
                 cp_landing_url = '" . lc_sql_escape($fields['cp_landing_url']) . "',
                 cp_tracking_base_url = '" . lc_sql_escape((string) ($fields['cp_tracking_base_url'] ?? '')) . "',
                 cp_status = '" . lc_sql_escape($status) . "',
-                cp_badge = '" . lc_sql_escape($fields['cp_badge']) . "',
-                cp_recommended = '" . (int) $fields['cp_recommended'] . "',
+                cp_badge = '" . lc_sql_escape($badge) . "',
+                cp_recommended = '{$recommended}',
                 cp_created_at = NOW(),
                 cp_updated_at = NOW() ", false);
+
+            if (!$insert_ok) {
+                $err = function_exists('lc_sql_error') ? trim((string) lc_sql_error()) : '';
+                return array(
+                    'ok'      => false,
+                    'message' => '광고상품 등록에 실패했습니다.' . ($err !== '' ? ' (' . $err . ')' : ''),
+                );
+            }
 
             $cp_id = (int) lc_sql_insert_id();
         }
 
         $saved = lc_campaign_get_by_id($cp_id);
-        $api_campaign = null;
-        if (is_array($saved)) {
-            $saved['mt_company'] = '';
-            $saved['mt_code'] = '';
-            $saved['mt_balance'] = 0;
-            $saved['total_db'] = 0;
-            $saved['approved_db'] = 0;
-            $saved['canceled_db'] = 0;
-            $saved['spend'] = 0;
-            if ($saved['mt_id'] > 0 && function_exists('lc_get_merchant_by_id')) {
-                $merchant = lc_get_merchant_by_id((int) $saved['mt_id']);
-                if (is_array($merchant)) {
-                    $saved['mt_company'] = $merchant['mt_company'];
-                    $saved['mt_code'] = $merchant['mt_code'];
-                    $saved['mt_balance'] = $merchant['mt_balance'];
-                }
-            }
-            $api_campaign = lc_campaign_to_admin_api($saved);
+        if (!is_array($saved)) {
+            return array('ok' => false, 'message' => '저장 후 광고상품을 불러오지 못했습니다.');
         }
+
+        // 단가가 DB에 실제로 반영됐는지 검증 (성공 위장 방지)
+        $saved_partner = lc_campaign_resolve_partner_price($saved);
+        $saved_merchant = lc_campaign_resolve_merchant_price($saved);
+        if ($saved_partner !== $partner_price || $saved_merchant !== $merchant_price) {
+            return array(
+                'ok'      => false,
+                'message' => '단가가 DB에 반영되지 않았습니다. 다시 저장해 주세요. (요청 파트너 '
+                    . number_format($partner_price) . ' / 광고주 ' . number_format($merchant_price)
+                    . ' → 저장 파트너 ' . number_format($saved_partner) . ' / 광고주 ' . number_format($saved_merchant) . ')',
+            );
+        }
+
+        $api_campaign = null;
+        $saved['mt_company'] = '';
+        $saved['mt_code'] = '';
+        $saved['mt_balance'] = 0;
+        $saved['total_db'] = 0;
+        $saved['approved_db'] = 0;
+        $saved['canceled_db'] = 0;
+        $saved['spend'] = 0;
+        if ($saved['mt_id'] > 0 && function_exists('lc_get_merchant_by_id')) {
+            $merchant = lc_get_merchant_by_id((int) $saved['mt_id']);
+            if (is_array($merchant)) {
+                $saved['mt_company'] = $merchant['mt_company'];
+                $saved['mt_code'] = $merchant['mt_code'];
+                $saved['mt_balance'] = $merchant['mt_balance'];
+            }
+        }
+        $api_campaign = lc_campaign_to_admin_api($saved);
 
         return array(
             'ok'       => true,
