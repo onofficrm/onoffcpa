@@ -3,44 +3,43 @@ if (!defined('_GNUBOARD_')) {
     exit;
 }
 
-if (!function_exists('lc_hasugu_cpa_campaign_definition')) {
+if (!function_exists('lc_modemo_campaign_definition')) {
     /**
-     * 하수구/배관 CPA 광고상품 정의 (ADV-0007 / drainpolice).
+     * 모두의철거 CPA 광고상품 정의 (ADV-0008).
      *
      * @return array<string,mixed>
      */
-    function lc_hasugu_cpa_campaign_definition()
+    function lc_modemo_campaign_definition()
     {
         return array(
-            'code'               => 'CPA-HASUGU',
-            'title'              => '하수구·배관 상담 DB',
+            'code'               => 'CPA-MODEMO',
+            'title'              => '철거·원상복구 상담 DB',
             'category'           => '생활서비스',
-            'price'              => 25000,
-            'merchant_price'     => 35000,
+            'price'              => 30000,
+            'merchant_price'     => 45000,
             'approval_rate'      => '70%',
             'avg_time'           => '1.5일',
             'allowed_channels'   => '블로그, 카페, 지식iN, SNS',
             'forbidden_channels' => '허위광고, 브랜드 사칭, 스팸문자',
-            'description'        => '하수구막힘·싱크대막힘·변기막힘·악취·역류 상담 DB. hasugu_cpa 랜딩 연동 (ADV-0007).',
+            'description'        => '상가·주택 철거, 사무실 원상복구, 폐기물 처리 상담 DB. modemo 랜딩 연동.',
             'badge'              => '신규',
             'recommended'        => true,
-            // 광고주 미연결 시 일시중지 — ADV-0007 연결 후 운영중으로 전환
             'status'             => 'paused',
         );
     }
 }
 
-if (!function_exists('lc_hasugu_cpa_landing_path')) {
-    function lc_hasugu_cpa_landing_path()
+if (!function_exists('lc_modemo_landing_path')) {
+    function lc_modemo_landing_path()
     {
-        return '/merchant/hasugu_cpa/';
+        return '/merchant/modemo/';
     }
 }
 
-if (!function_exists('lc_hasugu_cpa_landing_url')) {
-    function lc_hasugu_cpa_landing_url()
+if (!function_exists('lc_modemo_landing_url')) {
+    function lc_modemo_landing_url()
     {
-        $path = lc_hasugu_cpa_landing_path();
+        $path = lc_modemo_landing_path();
         if (defined('G5_URL') && G5_URL !== '') {
             return rtrim(G5_URL, '/') . $path;
         }
@@ -49,23 +48,23 @@ if (!function_exists('lc_hasugu_cpa_landing_url')) {
     }
 }
 
-if (!function_exists('lc_campaign_ensure_hasugu_cpa')) {
+if (!function_exists('lc_campaign_ensure_modemo')) {
     /**
-     * 하수구 CPA 상품을 생성/갱신한다. 광고주(mt_id) 없어도 등록 가능(일시중지).
+     * 모두의철거 CPA 상품을 생성/갱신한다.
      *
      * @param array{advertiser_mb_id?:string,mt_id?:int,activate?:bool} $options
      * @return array{ok:bool,message:string,cpId?:int,created?:bool}
      */
-    function lc_campaign_ensure_hasugu_cpa(array $options = array())
+    function lc_campaign_ensure_modemo(array $options = array())
     {
         if (!lc_db_installed()) {
             return array('ok' => false, 'message' => 'DB가 설치되지 않았습니다.');
         }
 
-        $def = lc_hasugu_cpa_campaign_definition();
-        $landing = lc_hasugu_cpa_landing_url();
-        // 하수구 랜딩 독립 도메인 (다시봄 air911 / 철거 yevely 와 동일 패턴)
-        $tracking_base = 'https://skawning.co.kr';
+        $def = lc_modemo_campaign_definition();
+        $landing = lc_modemo_landing_url();
+        // 철거 랜딩 독립 도메인 (다시봄 air911 과 동일 패턴)
+        $tracking_base = 'https://yevely.kr';
         $table = lc_table('campaigns');
 
         $mt_id = isset($options['mt_id']) ? (int) $options['mt_id'] : 0;
@@ -77,18 +76,12 @@ if (!function_exists('lc_campaign_ensure_hasugu_cpa')) {
             }
         }
 
-        // ADV-0007(김우주/drainpolice) 자동 연결 시도
+        // ADV-0008(모두의철거) 자동 연결 시도
         if ($mt_id <= 0 && function_exists('lc_sql_fetch')) {
             $merchants = lc_table('merchants');
-            $adv = lc_sql_fetch(" SELECT mt_id FROM `{$merchants}` WHERE mt_code = 'ADV-0007' LIMIT 1 ");
+            $adv = lc_sql_fetch(" SELECT mt_id FROM `{$merchants}` WHERE mt_code = 'ADV-0008' LIMIT 1 ");
             if ($adv) {
                 $mt_id = (int) $adv['mt_id'];
-            }
-        }
-        if ($mt_id <= 0 && function_exists('lc_get_merchant_by_mb_id')) {
-            $by_mb = lc_get_merchant_by_mb_id('drainpolice');
-            if (is_array($by_mb)) {
-                $mt_id = (int) ($by_mb['mt_id'] ?? 0);
             }
         }
 
@@ -103,7 +96,6 @@ if (!function_exists('lc_campaign_ensure_hasugu_cpa')) {
         if ($keep) {
             $cp_id = (int) $keep['cp_id'];
             $next_mt = $mt_id > 0 ? $mt_id : (int) $keep['mt_id'];
-            // 이미 운영중이면 상태 유지, 신규 옵션으로 activate만 올릴 때 갱신
             $next_status = (string) $keep['cp_status'];
             if (!empty($options['activate']) && $next_mt > 0) {
                 $next_status = LC_STATUS_ACTIVE;
@@ -122,16 +114,13 @@ if (!function_exists('lc_campaign_ensure_hasugu_cpa')) {
 
             return array(
                 'ok'      => true,
-                'message' => $next_mt > 0
-                    ? '하수구 CPA 캠페인을 ADV-0007에 연결·갱신했습니다.'
-                    : '하수구 CPA 캠페인을 갱신했습니다.',
+                'message' => '모두의철거 CPA 캠페인을 갱신했습니다. (독립도메인 yevely.kr)',
                 'cpId'    => $cp_id,
                 'created' => false,
-                'mtId'    => $next_mt,
+                'trackingBaseUrl' => $tracking_base,
             );
         }
 
-        // 광고주 없어도 직접 INSERT (계약 검증 우회) — 관리자에서 광고주 배정 후 활성화
         lc_sql_query(" INSERT INTO `{$table}` SET
             mt_id = '{$mt_id}',
             cp_code = '{$code_esc}',
@@ -164,17 +153,17 @@ if (!function_exists('lc_campaign_ensure_hasugu_cpa')) {
         }
 
         if ($cp_id <= 0) {
-            return array('ok' => false, 'message' => '하수구 CPA 캠페인 생성에 실패했습니다.');
+            return array('ok' => false, 'message' => '모두의철거 CPA 캠페인 생성에 실패했습니다.');
         }
 
         return array(
             'ok'      => true,
             'message' => $mt_id > 0
-                ? '하수구 CPA 캠페인을 ADV-0007에 연결·생성했습니다.'
-                : '하수구 CPA 캠페인을 광고주 미연결(일시중지) 상태로 등록했습니다.',
+                ? '모두의철거 CPA 캠페인을 생성했습니다. (독립도메인 yevely.kr)'
+                : '모두의철거 CPA 캠페인을 광고주 미연결(일시중지) 상태로 등록했습니다.',
             'cpId'    => $cp_id,
             'created' => true,
-            'mtId'    => $mt_id,
+            'trackingBaseUrl' => $tracking_base,
         );
     }
 }

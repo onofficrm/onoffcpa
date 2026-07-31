@@ -6,12 +6,24 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($method === 'GET') {
     lc_api_require_admin();
 
-    // hasugu_cpa / modemo 랜딩은 배포됐지만 광고상품 행이 없을 수 있음 → 목록 조회 시 1회 보정
+    if (function_exists('lc_campaign_promo_guide_db_ensure_schema')) {
+        lc_campaign_promo_guide_db_ensure_schema();
+    }
+
+    // hasugu_cpa / modemo 행이 없을 때만 생성. 기존 행의 단가·문구는 덮어쓰지 않음.
     if (lc_db_installed() && function_exists('lc_campaign_ensure_hasugu_cpa')) {
-        lc_campaign_ensure_hasugu_cpa(array('activate' => true));
+        $cp_table = lc_table('campaigns');
+        $hasugu = lc_sql_fetch(" SELECT cp_id FROM `{$cp_table}` WHERE cp_code = 'CPA-HASUGU' LIMIT 1 ", false);
+        if (!$hasugu) {
+            lc_campaign_ensure_hasugu_cpa(array('activate' => true));
+        }
     }
     if (lc_db_installed() && function_exists('lc_campaign_ensure_modemo')) {
-        lc_campaign_ensure_modemo(array('activate' => true));
+        $cp_table = lc_table('campaigns');
+        $modemo = lc_sql_fetch(" SELECT cp_id FROM `{$cp_table}` WHERE cp_code = 'CPA-MODEMO' LIMIT 1 ", false);
+        if (!$modemo) {
+            lc_campaign_ensure_modemo(array('activate' => true));
+        }
     }
 
     $filters = array(
