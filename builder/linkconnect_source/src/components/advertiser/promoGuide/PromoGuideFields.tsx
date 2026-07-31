@@ -7,6 +7,7 @@ import {
   PROMO_ASSET_SIZE_PRESETS,
   suggestTitleForPreset,
 } from './PromoAssetSizeGuide';
+import { promoPreviewImageUrl } from '../../../lib/optimizedImage';
 
 export function SectionCard({
   title,
@@ -390,7 +391,7 @@ export function ImageUploader({
                 className="rounded-xl border border-slate-200 overflow-hidden bg-white"
               >
                 <div className="relative aspect-video bg-slate-100">
-                  <img src={img.downloadUrl} alt={img.imageTitle || img.originalFilename} className="w-full h-full object-contain" />
+                  <img src={promoPreviewImageUrl(img.downloadUrl)} alt={img.imageTitle || img.originalFilename} className="w-full h-full object-contain" />
                   {!disabled ? (
                     <div className="absolute top-2 left-2 p-1.5 rounded-lg bg-white/90 text-slate-500 cursor-grab">
                       <GripVertical size={16} />

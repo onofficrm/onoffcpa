@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { fetchPublicCampaigns, PublicCampaign } from '../lib/api';
 import { CPA_THUMBNAIL_ASPECT_CLASS } from '../lib/cpaThumbnail';
+import { cpaCardImageUrl } from '../lib/optimizedImage';
 import { cn } from '../lib/utils';
 
 const filters = ['전체', '고수익', '신규', '승인율 높은 상품', '법률', '병원', '보험', '교육', '부동산'];
@@ -74,10 +75,11 @@ export function CPAList() {
               <div className={`${CPA_THUMBNAIL_ASPECT_CLASS} overflow-hidden relative group bg-gradient-to-br from-emerald-500/10 to-cyan-500/10`}>
                 {item.thumbnailUrl ? (
                   <img
-                    src={item.thumbnailUrl}
+                    src={cpaCardImageUrl(item.thumbnailUrl)}
                     alt={item.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
+                    decoding="async"
                   />
                 ) : null}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />

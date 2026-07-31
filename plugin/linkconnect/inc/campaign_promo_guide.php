@@ -2042,6 +2042,22 @@ if (!function_exists('lc_campaign_promo_guide_upload_asset')) {
             return array('ok' => false, 'message' => '허용되지 않은 이미지 형식입니다. (JPG, PNG, WEBP만 가능)');
         }
 
+        // 긴 변 1600px 이하로 축소 (업스케일 없음, 화질 q88)
+        if (function_exists('lc_image_fit_max_edge')) {
+            $preferred = in_array($mime, array('image/png', 'image/webp'), true) ? $mime : 'image/jpeg';
+            $fitted = lc_image_fit_max_edge($binary, 1600, $preferred, 88);
+            if (!empty($fitted['ok']) && !empty($fitted['binary'])) {
+                $binary = $fitted['binary'];
+                $mime = (string) $fitted['mime'];
+                $ext = (string) $fitted['ext'];
+                $size = strlen($binary);
+            }
+        }
+
+        if ($size <= 0 || $size > $max_bytes) {
+            return array('ok' => false, 'message' => '이미지 최적화 후 용량이 허용 범위를 초과합니다.');
+        }
+
         $mt_id = (int) $mt_id;
         $cp_id = (int) $cp_id;
         $dir = lc_campaign_promo_guide_campaign_dir($mt_id, $cp_id);

@@ -66,6 +66,14 @@ if ($method === 'GET') {
         lc_api_error('파일이 존재하지 않습니다.', 'NOT_FOUND', 404);
     }
 
+    if (strpos($mime, 'image/') === 0 && function_exists('lc_image_output_resolved')) {
+        if (!headers_sent()) {
+            header('Content-Disposition: inline; filename="' . rawurlencode($filename) . '"');
+        }
+        lc_image_output_resolved($path, $mime, 'private, max-age=3600');
+        exit;
+    }
+
     if (!headers_sent()) {
         header('Content-Type: ' . $mime);
         header('Content-Length: ' . (string) filesize($path));

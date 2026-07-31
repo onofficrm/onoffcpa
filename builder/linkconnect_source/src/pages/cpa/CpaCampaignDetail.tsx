@@ -26,6 +26,7 @@ import { g5LoginUrl, spaReturnUrl } from '../../lib/urls';
 import { openLandingPage } from '../../lib/utils';
 import { CpsChannelGuide } from '../../components/cps/CpsChannelGuide';
 import { CPA_THUMBNAIL_ASPECT_CLASS } from '../../lib/cpaThumbnail';
+import { cpaHeroImageUrl, promoPreviewImageUrl, optimizedImageUrl } from '../../lib/optimizedImage';
 
 function GuideList({ title, items, tone = 'slate' }: { title: string; items: string[]; tone?: 'slate' | 'amber' | 'rose' }) {
   if (!items.length) return null;
@@ -61,12 +62,12 @@ function GuideImages({ images }: { images: PartnerPromoGuideImage[] }) {
           return (
             <div key={img.id} className="rounded-xl border border-slate-200 overflow-hidden bg-white">
               <div className="aspect-video bg-slate-100">
-                <img src={img.downloadUrl} alt={title} className="w-full h-full object-contain" loading="lazy" />
+                <img src={promoPreviewImageUrl(img.downloadUrl)} alt={title} className="w-full h-full object-contain" loading="lazy" decoding="async" />
               </div>
               <div className="p-2 flex items-center justify-between gap-2">
                 <p className="text-xs font-medium text-slate-700 truncate">{title}</p>
                 <a
-                  href={img.downloadUrl}
+                  href={optimizedImageUrl(img.downloadUrl, { download: true })}
                   download={img.originalFilename || `promo-${img.id}.jpg`}
                   className="shrink-0 p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
                   aria-label={`${title} 다운로드`}
@@ -250,7 +251,7 @@ export function CpaCampaignDetail() {
           <div className="flex flex-col md:flex-row gap-6 md:items-center">
             <div className={`w-40 ${CPA_THUMBNAIL_ASPECT_CLASS} rounded-2xl bg-white/5 border border-white/10 overflow-hidden shrink-0`}>
               {campaign.thumbnailUrl ? (
-                <img src={campaign.thumbnailUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                <img src={cpaHeroImageUrl(campaign.thumbnailUrl)} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-xs text-slate-500 font-bold">CPA</div>
               )}

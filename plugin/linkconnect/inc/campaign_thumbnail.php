@@ -122,7 +122,11 @@ if (!function_exists('lc_campaign_thumbnail_save_binary')) {
             ? lc_campaign_promo_guide_max_image_bytes()
             : 2097152;
         $size = strlen($binary);
-        if ($size <= 0 || $size > $max_bytes) {
+        if ($size <= 0) {
+            return array('ok' => false, 'message' => '유효하지 않은 이미지 파일입니다.');
+        }
+        // 업로드 원본은 2MB 제한 (리사이즈 전). 과도한 원본은 거부.
+        if ($size > $max_bytes) {
             return array('ok' => false, 'message' => '파일 크기가 허용 범위를 초과합니다. (최대 2MB)');
         }
 
@@ -137,6 +141,21 @@ if (!function_exists('lc_campaign_thumbnail_save_binary')) {
         }
         if ($ext === '') {
             return array('ok' => false, 'message' => '허용되지 않은 이미지 형식입니다. (JPG, PNG, WEBP만 가능)');
+        }
+
+        // 목록/메인 표시용 표준 해상도로 정규화 (화질 유지 JPEG q88)
+        if (function_exists('lc_image_resize_cover')) {
+            $normalized = lc_image_resize_cover($binary, 1200, 900, 'image/jpeg');
+            if (!empty($normalized['ok']) && !empty($normalized['binary'])) {
+                $binary = $normalized['binary'];
+                $mime = (string) $normalized['mime'];
+                $ext = (string) $normalized['ext'];
+                $size = strlen($binary);
+            }
+        }
+
+        if ($size <= 0 || $size > $max_bytes) {
+            return array('ok' => false, 'message' => '이미지 최적화 후 용량이 허용 범위를 초과합니다. 다른 이미지를 사용해 주세요.');
         }
 
         if (!lc_campaign_thumbnail_ensure_storage()) {

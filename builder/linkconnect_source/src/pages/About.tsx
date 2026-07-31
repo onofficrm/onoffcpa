@@ -15,12 +15,12 @@ import { Link } from 'react-router-dom';
 const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`;
 
 const images = {
-  hero: asset('about/about_hero.png'),
-  ecosystem: asset('about/about_ecosystem.png'),
-  dashboard: asset('hero_dashboard_mockup.png'),
-  partner: asset('webtoon/ep6-p1.png'),
-  tracking: asset('webtoon/ep4-p2.png'),
-  settlement: asset('webtoon/ep5-p2.png'),
+  hero: asset('about/about_hero.webp'),
+  ecosystem: asset('about/about_ecosystem.webp'),
+  dashboard: asset('hero_dashboard_mockup.webp'),
+  partner: asset('webtoon/ep6-p1.webp'),
+  tracking: asset('webtoon/ep4-p2.webp'),
+  settlement: asset('webtoon/ep5-p2.webp'),
 };
 
 const coreValues = [

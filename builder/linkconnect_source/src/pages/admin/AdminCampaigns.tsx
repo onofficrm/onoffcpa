@@ -16,6 +16,7 @@ import {
   updateAdminCampaignStatus,
 } from '../../lib/api';
 import { CPA_THUMBNAIL_ASPECT_CLASS, CPA_THUMBNAIL_SPEC, cpaThumbnailHint } from '../../lib/cpaThumbnail';
+import { optimizedImageUrl } from '../../lib/optimizedImage';
 import { promoGuideStatusLabel, promoGuideStatusStyle } from '../../lib/campaignPromoGuide';
 import { AdminCampaignPromoGuidePanel } from '../../components/admin/AdminCampaignPromoGuidePanel';
 

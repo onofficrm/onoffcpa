@@ -11,6 +11,7 @@ import {
   promoGuideStatusLabel,
   promoGuideStatusStyle,
 } from '../../lib/campaignPromoGuide';
+import { promoPreviewImageUrl } from '../../lib/optimizedImage';
 import { Eye, History, Loader2, X } from 'lucide-react';
 
 type Props = {
@@ -241,7 +242,7 @@ export function AdminCampaignPromoGuidePanel({ campaignId, campaignName, adverti
                         rel="noreferrer"
                         className="block rounded-xl border border-slate-200 overflow-hidden bg-slate-50"
                       >
-                        <img src={img.downloadUrl} alt={img.imageTitle || img.originalFilename} className="w-full aspect-video object-contain bg-white" />
+                        <img src={promoPreviewImageUrl(img.downloadUrl)} alt={img.imageTitle || img.originalFilename} className="w-full aspect-video object-contain bg-white" />
                         <p className="text-xs p-2 truncate text-slate-600">{img.imageTitle || img.originalFilename}</p>
                       </a>
                     ))}

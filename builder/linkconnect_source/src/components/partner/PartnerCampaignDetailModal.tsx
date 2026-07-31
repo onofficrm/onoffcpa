@@ -18,6 +18,7 @@ import {
 } from '../../lib/api';
 import { promoGuideApprovalPartnerMessage } from '../../lib/campaignPromoGuide';
 import { openLandingPage } from '../../lib/utils';
+import { promoPreviewImageUrl } from '../../lib/optimizedImage';
 
 type DetailTab = 'intro' | 'guide' | 'assets';
 
@@ -504,7 +505,7 @@ function ImageCard({ image, compact = false }: { image: PartnerPromoGuideImage; 
   return (
     <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
       <div className={`bg-slate-100 ${compact ? 'aspect-video' : 'aspect-[4/3]'}`}>
-        <img src={image.downloadUrl} alt={title} className="w-full h-full object-contain" loading="lazy" />
+        <img src={promoPreviewImageUrl(image.downloadUrl)} alt={title} className="w-full h-full object-contain" loading="lazy" />
       </div>
       <div className="p-3 flex items-center justify-between gap-2">
         <p className="text-sm font-medium text-slate-800 truncate">{title}</p>

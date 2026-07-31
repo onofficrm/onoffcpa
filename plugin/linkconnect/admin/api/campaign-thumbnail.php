@@ -19,6 +19,15 @@ if ($method === 'GET') {
         lc_api_error($serve['message'] ?? '이미지를 찾을 수 없습니다.', 'NOT_FOUND', 404);
     }
 
+    if (function_exists('lc_image_output_resolved')) {
+        lc_image_output_resolved(
+            (string) $serve['file'],
+            (string) ($serve['mime'] ?? 'image/jpeg'),
+            'private, max-age=300'
+        );
+        exit;
+    }
+
     header('Content-Type: ' . ($serve['mime'] ?? 'image/jpeg'));
     header('Cache-Control: private, max-age=300');
     readfile($serve['file']);

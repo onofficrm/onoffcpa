@@ -18,6 +18,15 @@ if (empty($serve['ok']) || empty($serve['file'])) {
     exit('Not found');
 }
 
+if (function_exists('lc_image_output_resolved')) {
+    lc_image_output_resolved(
+        (string) $serve['file'],
+        (string) ($serve['mime'] ?? 'image/jpeg'),
+        'public, max-age=86400'
+    );
+    exit;
+}
+
 header('Content-Type: ' . ($serve['mime'] ?? 'image/jpeg'));
 header('Cache-Control: public, max-age=86400');
 readfile($serve['file']);

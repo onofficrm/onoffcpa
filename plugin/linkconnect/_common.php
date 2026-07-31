@@ -92,6 +92,9 @@ if (is_file(LC_PLUGIN_PATH . '/inc/auth_bootstrap.php')) {
 if (is_file(LC_PLUGIN_PATH . '/inc/campaign.php')) {
     require_once LC_PLUGIN_PATH . '/inc/campaign.php';
 }
+if (is_file(LC_PLUGIN_PATH . '/inc/image_process.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/image_process.php';
+}
 if (is_file(LC_PLUGIN_PATH . '/inc/campaign_thumbnail.php')) {
     require_once LC_PLUGIN_PATH . '/inc/campaign_thumbnail.php';
 }
@@ -106,6 +109,9 @@ if (is_file(LC_PLUGIN_PATH . '/inc/campaign_dasibom.php')) {
 }
 if (is_file(LC_PLUGIN_PATH . '/inc/campaign_hasugu_cpa.php')) {
     require_once LC_PLUGIN_PATH . '/inc/campaign_hasugu_cpa.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/campaign_modemo.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/campaign_modemo.php';
 }
 if (is_file(LC_PLUGIN_PATH . '/inc/settlement.php')) {
     require_once LC_PLUGIN_PATH . '/inc/settlement.php';
@@ -148,9 +154,6 @@ if (is_file(LC_PLUGIN_PATH . '/inc/notice_board.php')) {
 }
 if (is_file(LC_PLUGIN_PATH . '/inc/community_board.php')) {
     require_once LC_PLUGIN_PATH . '/inc/community_board.php';
-}
-if (is_file(LC_PLUGIN_PATH . '/inc/image_process.php')) {
-    require_once LC_PLUGIN_PATH . '/inc/image_process.php';
 }
 if (is_file(LC_PLUGIN_PATH . '/inc/gemini.php')) {
     require_once LC_PLUGIN_PATH . '/inc/gemini.php';
@@ -200,7 +203,7 @@ if (is_file(LC_PLUGIN_PATH . '/inc/linkprice.php')) {
 if (is_file(LC_PLUGIN_PATH . '/inc/landing.php')) {
     require_once LC_PLUGIN_PATH . '/inc/landing.php';
 }
-/* 다중 플랫폼 — 플래그 OFF 시 함수들은 no-op. 기존 경로에 영향 없음 */
+/* 다중 플랫폼 — 플래그 OFF 시 함수들은 no-op */
 if (is_file(LC_PLUGIN_PATH . '/inc/platform.php')) {
     require_once LC_PLUGIN_PATH . '/inc/platform.php';
 }
@@ -216,7 +219,6 @@ if (is_file(LC_PLUGIN_PATH . '/inc/platform_adapter.php')) {
 if (is_file(LC_PLUGIN_PATH . '/inc/platform_sync.php')) {
     require_once LC_PLUGIN_PATH . '/inc/platform_sync.php';
 }
-/* 플래그 ON 일 때만 스키마 생성 — migrations 시점보다 늦게 로드되므로 여기서 한 번 더 호출 */
 if (function_exists('lc_mp_enabled') && lc_mp_enabled()
     && function_exists('lc_db_installed') && lc_db_installed()
     && function_exists('lc_mp_db_ensure_schema')) {

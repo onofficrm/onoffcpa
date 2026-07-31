@@ -22,6 +22,15 @@ if ($method === 'GET') {
         lc_api_error($serve['message'], 'NOT_FOUND', 404);
     }
 
+    if (function_exists('lc_image_output_resolved')) {
+        lc_image_output_resolved(
+            (string) $serve['path'],
+            (string) $serve['mime'],
+            'private, max-age=3600'
+        );
+        exit;
+    }
+
     if (!headers_sent()) {
         header('Content-Type: ' . $serve['mime']);
         header('Content-Length: ' . (string) filesize($serve['path']));
