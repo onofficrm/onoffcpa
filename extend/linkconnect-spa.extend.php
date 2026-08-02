@@ -111,10 +111,15 @@ if (!function_exists('linkconnect_tracking_home_landing_file')) {
 
         // 광고상품 cp_tracking_base_url 호스트와 매칭되는 랜딩 경로 조회
         $landing_path = '';
-        if (function_exists('sql_fetch') && function_exists('sql_escape_string') && isset($GLOBALS['g5']) && is_array($GLOBALS['g5'])) {
-            // 표준: g5_ 접두 + lc_campaigns
+        if (function_exists('sql_fetch')) {
             $table = (defined('G5_TABLE_PREFIX') ? G5_TABLE_PREFIX : 'g5_') . 'lc_campaigns';
-            $host_esc = sql_escape_string($host);
+            if (function_exists('sql_escape_string')) {
+                $host_esc = sql_escape_string($host);
+            } elseif (function_exists('sql_real_escape_string')) {
+                $host_esc = sql_real_escape_string($host);
+            } else {
+                $host_esc = addslashes($host);
+            }
             $row = sql_fetch(
                 " SELECT cp_landing_url
                   FROM `{$table}`
@@ -129,12 +134,18 @@ if (!function_exists('linkconnect_tracking_home_landing_file')) {
             }
         }
 
-        // 링크커넥트만 air911 폴백. onoffcpa는 DB에 등록된 독립 도메인만 사용(LC DNS 충돌 방지).
-        $allow_air911_fallback = function_exists('lc_link_is_linkconnect_platform')
-            ? lc_link_is_linkconnect_platform()
-            : false;
-        if ($allow_air911_fallback && $landing_path === '' && ($host === 'air911.co.kr' || $host === 'www.air911.co.kr')) {
-            $landing_path = '/merchant/dasibom/';
+        // 플랫폼별 폴백 (DB 조회 실패·플러그인 미로드 시)
+        if ($landing_path === '') {
+            if ($host === 'air911.co.kr' || $host === 'www.air911.co.kr') {
+                // 링크커넥트 예약 도메인 — onoffcpa 에서는 쓰지 않음
+                $is_lc = function_exists('lc_link_is_linkconnect_platform') && lc_link_is_linkconnect_platform();
+                if ($is_lc || (!function_exists('lc_link_is_onoffcpa_platform'))) {
+                    $landing_path = '/merchant/dasibom/';
+                }
+            } elseif ($host === 'iloves.kr' || $host === 'www.iloves.kr') {
+                // onoffcpa 독립 도메인
+                $landing_path = '/merchant/dasibom/';
+            }
         }
 
         if ($landing_path === '') {
@@ -156,6 +167,35 @@ if (!function_exists('linkconnect_tracking_home_landing_file')) {
         }
 
         return is_file($candidate) ? $candidate : '';
+    }
+}
+
+if (!function_exists('linkconnect_tracking_home_landing_path')) {
+    /**
+     * 독립 도메인 루트용 랜딩 URL path (/merchant/.../) — 파일 require 실패 시 상대 리다이렉트용
+     */
+    function linkconnect_tracking_home_landing_path($host)
+    {
+        $file = linkconnect_tracking_home_landing_file($host);
+        if ($file === '' || !defined('G5_PATH')) {
+            // 폴백 path만
+            $host = strtolower(preg_replace('/:\d+$/', '', (string) $host));
+            if ($host === 'iloves.kr' || $host === 'www.iloves.kr') {
+                return '/merchant/dasibom/';
+            }
+            if ($host === 'air911.co.kr' || $host === 'www.air911.co.kr') {
+                return '/merchant/dasibom/';
+            }
+
+            return '';
+        }
+        $rel = substr($file, strlen(G5_PATH));
+        $rel = str_replace('\\', '/', $rel);
+        if (substr($rel, -9) === 'index.php') {
+            $rel = substr($rel, 0, -9);
+        }
+
+        return '/' . trim($rel, '/') . '/';
     }
 }
 
@@ -228,6 +268,15 @@ if (!function_exists('linkconnect_tracking_domain_spa_gate')) {
             $file = linkconnect_tracking_home_landing_file($host);
             if ($file !== '') {
                 require $file;
+                exit;
+            }
+            // Worker가 Location(origin 루트)을 공개 도메인으로 다시 쓰면 루프가 난다.
+            // 같은 호스트의 머천트 경로로 상대 리다이렉트한다.
+            $landing_rel = function_exists('linkconnect_tracking_home_landing_path')
+                ? linkconnect_tracking_home_landing_path($host)
+                : '';
+            if ($landing_rel !== '') {
+                header('Location: ' . $landing_rel, true, 302);
                 exit;
             }
         }

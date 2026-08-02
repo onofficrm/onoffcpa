@@ -54,6 +54,13 @@ export default {
         if (LEGACY_ORIGIN_HOSTS.includes(loc.hostname.toLowerCase())) {
           loc.protocol = 'https:';
           loc.hostname = incoming.hostname;
+          // origin 홈(/) 리다이렉트를 공개 도메인 루트로 바꾸면 루프 → 다시봄 랜딩으로
+          const sameRoot =
+            (loc.pathname === '/' || loc.pathname === '') &&
+            (incoming.pathname === '/' || incoming.pathname === '');
+          if (sameRoot) {
+            loc.pathname = '/merchant/dasibom/';
+          }
           outHeaders.set('Location', loc.toString());
         }
       } catch (_) {
