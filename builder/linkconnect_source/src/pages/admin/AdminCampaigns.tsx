@@ -591,8 +591,8 @@ export function AdminCampaigns() {
                     </div>
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-slate-500 mb-1.5">
-                        독립 도메인
-                        <span className="ml-2 font-normal text-slate-400">홍보 링크용 · onoffcpa 전용</span>
+                        홍보 링크 독립 도메인
+                        <span className="ml-2 font-normal text-slate-400">onoffcpa 전용 · 링크커넥트와 분리</span>
                       </label>
                       <input
                         type="url"
@@ -603,8 +603,9 @@ export function AdminCampaigns() {
                         placeholder="https://example.com"
                       />
                       <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">
-                        도메인만 입력하세요 (경로 없음). DNS를 이 서버로 연결하면 파트너 홍보 링크가 해당 도메인의 /r/코드 로 발급됩니다.
-                        비우면 메인 사이트(onoffcpa) 도메인을 사용합니다. 링크커넥트 도메인과는 별도로 운영됩니다.
+                        이 상품의 파트너 홍보 링크(/r/)·상담 랜딩(/c/)에 사용됩니다. 도메인만 입력하고 DNS를
+                        이 onoffcpa 서버로 연결하세요. 비우면 메인 사이트 도메인을 씁니다.
+                        air911 등 링크커넥트에 이미 연결된 도메인은 사용할 수 없으며, 링크커넥트 연결은 그대로 유지됩니다.
                       </p>
                       {editForm.trackingBaseUrl.trim() !== '' && (
                         <p className="mt-1 text-[11px] text-cyan-700 bg-cyan-50 border border-cyan-100 rounded-lg px-2.5 py-1.5">

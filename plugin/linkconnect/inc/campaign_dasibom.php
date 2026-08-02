@@ -62,7 +62,10 @@ if (!function_exists('lc_campaign_ensure_dasibom')) {
 
         $def = lc_dasibom_campaign_definition();
         $landing = lc_dasibom_landing_url();
-        $tracking_base = 'https://air911.co.kr';
+        // 링크커넥트만 air911 시드. onoffcpa는 관리자에서 별도 독립 도메인 설정.
+        $tracking_base = function_exists('lc_campaign_seed_tracking_base_for_platform')
+            ? lc_campaign_seed_tracking_base_for_platform('https://air911.co.kr')
+            : '';
         $table = lc_table('campaigns');
 
         $mt_id = isset($options['mt_id']) ? (int) $options['mt_id'] : 0;
@@ -80,11 +83,11 @@ if (!function_exists('lc_campaign_ensure_dasibom')) {
         if ($keep) {
             $cp_id = (int) $keep['cp_id'];
             $next_mt = $mt_id > 0 ? $mt_id : (int) $keep['mt_id'];
+            // 독립 도메인은 덮어쓰지 않음 — 링크커넥트 air911 연결 유지 / onoffcpa 별도 설정 유지
             lc_sql_query(" UPDATE `{$table}` SET
                 mt_id = '{$next_mt}',
                 cp_code = '{$code_esc}',
                 cp_landing_url = '" . lc_sql_escape($landing) . "',
-                cp_tracking_base_url = '" . lc_sql_escape($tracking_base) . "',
                 cp_updated_at = NOW()
                 WHERE cp_id = '{$cp_id}' ", false);
 

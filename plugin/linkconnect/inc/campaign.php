@@ -18,6 +18,60 @@ if (!function_exists('lc_campaign_status_label')) {
     }
 }
 
+if (!function_exists('lc_campaign_detach_linkconnect_tracking_domains')) {
+    /**
+     * onoffcpa DB에서 링크커넥트 예약 독립 도메인(air911 등)을 제거한다.
+     * 링크커넥트 서버/DB는 건드리지 않으며, DNS·홍보 링크 충돌을 막는다.
+     *
+     * @return array{ok:bool,cleared:int,skipped:bool}
+     */
+    function lc_campaign_detach_linkconnect_tracking_domains()
+    {
+        if (!function_exists('lc_link_is_onoffcpa_platform') || !lc_link_is_onoffcpa_platform()) {
+            return array('ok' => true, 'cleared' => 0, 'skipped' => true);
+        }
+        if (!function_exists('lc_db_installed') || !lc_db_installed()) {
+            return array('ok' => false, 'cleared' => 0, 'skipped' => true);
+        }
+        if (function_exists('lc_settings_get') && (string) lc_settings_get('cpaTrackingDomainPlatformSeparated', '') === '1') {
+            return array('ok' => true, 'cleared' => 0, 'skipped' => true);
+        }
+
+        $table = lc_table('campaigns');
+        if (!function_exists('lc_db_column_exists') || !lc_db_column_exists($table, 'cp_tracking_base_url')) {
+            return array('ok' => true, 'cleared' => 0, 'skipped' => true);
+        }
+
+        $hosts = function_exists('lc_link_linkconnect_reserved_tracking_hosts')
+            ? lc_link_linkconnect_reserved_tracking_hosts()
+            : array();
+        $cleared = 0;
+        foreach ($hosts as $host) {
+            $host = trim((string) $host);
+            if ($host === '') {
+                continue;
+            }
+            $like = lc_sql_escape('%' . $host . '%');
+            lc_sql_query(
+                " UPDATE `{$table}`
+                  SET cp_tracking_base_url = '',
+                      cp_updated_at = NOW()
+                  WHERE cp_tracking_base_url LIKE '{$like}' ",
+                false
+            );
+            if (function_exists('sql_affected_rows')) {
+                $cleared += max(0, (int) sql_affected_rows());
+            }
+        }
+
+        if (function_exists('lc_settings_save_row')) {
+            lc_settings_save_row('cpaTrackingDomainPlatformSeparated', '1');
+        }
+
+        return array('ok' => true, 'cleared' => $cleared, 'skipped' => false);
+    }
+}
+
 if (!function_exists('lc_campaign_merchant_price_expr')) {
     function lc_campaign_merchant_price_expr($alias = 'c')
     {
@@ -1091,13 +1145,19 @@ if (!function_exists('lc_campaign_save')) {
                 $tracking_host = function_exists('lc_link_host_from_base_url')
                     ? lc_link_host_from_base_url($tracking_url)
                     : strtolower((string) (parse_url($tracking_url, PHP_URL_HOST) ?: ''));
-                // onoffcpa: 링크커넥트 도메인은 독립 도메인으로 사용 불가
-                $is_onoffcpa = true;
-                if (function_exists('lc_mp_local_platform_code') && defined('LC_PLATFORM_ONOFFCPA')) {
-                    $is_onoffcpa = strtoupper((string) lc_mp_local_platform_code()) === strtoupper((string) LC_PLATFORM_ONOFFCPA);
-                }
+                $is_onoffcpa = function_exists('lc_link_is_onoffcpa_platform')
+                    ? lc_link_is_onoffcpa_platform()
+                    : true;
                 if ($is_onoffcpa && ($tracking_host === 'linkconnect.co.kr' || $tracking_host === 'www.linkconnect.co.kr')) {
                     return array('ok' => false, 'message' => '링크커넥트 도메인은 onoffcpa 독립 도메인으로 사용할 수 없습니다. 별도 도메인을 입력하세요.');
+                }
+                // 링크커넥트에 이미 연결된 독립 도메인(air911 등)은 onoffcpa에서 재사용 금지
+                if ($is_onoffcpa && function_exists('lc_link_is_reserved_linkconnect_tracking_host')
+                    && lc_link_is_reserved_linkconnect_tracking_host($tracking_host)) {
+                    return array(
+                        'ok'      => false,
+                        'message' => '이 도메인(' . $tracking_host . ')은 링크커넥트 독립 도메인입니다. onoffcpa용 별도 도메인을 입력하세요. 링크커넥트 연결은 그대로 유지됩니다.',
+                    );
                 }
                 if ($is_onoffcpa && function_exists('lc_link_main_site_hosts') && in_array($tracking_host, lc_link_main_site_hosts(), true)) {
                     return array('ok' => false, 'message' => '메인 사이트 도메인은 독립 도메인으로 등록할 수 없습니다. 비우면 메인 도메인이 사용됩니다.');

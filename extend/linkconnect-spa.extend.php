@@ -129,8 +129,11 @@ if (!function_exists('linkconnect_tracking_home_landing_file')) {
             }
         }
 
-        // 기본: air911 → 다시봄
-        if ($landing_path === '' && ($host === 'air911.co.kr' || $host === 'www.air911.co.kr')) {
+        // 링크커넥트만 air911 폴백. onoffcpa는 DB에 등록된 독립 도메인만 사용(LC DNS 충돌 방지).
+        $allow_air911_fallback = function_exists('lc_link_is_linkconnect_platform')
+            ? lc_link_is_linkconnect_platform()
+            : false;
+        if ($allow_air911_fallback && $landing_path === '' && ($host === 'air911.co.kr' || $host === 'www.air911.co.kr')) {
             $landing_path = '/merchant/dasibom/';
         }
 

@@ -63,8 +63,10 @@ if (!function_exists('lc_campaign_ensure_modemo')) {
 
         $def = lc_modemo_campaign_definition();
         $landing = lc_modemo_landing_url();
-        // 철거 랜딩 독립 도메인 (다시봄 air911 과 동일 패턴)
-        $tracking_base = 'https://yevely.kr';
+        // 링크커넥트만 yevely 시드. onoffcpa는 관리자에서 별도 독립 도메인 설정.
+        $tracking_base = function_exists('lc_campaign_seed_tracking_base_for_platform')
+            ? lc_campaign_seed_tracking_base_for_platform('https://yevely.kr')
+            : '';
         $table = lc_table('campaigns');
 
         $mt_id = isset($options['mt_id']) ? (int) $options['mt_id'] : 0;
@@ -103,21 +105,21 @@ if (!function_exists('lc_campaign_ensure_modemo')) {
                 $next_status = $status;
             }
 
+            // 독립 도메인은 덮어쓰지 않음 (링크커넥트 yevely / onoffcpa 별도 설정 유지)
             lc_sql_query(" UPDATE `{$table}` SET
                 mt_id = '{$next_mt}',
                 cp_code = '{$code_esc}',
                 cp_landing_url = '" . lc_sql_escape($landing) . "',
-                cp_tracking_base_url = '" . lc_sql_escape($tracking_base) . "',
                 cp_status = '" . lc_sql_escape($next_status) . "',
                 cp_updated_at = NOW()
                 WHERE cp_id = '{$cp_id}' ", false);
 
             return array(
                 'ok'      => true,
-                'message' => '모두의철거 CPA 캠페인을 갱신했습니다. (독립도메인 yevely.kr)',
+                'message' => '모두의철거 CPA 캠페인을 갱신했습니다.',
                 'cpId'    => $cp_id,
                 'created' => false,
-                'trackingBaseUrl' => $tracking_base,
+                'trackingBaseUrl' => (string) ($keep['cp_tracking_base_url'] ?? $tracking_base),
             );
         }
 

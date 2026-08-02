@@ -79,6 +79,80 @@ if (!function_exists('lc_link_host_from_base_url')) {
     }
 }
 
+if (!function_exists('lc_link_is_linkconnect_platform')) {
+    function lc_link_is_linkconnect_platform()
+    {
+        if (function_exists('lc_mp_local_platform_code') && defined('LC_PLATFORM_LINKCONNECT')) {
+            return strtoupper((string) lc_mp_local_platform_code()) === strtoupper((string) LC_PLATFORM_LINKCONNECT);
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('lc_link_is_onoffcpa_platform')) {
+    function lc_link_is_onoffcpa_platform()
+    {
+        if (function_exists('lc_mp_local_platform_code') && defined('LC_PLATFORM_ONOFFCPA')) {
+            return strtoupper((string) lc_mp_local_platform_code()) === strtoupper((string) LC_PLATFORM_ONOFFCPA);
+        }
+
+        // 이 코드베이스 기본값은 onoffcpa
+        return !lc_link_is_linkconnect_platform();
+    }
+}
+
+if (!function_exists('lc_link_linkconnect_reserved_tracking_hosts')) {
+    /**
+     * 링크커넥트에 이미 연결된 독립 도메인 — onoffcpa 에서 재사용 금지.
+     * DNS는 한 서버에만 연결되므로 플랫폼별로 도메인을 분리한다.
+     *
+     * @return array<int,string>
+     */
+    function lc_link_linkconnect_reserved_tracking_hosts()
+    {
+        return array(
+            'air911.co.kr',
+            'www.air911.co.kr',
+            'yevely.kr',
+            'www.yevely.kr',
+            'skawning.co.kr',
+            'www.skawning.co.kr',
+        );
+    }
+}
+
+if (!function_exists('lc_link_is_reserved_linkconnect_tracking_host')) {
+    function lc_link_is_reserved_linkconnect_tracking_host($host)
+    {
+        $host = strtolower(preg_replace('/:\d+$/', '', trim((string) $host)));
+        if ($host === '') {
+            return false;
+        }
+
+        return in_array($host, lc_link_linkconnect_reserved_tracking_hosts(), true);
+    }
+}
+
+if (!function_exists('lc_campaign_seed_tracking_base_for_platform')) {
+    /**
+     * 시드용 독립 도메인: 링크커넥트만 하드코딩 기본값을 쓰고,
+     * onoffcpa 는 빈 값(관리자에서 별도 도메인 설정).
+     */
+    function lc_campaign_seed_tracking_base_for_platform($linkconnect_default)
+    {
+        $linkconnect_default = rtrim(trim((string) $linkconnect_default), '/');
+        if ($linkconnect_default === '') {
+            return '';
+        }
+        if (lc_link_is_linkconnect_platform()) {
+            return $linkconnect_default;
+        }
+
+        return '';
+    }
+}
+
 if (!function_exists('lc_link_configured_tracking_hosts')) {
     /**
      * 전역·광고상품별 독립 도메인 호스트 목록

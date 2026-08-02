@@ -10,6 +10,11 @@ if ($method === 'GET') {
         lc_campaign_promo_guide_db_ensure_schema();
     }
 
+    // onoffcpa: 링크커넥트 예약 독립 도메인(air911 등)을 로컬 DB에서 분리 (LC 연결은 유지)
+    if (function_exists('lc_campaign_detach_linkconnect_tracking_domains')) {
+        lc_campaign_detach_linkconnect_tracking_domains();
+    }
+
     // hasugu_cpa / modemo 행이 없을 때만 생성. 기존 행의 단가·문구는 덮어쓰지 않음.
     if (lc_db_installed() && function_exists('lc_campaign_ensure_hasugu_cpa')) {
         $cp_table = lc_table('campaigns');
