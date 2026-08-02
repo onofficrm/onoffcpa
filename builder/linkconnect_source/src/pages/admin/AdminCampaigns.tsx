@@ -51,6 +51,7 @@ type EditForm = {
   partnerPrice: number;
   statusCode: string;
   landingUrl: string;
+  trackingBaseUrl: string;
   allowedChannels: string;
   forbiddenChannels: string;
   description: string;
@@ -71,6 +72,7 @@ function toEditForm(campaign: AdminCampaign | null, isNew = false): EditForm {
       partnerPrice: 0,
       statusCode: 'draft',
       landingUrl: '',
+      trackingBaseUrl: '',
       allowedChannels: '',
       forbiddenChannels: '',
       description: '',
@@ -90,6 +92,7 @@ function toEditForm(campaign: AdminCampaign | null, isNew = false): EditForm {
     partnerPrice: campaign.partnerPrice,
     statusCode: campaign.statusCode,
     landingUrl: campaign.landingUrl,
+    trackingBaseUrl: campaign.trackingBaseUrl || '',
     allowedChannels: campaign.allowedChannels,
     forbiddenChannels: campaign.forbiddenChannels,
     description: campaign.description,
@@ -194,6 +197,7 @@ export function AdminCampaigns() {
         partnerPrice: editForm.partnerPrice,
         statusCode: editForm.statusCode,
         landingUrl: editForm.landingUrl,
+        trackingBaseUrl: editForm.trackingBaseUrl.trim(),
         allowedChannels: editForm.allowedChannels,
         forbiddenChannels: editForm.forbiddenChannels,
         description: editForm.description,
@@ -464,57 +468,49 @@ export function AdminCampaigns() {
                       <label className="block text-xs font-medium text-slate-500 mb-1.5">
                         썸네일 이미지
                         <span className="ml-2 font-normal text-slate-400">
-                          {CPA_THUMBNAIL_SPEC.sizeLabel} ({CPA_THUMBNAIL_SPEC.ratioLabel})
+                          {cpaThumbnailHint(true)}
                         </span>
                       </label>
-                      <div className="flex items-start gap-4">
+                      <div className="flex items-start gap-3">
                         <div
-                          className={`w-44 ${CPA_THUMBNAIL_ASPECT_CLASS} rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative group`}
+                          className={`w-24 ${CPA_THUMBNAIL_ASPECT_CLASS} rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative group`}
                           onClick={handleThumbnailClick}
                         >
                           <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} />
                           {editForm.code !== '신규등록' ? (
                             <img src="https://images.unsplash.com/photo-1557682250-33bd709cbe85?auto=format&fit=crop&q=80&w=1200&h=900" alt="Thumbnail" className="w-full h-full object-cover" />
                           ) : (
-                            <div className="text-center px-2">
-                              <Image className="w-7 h-7 text-slate-300 mx-auto mb-1" />
-                              <span className="text-[10px] text-slate-400 font-medium">{CPA_THUMBNAIL_SPEC.ratioLabel}</span>
-                            </div>
+                            <Image className="w-6 h-6 text-slate-300" />
                           )}
                           {isEditMode && (
                             <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                              <Upload className="w-5 h-5 text-white" />
+                              <Upload className="w-4 h-4 text-white" />
                             </div>
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 self-stretch">
                           {isEditMode ? (
-                            <div className="flex flex-col gap-2 h-full justify-center">
-                              <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-slate-50 hover:border-cyan-300 transition-colors cursor-pointer flex-1" onClick={handleThumbnailClick}>
-                                <Upload className="w-5 h-5 text-cyan-500 mb-1" />
-                                <span className="text-xs font-medium text-slate-700">업로드</span>
-                                <span className="text-[11px] text-slate-400 mt-1">
-                                  {cpaThumbnailHint(true)}
-                                </span>
-                                <span className="text-[11px] text-slate-400">
-                                  {CPA_THUMBNAIL_SPEC.formats} · 최대 {CPA_THUMBNAIL_SPEC.maxMb}MB
-                                </span>
+                            <div className="flex flex-col gap-1.5 h-full">
+                              <div className="border-2 border-dashed border-slate-200 rounded-xl px-2 py-1.5 flex flex-col items-center justify-center text-center hover:bg-slate-50 hover:border-cyan-300 transition-colors cursor-pointer flex-1" onClick={handleThumbnailClick}>
+                                <Upload className="w-4 h-4 text-cyan-500 mb-0.5" />
+                                <span className="text-xs font-medium text-slate-600">업로드</span>
                               </div>
-                              <p className="text-[11px] text-slate-500 leading-relaxed">
-                                {cpaThumbnailHint()}
-                              </p>
-                              <button onClick={handleAIGenerate} disabled={isGenerating} className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-colors shadow-sm disabled:opacity-50 py-2">
-                                {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />} AI 생성 ({CPA_THUMBNAIL_SPEC.ratioLabel})
+                              <button onClick={handleAIGenerate} disabled={isGenerating} className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-colors shadow-sm disabled:opacity-50 py-1.5">
+                                {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Wand2 size={14} />} AI 생성
                               </button>
                             </div>
                           ) : (
-                            <div className="min-h-[5.5rem] flex flex-col justify-center text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3 border border-slate-100 gap-1">
-                              <span>등록된 썸네일 이미지가 없습니다.</span>
-                              <span className="text-[11px] text-slate-400">{cpaThumbnailHint(true)}</span>
+                            <div className="h-full min-h-[4.5rem] flex items-center text-sm text-slate-500 bg-slate-50 rounded-xl px-4 border border-slate-100">
+                              등록된 썸네일 이미지가 없습니다.
                             </div>
                           )}
                         </div>
                       </div>
+                      {isEditMode && (
+                        <p className="mt-1.5 text-[11px] text-slate-400">
+                          {CPA_THUMBNAIL_SPEC.formats} · 최대 {CPA_THUMBNAIL_SPEC.maxMb}MB
+                        </p>
+                      )}
                     </div>
 
                     <div className="col-span-2">
@@ -589,8 +585,32 @@ export function AdminCampaigns() {
                         onChange={(e) => updateEditForm({ landingUrl: e.target.value })}
                         disabled={!isEditMode}
                         className={`w-full px-3 py-2 border rounded-xl text-sm ${isEditMode ? 'bg-white border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
-                        placeholder="https://"
+                        placeholder="https://onoffcpa.icrm.co.kr/merchant/..."
                       />
+                      <p className="mt-1 text-[11px] text-slate-400">클릭 후 이동할 머천트 랜딩 경로 또는 URL입니다.</p>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                        독립 도메인
+                        <span className="ml-2 font-normal text-slate-400">홍보 링크용 · onoffcpa 전용</span>
+                      </label>
+                      <input
+                        type="url"
+                        value={editForm.trackingBaseUrl}
+                        onChange={(e) => updateEditForm({ trackingBaseUrl: e.target.value })}
+                        disabled={!isEditMode}
+                        className={`w-full px-3 py-2 border rounded-xl text-sm ${isEditMode ? 'bg-white border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
+                        placeholder="https://example.com"
+                      />
+                      <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">
+                        도메인만 입력하세요 (경로 없음). DNS를 이 서버로 연결하면 파트너 홍보 링크가 해당 도메인의 /r/코드 로 발급됩니다.
+                        비우면 메인 사이트(onoffcpa) 도메인을 사용합니다. 링크커넥트 도메인과는 별도로 운영됩니다.
+                      </p>
+                      {editForm.trackingBaseUrl.trim() !== '' && (
+                        <p className="mt-1 text-[11px] text-cyan-700 bg-cyan-50 border border-cyan-100 rounded-lg px-2.5 py-1.5">
+                          {`홍보 링크 예시: ${editForm.trackingBaseUrl.replace(/\/$/, '')}/r/{코드}`}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </section>

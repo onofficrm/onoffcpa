@@ -844,6 +844,7 @@ export type AdminCampaign = {
   allowedChannels: string;
   forbiddenChannels: string;
   landingUrl: string;
+  trackingBaseUrl?: string;
   badge: string;
   recommended: boolean;
   promoGuide?: AdminCampaignPromoGuideSummary;

@@ -175,12 +175,22 @@ if (!function_exists('linkconnect_tracking_domain_spa_gate')) {
             return;
         }
 
-        $main_hosts = array('linkconnect.co.kr', 'www.linkconnect.co.kr');
-        $g5_host = parse_url((string) G5_URL, PHP_URL_HOST);
-        if (is_string($g5_host) && $g5_host !== '') {
-            $main_hosts[] = strtolower($g5_host);
+        // onoffcpa 메인 호스트만 사용 (linkconnect.co.kr 와 분리)
+        if (function_exists('lc_link_main_site_hosts')) {
+            $main_hosts = lc_link_main_site_hosts();
+        } else {
+            $main_hosts = array();
+            $g5_host = parse_url((string) G5_URL, PHP_URL_HOST);
+            if (is_string($g5_host) && $g5_host !== '') {
+                $main_hosts[] = strtolower($g5_host);
+            }
+            $main_hosts[] = 'onoffcpa.icrm.co.kr';
+            $main_hosts[] = 'www.onoffcpa.icrm.co.kr';
+            $main_hosts[] = 'onoffcpa.iwinv.net';
+            $main_hosts[] = 'www.onoffcpa.iwinv.net';
+            $main_hosts = array_values(array_unique($main_hosts));
         }
-        if (in_array($host, array_values(array_unique($main_hosts)), true)) {
+        if (in_array($host, $main_hosts, true)) {
             return;
         }
 

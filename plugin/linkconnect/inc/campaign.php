@@ -1087,7 +1087,22 @@ if (!function_exists('lc_campaign_save')) {
                 if (empty($norm['ok'])) {
                     return array('ok' => false, 'message' => $norm['message'] !== '' ? $norm['message'] : '독립 도메인 형식이 올바르지 않습니다.');
                 }
-                $fields['cp_tracking_base_url'] = $norm['url'];
+                $tracking_url = (string) $norm['url'];
+                $tracking_host = function_exists('lc_link_host_from_base_url')
+                    ? lc_link_host_from_base_url($tracking_url)
+                    : strtolower((string) (parse_url($tracking_url, PHP_URL_HOST) ?: ''));
+                // onoffcpa: 링크커넥트 도메인은 독립 도메인으로 사용 불가
+                $is_onoffcpa = true;
+                if (function_exists('lc_mp_local_platform_code') && defined('LC_PLATFORM_ONOFFCPA')) {
+                    $is_onoffcpa = strtoupper((string) lc_mp_local_platform_code()) === strtoupper((string) LC_PLATFORM_ONOFFCPA);
+                }
+                if ($is_onoffcpa && ($tracking_host === 'linkconnect.co.kr' || $tracking_host === 'www.linkconnect.co.kr')) {
+                    return array('ok' => false, 'message' => '링크커넥트 도메인은 onoffcpa 독립 도메인으로 사용할 수 없습니다. 별도 도메인을 입력하세요.');
+                }
+                if ($is_onoffcpa && function_exists('lc_link_main_site_hosts') && in_array($tracking_host, lc_link_main_site_hosts(), true)) {
+                    return array('ok' => false, 'message' => '메인 사이트 도메인은 독립 도메인으로 등록할 수 없습니다. 비우면 메인 도메인이 사용됩니다.');
+                }
+                $fields['cp_tracking_base_url'] = $tracking_url;
             } else {
                 $fields['cp_tracking_base_url'] = '';
             }
