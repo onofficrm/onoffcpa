@@ -51,30 +51,40 @@ if (!function_exists('lc_link_main_site_hosts')) {
 if (!function_exists('lc_link_request_host')) {
     /**
      * Cloudflare Worker 독립 도메인 프록시 시 X-Forwarded-Host 를 신뢰한다.
-     * (Worker가 CF IP에서 Origin으로 전달하고 X-Forwarded-Host=공개 도메인을 세팅)
+     * Worker는 Host=origin(onoffcpa), X-Forwarded-Host=공개 도메인(iloves.kr) 으로 보낸다.
      */
     function lc_link_request_host()
     {
-        $host = '';
-        $remote = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '';
-        $from_cf = !empty($_SERVER['HTTP_CF_CONNECTING_IP'])
-            && class_exists('G5CloudflareRequestHandler')
-            && method_exists('G5CloudflareRequestHandler', 'check_cloudflare_ips')
-            && G5CloudflareRequestHandler::check_cloudflare_ips($remote);
+        $http_host = isset($_SERVER['HTTP_HOST']) ? strtolower((string) $_SERVER['HTTP_HOST']) : '';
+        $http_host = preg_replace('/:\d+$/', '', $http_host);
 
-        if ($from_cf && !empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
-            $xff = (string) $_SERVER['HTTP_X_FORWARDED_HOST'];
-            $first = trim(explode(',', $xff)[0]);
-            if ($first !== '' && preg_match('/^[a-z0-9.-]+$/i', preg_replace('/:\d+$/', '', $first))) {
-                $host = strtolower($first);
+        $xff_host = '';
+        if (!empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+            $first = trim(explode(',', (string) $_SERVER['HTTP_X_FORWARDED_HOST'])[0]);
+            $first = preg_replace('/:\d+$/', '', $first);
+            if ($first !== '' && preg_match('/^[a-z0-9.-]+$/i', $first)) {
+                $xff_host = strtolower($first);
             }
         }
 
-        if ($host === '' && isset($_SERVER['HTTP_HOST'])) {
-            $host = strtolower((string) $_SERVER['HTTP_HOST']);
+        if ($xff_host !== '' && $xff_host !== $http_host) {
+            $main_hosts = function_exists('lc_link_main_site_hosts') ? lc_link_main_site_hosts() : array();
+            // Origin Host 가 메인 사이트일 때만 공개 도메인(XFH) 채택 (Worker 프록시 패턴)
+            if ($http_host !== '' && in_array($http_host, $main_hosts, true)) {
+                return $xff_host;
+            }
+
+            $remote = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '';
+            $from_cf = !empty($_SERVER['HTTP_CF_CONNECTING_IP'])
+                && class_exists('G5CloudflareRequestHandler')
+                && method_exists('G5CloudflareRequestHandler', 'check_cloudflare_ips')
+                && G5CloudflareRequestHandler::check_cloudflare_ips($remote);
+            if ($from_cf) {
+                return $xff_host;
+            }
         }
 
-        return preg_replace('/:\d+$/', '', $host);
+        return $http_host;
     }
 }
 

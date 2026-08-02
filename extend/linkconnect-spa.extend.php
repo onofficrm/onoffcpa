@@ -175,17 +175,22 @@ if (!function_exists('linkconnect_tracking_domain_spa_gate')) {
         if (function_exists('lc_link_request_host')) {
             $host = lc_link_request_host();
         } else {
-            $host = '';
-            $remote = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '';
-            $from_cf = !empty($_SERVER['HTTP_CF_CONNECTING_IP'])
-                && class_exists('G5CloudflareRequestHandler')
-                && method_exists('G5CloudflareRequestHandler', 'check_cloudflare_ips')
-                && G5CloudflareRequestHandler::check_cloudflare_ips($remote);
-            if ($from_cf && !empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
-                $host = strtolower(trim(explode(',', (string) $_SERVER['HTTP_X_FORWARDED_HOST'])[0]));
+            $http_host = isset($_SERVER['HTTP_HOST']) ? strtolower((string) $_SERVER['HTTP_HOST']) : '';
+            $http_host = preg_replace('/:\d+$/', '', $http_host);
+            $xff_host = '';
+            if (!empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+                $xff_host = strtolower(trim(explode(',', (string) $_SERVER['HTTP_X_FORWARDED_HOST'])[0]));
+                $xff_host = preg_replace('/:\d+$/', '', $xff_host);
             }
-            if ($host === '' && isset($_SERVER['HTTP_HOST'])) {
-                $host = strtolower((string) $_SERVER['HTTP_HOST']);
+            $main_hosts_early = array('onoffcpa.icrm.co.kr', 'www.onoffcpa.icrm.co.kr', 'onoffcpa.iwinv.net', 'www.onoffcpa.iwinv.net');
+            $g5_host_early = defined('G5_URL') ? parse_url((string) G5_URL, PHP_URL_HOST) : '';
+            if (is_string($g5_host_early) && $g5_host_early !== '') {
+                $main_hosts_early[] = strtolower($g5_host_early);
+            }
+            if ($xff_host !== '' && $xff_host !== $http_host && in_array($http_host, array_values(array_unique($main_hosts_early)), true)) {
+                $host = $xff_host;
+            } else {
+                $host = $http_host;
             }
         }
         $host = preg_replace('/:\d+$/', '', $host);
