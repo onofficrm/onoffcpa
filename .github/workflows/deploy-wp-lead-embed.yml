@@ -1,0 +1,83 @@
+name: Deploy WP lead embed hotfix
+
+# 워드프레스 상담폼 임베드만 빠르게 FTP (전체 배포 타임아웃/취소 회피)
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'plugin/linkconnect/assets/js/lead-embed.js'
+      - 'plugin/linkconnect/assets/wordpress/linkconnect-lead.zip'
+      - 'plugin/linkconnect/api/embed.php'
+      - 'plugin/linkconnect/api/receive.php'
+      - 'plugin/linkconnect/inc/embed.php'
+      - 'plugin/linkconnect/_common.php'
+      - 'wordpress/linkconnect-lead/**'
+      - 'builder/linkconnect_source/src/pages/partner/PartnerLinks.tsx'
+      - 'builder/linkconnect_source/src/lib/partnerEmbed.ts'
+      - 'builder/linkconnect_source/src/components/partner/PartnerWpEmbedGuideModal.tsx'
+      - '.github/workflows/deploy-wp-lead-embed.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: onoffcpa-wp-lead-embed-hotfix
+  cancel-in-progress: false
+
+jobs:
+  deploy-wp-lead-embed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure plugin zip
+        run: |
+          chmod +x scripts/build-wp-lead-plugin.sh
+          ./scripts/build-wp-lead-plugin.sh
+          test -f plugin/linkconnect/assets/wordpress/linkconnect-lead.zip
+
+      - name: Prepare hotfix bundle
+        run: |
+          ROOT=".deploy/wp-lead-embed"
+          rm -rf "$ROOT"
+          FILES=(
+            "plugin/linkconnect/_common.php"
+            "plugin/linkconnect/api/receive.php"
+            "plugin/linkconnect/api/embed.php"
+            "plugin/linkconnect/inc/embed.php"
+            "plugin/linkconnect/inc/link.php"
+            "plugin/linkconnect/assets/js/lead-embed.js"
+            "plugin/linkconnect/assets/wordpress/linkconnect-lead.zip"
+          )
+          for file in "${FILES[@]}"; do
+            mkdir -p "$ROOT/$(dirname "$file")"
+            cp "$file" "$ROOT/$file"
+          done
+          # WP 플러그인 소스(참고용) + SPA imports
+          mkdir -p "$ROOT/wordpress"
+          rsync -a --exclude '._*' --exclude '.DS_Store' wordpress/linkconnect-lead/ "$ROOT/wordpress/linkconnect-lead/"
+          mkdir -p "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect"
+          rsync -a --exclude '._*' --exclude '.DS_Store' \
+            plugin/onoff-builder-bridge/imports/linkconnect/ \
+            "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/"
+          find "$ROOT" -name '._*' -delete 2>/dev/null || true
+          test -f "$ROOT/plugin/linkconnect/assets/js/lead-embed.js"
+          test -f "$ROOT/plugin/linkconnect/api/embed.php"
+          test -f "$ROOT/plugin/linkconnect/assets/wordpress/linkconnect-lead.zip"
+          echo "Bundle ready:" && find "$ROOT" -type f | wc -l
+
+      - name: FTP upload hotfix
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          protocol: ftp
+          local-dir: .deploy/wp-lead-embed/
+          server-dir: /public_html/
+          state-name: onoffcpa-wp-lead-embed-v1
+          dangerous-clean-slate: false
+          log-level: standard
+          timeout: 300000
