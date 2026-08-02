@@ -49,9 +49,30 @@ if (!function_exists('lc_link_main_site_hosts')) {
 }
 
 if (!function_exists('lc_link_request_host')) {
+    /**
+     * Cloudflare Worker 독립 도메인 프록시 시 X-Forwarded-Host 를 신뢰한다.
+     * (Worker가 CF IP에서 Origin으로 전달하고 X-Forwarded-Host=공개 도메인을 세팅)
+     */
     function lc_link_request_host()
     {
-        $host = isset($_SERVER['HTTP_HOST']) ? strtolower((string) $_SERVER['HTTP_HOST']) : '';
+        $host = '';
+        $remote = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '';
+        $from_cf = !empty($_SERVER['HTTP_CF_CONNECTING_IP'])
+            && class_exists('G5CloudflareRequestHandler')
+            && method_exists('G5CloudflareRequestHandler', 'check_cloudflare_ips')
+            && G5CloudflareRequestHandler::check_cloudflare_ips($remote);
+
+        if ($from_cf && !empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+            $xff = (string) $_SERVER['HTTP_X_FORWARDED_HOST'];
+            $first = trim(explode(',', $xff)[0]);
+            if ($first !== '' && preg_match('/^[a-z0-9.-]+$/i', preg_replace('/:\d+$/', '', $first))) {
+                $host = strtolower($first);
+            }
+        }
+
+        if ($host === '' && isset($_SERVER['HTTP_HOST'])) {
+            $host = strtolower((string) $_SERVER['HTTP_HOST']);
+        }
 
         return preg_replace('/:\d+$/', '', $host);
     }

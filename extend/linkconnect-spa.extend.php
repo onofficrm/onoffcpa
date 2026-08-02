@@ -172,7 +172,22 @@ if (!function_exists('linkconnect_tracking_domain_spa_gate')) {
             return;
         }
 
-        $host = isset($_SERVER['HTTP_HOST']) ? strtolower((string) $_SERVER['HTTP_HOST']) : '';
+        if (function_exists('lc_link_request_host')) {
+            $host = lc_link_request_host();
+        } else {
+            $host = '';
+            $remote = isset($_SERVER['REMOTE_ADDR']) ? (string) $_SERVER['REMOTE_ADDR'] : '';
+            $from_cf = !empty($_SERVER['HTTP_CF_CONNECTING_IP'])
+                && class_exists('G5CloudflareRequestHandler')
+                && method_exists('G5CloudflareRequestHandler', 'check_cloudflare_ips')
+                && G5CloudflareRequestHandler::check_cloudflare_ips($remote);
+            if ($from_cf && !empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+                $host = strtolower(trim(explode(',', (string) $_SERVER['HTTP_X_FORWARDED_HOST'])[0]));
+            }
+            if ($host === '' && isset($_SERVER['HTTP_HOST'])) {
+                $host = strtolower((string) $_SERVER['HTTP_HOST']);
+            }
+        }
         $host = preg_replace('/:\d+$/', '', $host);
         if ($host === '') {
             return;
