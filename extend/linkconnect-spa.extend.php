@@ -272,9 +272,12 @@ if (!function_exists('linkconnect_tracking_domain_spa_gate')) {
             }
             // Worker가 Location(origin 루트)을 공개 도메인으로 다시 쓰면 루프가 난다.
             // 같은 호스트의 머천트 경로로 상대 리다이렉트한다.
-            $landing_rel = function_exists('linkconnect_tracking_home_landing_path')
-                ? linkconnect_tracking_home_landing_path($host)
-                : '';
+            $landing_rel = '';
+            if ($host === 'iloves.kr' || $host === 'www.iloves.kr') {
+                $landing_rel = '/merchant/dasibom/';
+            } elseif (function_exists('linkconnect_tracking_home_landing_path')) {
+                $landing_rel = linkconnect_tracking_home_landing_path($host);
+            }
             if ($landing_rel !== '') {
                 header('Location: ' . $landing_rel, true, 302);
                 exit;

@@ -24,6 +24,7 @@ jobs:
             "plugin/linkconnect/inc/campaign_modemo.php"
             "plugin/linkconnect/inc/campaign_hasugu_cpa.php"
             "plugin/linkconnect/admin/api/campaigns.php"
+            "plugin/linkconnect/api/domain_gate_probe.php"
           )
           for file in "${FILES[@]}"; do
             mkdir -p "$ROOT/$(dirname "$file")"
