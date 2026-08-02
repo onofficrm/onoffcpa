@@ -134,6 +134,9 @@ if (is_file(LC_PLUGIN_PATH . '/inc/event.php')) {
 if (is_file(LC_PLUGIN_PATH . '/inc/link.php')) {
     require_once LC_PLUGIN_PATH . '/inc/link.php';
 }
+if (is_file(LC_PLUGIN_PATH . '/inc/embed.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/embed.php';
+}
 if (is_file(LC_PLUGIN_PATH . '/inc/partner_analytics.php')) {
     require_once LC_PLUGIN_PATH . '/inc/partner_analytics.php';
 }

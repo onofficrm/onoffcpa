@@ -1,6 +1,13 @@
 <?php
 require_once dirname(__DIR__) . '/_common.php';
 
+if (function_exists('lc_api_handle_cors_preflight')) {
+    lc_api_handle_cors_preflight();
+}
+if (function_exists('lc_api_allow_public_cors')) {
+    lc_api_allow_public_cors();
+}
+
 lc_api_require_method('POST');
 
 $body = lc_api_read_json_body();

@@ -505,7 +505,7 @@ if (!function_exists('lc_link_get_with_campaign')) {
         $cp_table = lc_table('campaigns');
         $lk_code_esc = lc_sql_escape($lk_code);
 
-        return lc_sql_fetch(" SELECT lk.*, c.cp_name, c.cp_price, c.cp_status AS cp_status, c.cp_landing_url, c.cp_tracking_base_url, c.mt_id
+        return lc_sql_fetch(" SELECT lk.*, c.cp_name, c.cp_code, c.cp_price, c.cp_status AS cp_status, c.cp_landing_url, c.cp_tracking_base_url, c.mt_id
             FROM `{$lk_table}` lk
             INNER JOIN `{$cp_table}` c ON c.cp_id = lk.cp_id
             WHERE lk.lk_code = '{$lk_code_esc}' LIMIT 1 ");

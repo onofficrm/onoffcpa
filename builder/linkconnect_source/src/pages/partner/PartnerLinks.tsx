@@ -1,8 +1,10 @@
-import { Search, Copy, ExternalLink, Link as LinkIcon, Plus, MousePointerClick, Target, CheckCircle2, DollarSign, Info, X } from 'lucide-react';
+import { Copy, ExternalLink, Link as LinkIcon, Plus, MousePointerClick, Target, CheckCircle2, DollarSign, Info, X, Code2, CircleHelp, Download } from 'lucide-react';
 import { SummaryCard, StatusBadge } from '../../components/partner/PartnerShared';
+import { PartnerWpEmbedGuideModal } from '../../components/partner/PartnerWpEmbedGuideModal';
 import { useEffect, useMemo, useState } from 'react';
 import { PartnerLayout } from '../../layouts/PartnerLayout';
 import { createPartnerLink, fetchPartnerCampaigns, fetchPartnerLinks, PartnerLink } from '../../lib/api';
+import { buildLeadEmbedSnippet, leadEmbedPluginDownloadUrl } from '../../lib/partnerEmbed';
 
 export function PartnerLinks() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -14,6 +16,15 @@ export function PartnerLinks() {
   const [subId, setSubId] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [wpGuideOpen, setWpGuideOpen] = useState(false);
+  const [wpGuideLkCode, setWpGuideLkCode] = useState('');
+
+  const notify = (msg: string) => {
+    setMessage(msg);
+    window.setTimeout(() => setMessage(''), 2500);
+  };
 
   const loadLinks = () => {
     setLoading(true);
@@ -58,6 +69,7 @@ export function PartnerLinks() {
       setChannel('');
       setSubId('');
       loadLinks();
+      notify('홍보 링크가 생성되었습니다.');
     } catch (err) {
       setError(err instanceof Error ? err.message : '링크 생성에 실패했습니다.');
     } finally {
@@ -65,11 +77,14 @@ export function PartnerLinks() {
     }
   };
 
-  const copyUrl = async (url: string) => {
+  const copyUrl = async (url: string, id = 0, successMsg = '링크가 복사되었습니다.') => {
     try {
       await navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      notify(successMsg);
+      window.setTimeout(() => setCopiedId(null), 2000);
     } catch {
-      // ignore
+      notify('복사에 실패했습니다.');
     }
   };
 
@@ -77,13 +92,36 @@ export function PartnerLinks() {
     <PartnerLayout activeMenu="links" title="내 홍보 링크">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 -mt-2">
         <p className="text-slate-500">생성한 홍보 링크를 관리하고, 채널별 성과를 확인하세요.</p>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
-        >
-          <Plus size={18} /> 새 홍보 링크 만들기
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={leadEmbedPluginDownloadUrl()}
+            download
+            className="px-4 py-2.5 bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-800 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm text-sm"
+          >
+            <Download size={18} /> WP 플러그인
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              setWpGuideLkCode(links[0]?.code || '');
+              setWpGuideOpen(true);
+            }}
+            className="px-4 py-2.5 bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm text-sm"
+          >
+            <CircleHelp size={18} className="text-emerald-600" /> 사용방법 안내
+          </button>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
+          >
+            <Plus size={18} /> 새 홍보 링크 만들기
+          </button>
+        </div>
       </div>
+
+      {message ? (
+        <div className="mb-4 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2">{message}</div>
+      ) : null}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <SummaryCard title="전체 홍보 링크 수" value={String(totals.count)} suffix="개" icon={<LinkIcon className="text-slate-500" />} />
@@ -123,15 +161,54 @@ export function PartnerLinks() {
                         </td>
                         <td className="px-4 py-4 font-medium text-slate-600">{link.subId || '-'}</td>
                         <td className="px-4 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg font-mono text-xs border border-slate-200 max-w-[150px] truncate">
-                              {link.url}
-                            </div>
-                            <button type="button" onClick={() => copyUrl(link.url)} className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors" title="링크 복사">
-                              <Copy size={16} />
+                          <div className="flex flex-wrap items-center gap-1.5 min-w-[220px] max-w-[360px]">
+                            <button
+                              type="button"
+                              onClick={() => copyUrl(link.url, link.id)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 max-w-full"
+                              title={`${link.url} (클릭하여 복사)`}
+                            >
+                              <LinkIcon size={14} className="shrink-0 text-slate-400" />
+                              <span className="truncate">{link.url}</span>
                             </button>
-                            <a href={link.url} target="_blank" rel="noreferrer" className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="새 창으로 열기">
-                              <ExternalLink size={16} />
+                            <button
+                              type="button"
+                              onClick={() => copyUrl(link.url, link.id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold"
+                              title="링크 복사"
+                            >
+                              {copiedId === link.id ? <CheckCircle2 size={14} /> : <Copy size={14} />}
+                              복사
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void copyUrl(
+                                  buildLeadEmbedSnippet(link.code),
+                                  link.id,
+                                  '워드프레스 설치 코드가 복사되었습니다.',
+                                );
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-bold"
+                              title="워드프레스 상담폼 설치 코드 복사"
+                            >
+                              <Code2 size={14} />
+                              WP 폼
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWpGuideLkCode(link.code);
+                                setWpGuideOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50"
+                              title="워드프레스 상담폼 사용방법"
+                            >
+                              <CircleHelp size={14} />
+                              안내
+                            </button>
+                            <a href={link.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50" title="새 창으로 열기">
+                              <ExternalLink size={14} />
                             </a>
                           </div>
                         </td>
@@ -175,10 +252,37 @@ export function PartnerLinks() {
             </div>
             <div className="space-y-4 text-sm text-slate-300">
               <p><strong className="text-emerald-400 font-semibold">sub_id</strong>를 구분해서 생성하면 채널별 성과를 쉽게 비교할 수 있습니다.</p>
+              <p className="text-slate-400 text-xs leading-relaxed">
+                <strong className="text-emerald-400 font-semibold">WP 플러그인</strong> zip을 설치하거나, <strong className="text-emerald-400 font-semibold">WP 폼</strong> HTML 코드로 홈페이지에 상담폼을 넣을 수 있습니다.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setWpGuideLkCode(links[0]?.code || '');
+                  setWpGuideOpen(true);
+                }}
+                className="w-full mt-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-bold"
+              >
+                <CircleHelp size={14} className="text-cyan-400" />
+                사용방법 안내 보기
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      <PartnerWpEmbedGuideModal
+        open={wpGuideOpen}
+        onClose={() => setWpGuideOpen(false)}
+        lkCode={wpGuideLkCode || undefined}
+        onCopySnippet={
+          wpGuideLkCode
+            ? (snippet) => {
+                void copyUrl(snippet, 0, '워드프레스 설치 코드가 복사되었습니다.');
+              }
+            : undefined
+        }
+      />
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
