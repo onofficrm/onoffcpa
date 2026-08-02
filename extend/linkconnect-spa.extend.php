@@ -264,19 +264,23 @@ if (!function_exists('linkconnect_tracking_domain_spa_gate')) {
         }
 
         // 루트 = 독립 도메인 홈 랜딩
+        // require(common 재진입) 대신 상대 경로로 보내 Worker 루프·중첩 include 를 피한다.
         if ($path === '/' || $path === '/index.php') {
-            $file = linkconnect_tracking_home_landing_file($host);
-            if ($file !== '') {
-                require $file;
-                exit;
-            }
-            // Worker가 Location(origin 루트)을 공개 도메인으로 다시 쓰면 루프가 난다.
-            // 같은 호스트의 머천트 경로로 상대 리다이렉트한다.
             $landing_rel = '';
             if ($host === 'iloves.kr' || $host === 'www.iloves.kr') {
                 $landing_rel = '/merchant/dasibom/';
             } elseif (function_exists('linkconnect_tracking_home_landing_path')) {
                 $landing_rel = linkconnect_tracking_home_landing_path($host);
+            } else {
+                $file = linkconnect_tracking_home_landing_file($host);
+                if ($file !== '' && defined('G5_PATH')) {
+                    $rel = substr($file, strlen(G5_PATH));
+                    $rel = str_replace('\\', '/', $rel);
+                    if (substr($rel, -9) === 'index.php') {
+                        $rel = substr($rel, 0, -9);
+                    }
+                    $landing_rel = '/' . trim($rel, '/') . '/';
+                }
             }
             if ($landing_rel !== '') {
                 header('Location: ' . $landing_rel, true, 302);
