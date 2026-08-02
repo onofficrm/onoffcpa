@@ -143,8 +143,11 @@ if (!function_exists('linkconnect_tracking_home_landing_file')) {
                     $landing_path = '/merchant/dasibom/';
                 }
             } elseif ($host === 'iloves.kr' || $host === 'www.iloves.kr') {
-                // onoffcpa 독립 도메인
+                // onoffcpa 독립 도메인 — 다시봄
                 $landing_path = '/merchant/dasibom/';
+            } elseif ($host === 'goispa.kr' || $host === 'www.goispa.kr') {
+                // onoffcpa 독립 도메인 — banktupt
+                $landing_path = '/merchant/banktupt/';
             }
         }
 
@@ -182,6 +185,9 @@ if (!function_exists('linkconnect_tracking_home_landing_path')) {
             $host = strtolower(preg_replace('/:\d+$/', '', (string) $host));
             if ($host === 'iloves.kr' || $host === 'www.iloves.kr') {
                 return '/merchant/dasibom/';
+            }
+            if ($host === 'goispa.kr' || $host === 'www.goispa.kr') {
+                return '/merchant/banktupt/';
             }
             if ($host === 'air911.co.kr' || $host === 'www.air911.co.kr') {
                 return '/merchant/dasibom/';
@@ -267,19 +273,14 @@ if (!function_exists('linkconnect_tracking_domain_spa_gate')) {
         // require(common 재진입) 대신 상대 경로로 보내 Worker 루프·중첩 include 를 피한다.
         if ($path === '/' || $path === '/index.php') {
             $landing_rel = '';
-            if ($host === 'iloves.kr' || $host === 'www.iloves.kr') {
-                $landing_rel = '/merchant/dasibom/';
-            } elseif (function_exists('linkconnect_tracking_home_landing_path')) {
+            if (function_exists('linkconnect_tracking_home_landing_path')) {
                 $landing_rel = linkconnect_tracking_home_landing_path($host);
-            } else {
-                $file = linkconnect_tracking_home_landing_file($host);
-                if ($file !== '' && defined('G5_PATH')) {
-                    $rel = substr($file, strlen(G5_PATH));
-                    $rel = str_replace('\\', '/', $rel);
-                    if (substr($rel, -9) === 'index.php') {
-                        $rel = substr($rel, 0, -9);
-                    }
-                    $landing_rel = '/' . trim($rel, '/') . '/';
+            }
+            if ($landing_rel === '') {
+                if ($host === 'iloves.kr' || $host === 'www.iloves.kr') {
+                    $landing_rel = '/merchant/dasibom/';
+                } elseif ($host === 'goispa.kr' || $host === 'www.goispa.kr') {
+                    $landing_rel = '/merchant/banktupt/';
                 }
             }
             if ($landing_rel !== '') {

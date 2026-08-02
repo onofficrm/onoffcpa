@@ -1,19 +1,21 @@
 /**
  * onoffcpa 독립 도메인 프록시 (Cloudflare Worker)
  *
- * - Public: https://iloves.kr  (Custom Domain → HTTPS 자동 발급)
+ * - Public: https://goispa.kr  (Custom Domain → HTTPS 자동 발급)
  * - Origin: https://onoffcpa.icrm.co.kr
+ * - 루트 폴백 랜딩: /merchant/banktupt/
  *
  * Cloudflare 적용:
- * 1) Workers → iloveskr → 이 코드로 교체 후 Deploy
- * 2) Settings → Domains & Routes → Custom Domains → iloves.kr 추가
- *    (www.iloves.kr 도 쓰면 동일하게 추가)
- * 3) SSL/TLS 모드는 Full 또는 Full (strict)
+ * 1) Workers → goispakr → 이 코드로 교체 후 Deploy
+ * 2) Domains → Custom Domain → goispa.kr 추가 (서브도메인 칸 비움)
+ *    www 쓰면 www.goispa.kr 도 추가
+ * 3) DNS에 기존 A/CNAME(웹용)이 있으면 삭제 후 추가 (MX/TXT 메일 레코드는 유지)
+ * 4) SSL/TLS = Full 또는 Full (strict)
  */
 
 const ORIGIN = 'https://onoffcpa.icrm.co.kr';
 const ORIGIN_HOST = 'onoffcpa.icrm.co.kr';
-const ROOT_LANDING = '/merchant/dasibom/';
+const ROOT_LANDING = '/merchant/banktupt/';
 const LEGACY_ORIGIN_HOSTS = ['onoffcpa.icrm.co.kr', 'onoffcpa.iwinv.net', 'www.onoffcpa.icrm.co.kr', 'www.onoffcpa.iwinv.net'];
 
 export default {
@@ -33,7 +35,6 @@ export default {
       headers.set('X-Forwarded-For', visitorIp);
     }
 
-    // hop-by-hop
     headers.delete('content-length');
 
     const init = {
@@ -55,7 +56,6 @@ export default {
         if (LEGACY_ORIGIN_HOSTS.includes(loc.hostname.toLowerCase())) {
           loc.protocol = 'https:';
           loc.hostname = incoming.hostname;
-          // origin 홈(/) 리다이렉트를 공개 도메인 루트로 바꾸면 루프 → 상품 랜딩으로
           const sameRoot =
             (loc.pathname === '/' || loc.pathname === '') &&
             (incoming.pathname === '/' || incoming.pathname === '');
@@ -69,7 +69,6 @@ export default {
       }
     }
 
-    // 프록시 흔적 정리(선택)
     outHeaders.delete('cf-ray');
 
     return new Response(upstream.body, {
