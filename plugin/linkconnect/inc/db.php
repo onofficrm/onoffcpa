@@ -937,6 +937,7 @@ if (!function_exists('lc_db_run_migrations')) {
                 `cs_holiday_weeks` varchar(50) NOT NULL DEFAULT '',
                 `cs_holiday_days` varchar(50) NOT NULL DEFAULT '',
                 `cs_price` int unsigned NOT NULL DEFAULT 0,
+                `cs_merchant_price` int unsigned NOT NULL DEFAULT 0,
                 `cs_min_duration` int unsigned NOT NULL DEFAULT 0,
                 `cs_memo` varchar(500) NOT NULL DEFAULT '',
                 `cs_created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -948,6 +949,15 @@ if (!function_exists('lc_db_run_migrations')) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", false);
             if ($create === false) {
                 return array('ok' => false, 'message' => 'call_settings 테이블 생성 실패: ' . lc_sql_error());
+            }
+        }
+        if (lc_db_table_exists($call_settings) && !lc_db_column_exists($call_settings, 'cs_merchant_price')) {
+            $add_cs_merchant = lc_sql_query(
+                "ALTER TABLE `{$call_settings}` ADD COLUMN `cs_merchant_price` int unsigned NOT NULL DEFAULT 0 AFTER `cs_price`",
+                false
+            );
+            if ($add_cs_merchant === false) {
+                return array('ok' => false, 'message' => 'call_settings.cs_merchant_price 추가 실패: ' . lc_sql_error());
             }
         }
 

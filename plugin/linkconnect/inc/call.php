@@ -186,22 +186,50 @@ if (!function_exists('lc_call_numbers_list')) {
         }
 
         $table = lc_table('call_numbers');
+        $car = lc_table('call_requests');
+        $pt = lc_table('partners');
+        $cp = lc_table('campaigns');
+        $cs = lc_table('call_settings');
         $where = ' 1=1 ';
         if (!empty($filters['status'])) {
-            $where .= " AND cn_status = '" . lc_sql_escape($filters['status']) . "' ";
+            $where .= " AND n.cn_status = '" . lc_sql_escape($filters['status']) . "' ";
         }
         if (!empty($filters['q'])) {
             $q = lc_sql_escape($filters['q']);
-            $where .= " AND (cn_number LIKE '%{$q}%' OR cn_memo LIKE '%{$q}%') ";
+            $where .= " AND (n.cn_number LIKE '%{$q}%' OR n.cn_memo LIKE '%{$q}%') ";
         }
 
-        $order = 'cn_id DESC';
+        $order = 'n.cn_id DESC';
         if (!empty($filters['order']) && $filters['order'] === 'number_asc') {
-            $order = 'cn_number ASC, cn_id ASC';
+            $order = 'n.cn_number ASC, n.cn_id ASC';
         }
+
+        $has_requests = lc_db_table_exists($car);
+        $has_settings = lc_db_table_exists($cs);
+        $has_merchant_price = $has_settings && lc_db_column_exists($cs, 'cs_merchant_price');
+        $merchant_price_col = $has_merchant_price ? 's.cs_merchant_price' : '0';
 
         $rows = array();
-        $result = lc_sql_query(" SELECT * FROM `{$table}` WHERE {$where} ORDER BY {$order} LIMIT 500 ", false);
+        if ($has_requests) {
+            $sql = " SELECT n.*,
+                    r.car_id, r.pt_id AS assigned_pt_id, r.cp_id AS assigned_cp_id,
+                    p.pt_code AS assigned_partner_code, p.pt_name AS assigned_partner_name,
+                    c.cp_name AS assigned_campaign,
+                    s.cs_price AS assigned_partner_price,
+                    {$merchant_price_col} AS assigned_advertiser_price
+                FROM `{$table}` n
+                LEFT JOIN `{$car}` r ON r.cn_id = n.cn_id AND r.car_status = '" . LC_CALL_REQ_ASSIGNED . "'
+                LEFT JOIN `{$pt}` p ON p.pt_id = r.pt_id
+                LEFT JOIN `{$cp}` c ON c.cp_id = r.cp_id
+                LEFT JOIN `{$cs}` s ON s.cp_id = r.cp_id
+                WHERE {$where}
+                ORDER BY {$order}
+                LIMIT 500 ";
+        } else {
+            $sql = " SELECT n.* FROM `{$table}` n WHERE {$where} ORDER BY {$order} LIMIT 500 ";
+        }
+
+        $result = lc_sql_query($sql, false);
         if ($result) {
             while ($row = sql_fetch_array($result)) {
                 $rows[] = $row;
@@ -413,6 +441,7 @@ if (!function_exists('lc_call_settings_defaults')) {
             'cs_holiday_weeks'  => '',
             'cs_holiday_days'   => '',
             'cs_price'          => 0,
+            'cs_merchant_price' => 0,
             'cs_min_duration'   => (int) lc_settings_get_int('callMinDuration', 0),
             'cs_memo'           => '',
         );
@@ -480,7 +509,12 @@ if (!function_exists('lc_call_settings_save')) {
             'cs_business_end'   => isset($payload['businessEnd']) ? (string) $payload['businessEnd'] : null,
             'cs_holiday_weeks'  => isset($payload['holidayWeeks']) ? (string) $payload['holidayWeeks'] : null,
             'cs_holiday_days'   => isset($payload['holidayDays']) ? (string) $payload['holidayDays'] : null,
-            'cs_price'          => isset($payload['price']) ? (int) $payload['price'] : null,
+            'cs_price'          => isset($payload['price'])
+                ? (int) $payload['price']
+                : (isset($payload['partnerPrice']) ? (int) $payload['partnerPrice'] : null),
+            'cs_merchant_price' => isset($payload['advertiserPrice'])
+                ? (int) $payload['advertiserPrice']
+                : (isset($payload['merchantPrice']) ? (int) $payload['merchantPrice'] : null),
             'cs_min_duration'   => isset($payload['minDuration']) ? (int) $payload['minDuration'] : null,
             'cs_memo'           => isset($payload['memo']) ? (string) $payload['memo'] : null,
         );
@@ -529,7 +563,7 @@ if (!function_exists('lc_call_settings_save')) {
                 'cp_id' => $cp_id,
                 'mt_id' => $mt_id,
             );
-            foreach (array('cs_enabled','cs_alias','cs_forward1','cs_forward2','cs_admin_enabled','cs_recording_mode','cs_coloring','cs_call_ment','cs_business_start','cs_business_end','cs_holiday_weeks','cs_holiday_days','cs_price','cs_min_duration','cs_memo') as $col) {
+            foreach (array('cs_enabled','cs_alias','cs_forward1','cs_forward2','cs_admin_enabled','cs_recording_mode','cs_coloring','cs_call_ment','cs_business_start','cs_business_end','cs_holiday_weeks','cs_holiday_days','cs_price','cs_merchant_price','cs_min_duration','cs_memo') as $col) {
                 $insert[$col] = array_key_exists($col, $merged) ? $merged[$col] : $base[$col];
             }
             $cols = array();
@@ -940,24 +974,48 @@ if (!function_exists('lc_call_request_claim_by_partner')) {
 if (!function_exists('lc_call_assign_apply_price')) {
     /**
      * 가상번호 배정 시 캠페인 콜 단가·활성화 적용.
+     * 파트너 단가(cs_price/cp_price) + 광고주 단가(cs_merchant_price/cp_merchant_price)
      *
      * @return array{ok:bool,message:string}
      */
-    function lc_call_assign_apply_price($cp_id, $price)
+    function lc_call_assign_apply_price($cp_id, $partner_price, $advertiser_price = 0)
     {
         $cp_id = (int) $cp_id;
-        $price = (int) $price;
+        $partner_price = (int) $partner_price;
+        $advertiser_price = (int) $advertiser_price;
         if ($cp_id <= 0) {
             return array('ok' => false, 'message' => '캠페인 정보가 없습니다.');
         }
-        if ($price <= 0) {
-            return array('ok' => false, 'message' => '콜당 디비 단가를 입력하세요.');
+        if ($partner_price <= 0) {
+            return array('ok' => false, 'message' => '파트너 단가를 입력하세요.');
+        }
+        if ($advertiser_price <= 0) {
+            $advertiser_price = $partner_price;
+        }
+        if ($advertiser_price < $partner_price) {
+            return array('ok' => false, 'message' => '광고주 단가는 파트너 단가 이상이어야 합니다.');
         }
 
-        return lc_call_settings_save($cp_id, array(
-            'adminEnabled' => true,
-            'price'        => $price,
+        $save = lc_call_settings_save($cp_id, array(
+            'adminEnabled'    => true,
+            'price'           => $partner_price,
+            'advertiserPrice' => $advertiser_price,
         ), 'admin');
+        if (empty($save['ok'])) {
+            return $save;
+        }
+
+        $cp_table = lc_table('campaigns');
+        $sets = array(
+            "cp_price = '{$partner_price}'",
+            'cp_updated_at = NOW()',
+        );
+        if (lc_db_column_exists($cp_table, 'cp_merchant_price')) {
+            $sets[] = "cp_merchant_price = '{$advertiser_price}'";
+        }
+        lc_sql_query(" UPDATE `{$cp_table}` SET " . implode(', ', $sets) . " WHERE cp_id = '{$cp_id}' ", false);
+
+        return array('ok' => true, 'message' => '콜 단가가 적용되었습니다.');
     }
 }
 
@@ -1198,7 +1256,8 @@ if (!function_exists('lc_call_ingest_log')) {
             'duration'  => $duration,
             'result'    => $result,
             'started_at' => $started_at,
-            'price'     => $create['price'],
+            'price'     => (int) ($create['advertiserPrice'] ?? $create['price'] ?? 0),
+            'partnerPrice' => (int) ($create['partnerPrice'] ?? $create['price'] ?? 0),
         ));
 
         if ($conv['ok'] && !empty($conv['cvId'])) {
@@ -1243,18 +1302,31 @@ if (!function_exists('lc_call_should_create_conversion')) {
             return array('create' => false, 'reason' => '통화실패/통화중', 'price' => 0);
         }
 
-        // 단가: 콜설정 cs_price > 캠페인 cp_price > 전역 callDefaultPrice
-        $price = (int) ($settings['cs_price'] ?? 0);
-        if ($price <= 0) {
-            $cp_table = lc_table('campaigns');
-            $campaign = lc_sql_fetch(" SELECT cp_price FROM `{$cp_table}` WHERE cp_id = '" . (int) $cp_id . "' LIMIT 1 ");
-            $price = $campaign ? (int) $campaign['cp_price'] : 0;
+        // 단가: 콜설정 파트너/광고주 단가 > 캠페인 단가 > 전역
+        $partner_price = (int) ($settings['cs_price'] ?? 0);
+        $merchant_price = (int) ($settings['cs_merchant_price'] ?? 0);
+        $cp_table = lc_table('campaigns');
+        $campaign = lc_sql_fetch(" SELECT cp_price, cp_merchant_price FROM `{$cp_table}` WHERE cp_id = '" . (int) $cp_id . "' LIMIT 1 ");
+        if ($partner_price <= 0) {
+            $partner_price = $campaign ? (int) $campaign['cp_price'] : 0;
         }
-        if ($price <= 0) {
-            $price = (int) lc_settings_get_int('callDefaultPrice', 0);
+        if ($merchant_price <= 0) {
+            $merchant_price = $campaign ? (int) ($campaign['cp_merchant_price'] ?? 0) : 0;
+        }
+        if ($partner_price <= 0) {
+            $partner_price = (int) lc_settings_get_int('callDefaultPrice', 0);
+        }
+        if ($merchant_price <= 0) {
+            $merchant_price = $partner_price;
         }
 
-        return array('create' => true, 'reason' => '', 'price' => $price);
+        return array(
+            'create' => true,
+            'reason' => '',
+            'price' => $merchant_price,
+            'partnerPrice' => $partner_price,
+            'advertiserPrice' => $merchant_price,
+        );
     }
 }
 
@@ -1278,6 +1350,7 @@ if (!function_exists('lc_call_conversion_create')) {
         $duration = (int) ($payload['duration'] ?? 0);
         $result = (string) ($payload['result'] ?? '');
         $price = (int) ($payload['price'] ?? 0);
+        $partner_price = (int) ($payload['partnerPrice'] ?? 0);
         $clog_id = (int) ($payload['clog_id'] ?? 0);
         $started_at = (string) ($payload['started_at'] ?? date('Y-m-d H:i:s'));
 
@@ -1288,7 +1361,15 @@ if (!function_exists('lc_call_conversion_create')) {
         $ss = $duration % 60;
         $inquiry = '콜디비 통화 ' . sprintf('%d분 %d초', $mm, $ss) . ' (' . $result . ')';
         $campaign = function_exists('lc_campaign_get_by_id') ? lc_campaign_get_by_id($cp_id) : null;
-        $partner_price = is_array($campaign) ? lc_campaign_resolve_partner_price($campaign) : $price;
+        if ($partner_price <= 0) {
+            $partner_price = is_array($campaign) ? lc_campaign_resolve_partner_price($campaign) : $price;
+        }
+        if ($price <= 0 && is_array($campaign) && function_exists('lc_campaign_resolve_merchant_price')) {
+            $price = lc_campaign_resolve_merchant_price($campaign);
+        }
+        if ($price <= 0) {
+            $price = $partner_price;
+        }
 
         lc_sql_query(" INSERT INTO `{$table}` SET
             cv_code = '" . lc_sql_escape($cv_code) . "',
@@ -1360,13 +1441,41 @@ if (!function_exists('lc_call_request_assign_direct')) {
         }
 
         $car_table = lc_table('call_requests');
-        $existing = lc_sql_fetch(" SELECT car_id, car_status FROM `{$car_table}`
+        $existing = lc_sql_fetch(" SELECT car_id, car_status, cn_id, car_virtual_number FROM `{$car_table}`
             WHERE pt_id = '{$pt_id}' AND cp_id = '{$cp_id}'
               AND car_status IN ('" . LC_CALL_REQ_PENDING . "','" . LC_CALL_REQ_ASSIGNED . "')
             ORDER BY car_id DESC LIMIT 1 ");
 
         if ($existing && $existing['car_status'] === LC_CALL_REQ_ASSIGNED) {
-            return array('ok' => false, 'message' => '이미 배정된 파트너·캠페인입니다.');
+            $car_id = (int) $existing['car_id'];
+            $old_cn = (int) ($existing['cn_id'] ?? 0);
+            if ($old_cn === $cn_id) {
+                return array(
+                    'ok'      => true,
+                    'message' => '이미 동일한 번호가 배정되어 있습니다.',
+                    'number'  => (string) ($existing['car_virtual_number'] ?? ''),
+                    'cpId'    => $cp_id,
+                    'carId'   => $car_id,
+                );
+            }
+
+            // 기존 배정 번호를 회수하고 새 번호로 교체
+            if ($old_cn > 0) {
+                $cn_table = lc_table('call_numbers');
+                lc_sql_query(" UPDATE `{$cn_table}` SET
+                    cn_status = '" . LC_CALL_NUMBER_AVAILABLE . "',
+                    cn_updated_at = NOW()
+                    WHERE cn_id = '{$old_cn}' AND cn_status = '" . LC_CALL_NUMBER_ASSIGNED . "' ", false);
+            }
+            lc_sql_query(" UPDATE `{$car_table}` SET
+                car_status = '" . LC_CALL_REQ_PENDING . "',
+                cn_id = '0',
+                car_virtual_number = '',
+                car_admin_memo = '" . lc_sql_escape($admin_memo !== '' ? $admin_memo : '관리자 번호 교체') . "',
+                car_processed_at = NULL
+                WHERE car_id = '{$car_id}' ", false);
+
+            return lc_call_request_assign($car_id, $cn_id, $admin_memo !== '' ? $admin_memo : '관리자 직접 배정(교체)');
         }
 
         $car_id = 0;
@@ -1447,100 +1556,6 @@ if (!function_exists('lc_call_logs_import_map_headers')) {
     }
 }
 
-if (!function_exists('lc_call_logs_import_rows_from_matrix')) {
-    /**
-     * @param array<int,array<int,string>> $matrix
-     * @return array{ok:bool,message:string,rows?:array<int,array<string,mixed>>,headers?:array<int,string>}
-     */
-    function lc_call_logs_import_rows_from_matrix(array $matrix)
-    {
-        if (count($matrix) < 2) {
-            return array('ok' => false, 'message' => '헤더와 데이터 행이 필요합니다.');
-        }
-
-        $headers = array_map('trim', $matrix[0]);
-        $map = lc_call_logs_import_map_headers($headers);
-        if (!isset($map['virtualNumber'])) {
-            return array('ok' => false, 'message' => '가상번호 열을 찾을 수 없습니다. (가상번호 / virtualNumber 등)');
-        }
-
-        $rows = array();
-        for ($i = 1, $n = count($matrix); $i < $n; $i++) {
-            $line = $matrix[$i];
-            $virtual = trim((string) ($line[$map['virtualNumber']] ?? ''));
-            if ($virtual === '') {
-                continue;
-            }
-
-            $payload = array(
-                'virtualNumber'  => $virtual,
-                'caller'         => isset($map['caller']) ? (string) ($line[$map['caller']] ?? '') : '',
-                'startedAt'      => isset($map['startedAt']) ? (string) ($line[$map['startedAt']] ?? '') : '',
-                'duration'       => isset($map['duration']) ? (string) ($line[$map['duration']] ?? '') : '',
-                'result'         => isset($map['result']) ? (string) ($line[$map['result']] ?? '') : '',
-                'providerCallId' => isset($map['providerCallId']) ? (string) ($line[$map['providerCallId']] ?? '') : '',
-                'recordingUrl'   => isset($map['recordingUrl']) ? (string) ($line[$map['recordingUrl']] ?? '') : '',
-                'importRow'      => $i + 1,
-            );
-
-            if ($payload['providerCallId'] === '') {
-                $payload['providerCallId'] = 'import-' . date('Ymd') . '-' . $i . '-' . substr(md5($virtual . $payload['caller'] . $payload['startedAt']), 0, 10);
-            }
-
-            $rows[] = $payload;
-        }
-
-        if (!$rows) {
-            return array('ok' => false, 'message' => '등록할 통화 데이터가 없습니다.');
-        }
-
-        return array('ok' => true, 'message' => count($rows) . '건 파싱됨', 'rows' => $rows, 'headers' => $headers);
-    }
-}
-
-if (!function_exists('lc_call_logs_import_parse_text')) {
-    /**
-     * 엑셀/시트에서 복사한 텍스트(탭·쉼표 구분)를 파싱한다.
-     *
-     * @return array{ok:bool,message:string,rows?:array<int,array<string,mixed>>,headers?:array<int,string>}
-     */
-    function lc_call_logs_import_parse_text($raw)
-    {
-        $raw = (string) $raw;
-        if (strncmp($raw, "\xEF\xBB\xBF", 3) === 0) {
-            $raw = substr($raw, 3);
-        }
-        $raw = trim($raw);
-        if ($raw === '') {
-            return array('ok' => false, 'message' => '붙여넣을 내용이 없습니다.');
-        }
-
-        $tab_count = substr_count($raw, "\t");
-        $comma_count = substr_count($raw, ',');
-        $delimiter = ($tab_count >= $comma_count) ? "\t" : ',';
-
-        $matrix = array();
-        $lines = preg_split('/\r\n|\r|\n/', $raw);
-        foreach ($lines as $line) {
-            if (trim($line) === '') {
-                continue;
-            }
-            $row = str_getcsv($line, $delimiter);
-            if (!is_array($row)) {
-                continue;
-            }
-            $row = array_map(static function ($v) {
-                return trim((string) $v);
-            }, $row);
-            if (implode('', $row) !== '') {
-                $matrix[] = $row;
-            }
-        }
-
-        return lc_call_logs_import_rows_from_matrix($matrix);
-    }
-}
-
 if (!function_exists('lc_call_logs_import_parse_rows')) {
     /**
      * 업로드 파일(xlsx/xls/csv)을 통화 ingest payload 배열로 변환.
@@ -1583,11 +1598,64 @@ if (!function_exists('lc_call_logs_import_parse_rows')) {
             if ($raw === false) {
                 return array('ok' => false, 'message' => '파일을 읽을 수 없습니다.');
             }
-
-            return lc_call_logs_import_parse_text($raw);
+            if (strncmp($raw, "\xEF\xBB\xBF", 3) === 0) {
+                $raw = substr($raw, 3);
+            }
+            $delimiter = (substr_count($raw, "\t") > substr_count($raw, ',')) ? "\t" : ',';
+            $lines = preg_split('/\r\n|\r|\n/', $raw);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if ($line === '') {
+                    continue;
+                }
+                $row = str_getcsv($line, $delimiter);
+                if ($row && implode('', $row) !== '') {
+                    $matrix[] = $row;
+                }
+            }
         }
 
-        return lc_call_logs_import_rows_from_matrix($matrix);
+        if (count($matrix) < 2) {
+            return array('ok' => false, 'message' => '헤더와 데이터 행이 필요합니다.');
+        }
+
+        $headers = array_map('trim', $matrix[0]);
+        $map = lc_call_logs_import_map_headers($headers);
+        if (!isset($map['virtualNumber'])) {
+            return array('ok' => false, 'message' => '가상번호 열을 찾을 수 없습니다. (가상번호 / virtualNumber 등)');
+        }
+
+        $rows = array();
+        for ($i = 1, $n = count($matrix); $i < $n; $i++) {
+            $line = $matrix[$i];
+            $virtual = trim((string) ($line[$map['virtualNumber']] ?? ''));
+            if ($virtual === '') {
+                continue;
+            }
+
+            $payload = array(
+                'virtualNumber' => $virtual,
+                'caller'        => isset($map['caller']) ? (string) ($line[$map['caller']] ?? '') : '',
+                'startedAt'     => isset($map['startedAt']) ? (string) ($line[$map['startedAt']] ?? '') : '',
+                'duration'      => isset($map['duration']) ? (string) ($line[$map['duration']] ?? '') : '',
+                'result'        => isset($map['result']) ? (string) ($line[$map['result']] ?? '') : '',
+                'providerCallId'=> isset($map['providerCallId']) ? (string) ($line[$map['providerCallId']] ?? '') : '',
+                'recordingUrl'  => isset($map['recordingUrl']) ? (string) ($line[$map['recordingUrl']] ?? '') : '',
+                'importRow'     => $i + 1,
+            );
+
+            if ($payload['providerCallId'] === '') {
+                $payload['providerCallId'] = 'import-' . date('Ymd') . '-' . $i . '-' . substr(md5($virtual . $payload['caller'] . $payload['startedAt']), 0, 10);
+            }
+
+            $rows[] = $payload;
+        }
+
+        if (!$rows) {
+            return array('ok' => false, 'message' => '등록할 통화 데이터가 없습니다.');
+        }
+
+        return array('ok' => true, 'message' => count($rows) . '건 파싱됨', 'rows' => $rows, 'headers' => $headers);
     }
 }
 
@@ -1743,15 +1811,26 @@ if (!function_exists('lc_call_number_to_api')) {
     function lc_call_number_to_api(array $row)
     {
         $number = lc_call_number_repair_stored((int) ($row['cn_id'] ?? 0), (string) ($row['cn_number'] ?? ''));
+        $partner_name = trim((string) ($row['assigned_partner_name'] ?? ''));
+        $partner_code = trim((string) ($row['assigned_partner_code'] ?? ''));
+        $assignee = $partner_name !== '' ? $partner_name : $partner_code;
 
         return array(
-            'cnId'       => (int) $row['cn_id'],
-            'number'     => lc_call_number_format($number),
-            'numberRaw'  => lc_call_number_normalize($number),
-            'provider'   => (string) $row['cn_provider'],
-            'status'     => (string) $row['cn_status'],
-            'memo'       => (string) $row['cn_memo'],
-            'createdAt'  => date('Y.m.d', strtotime($row['cn_created_at'])),
+            'cnId'              => (int) $row['cn_id'],
+            'number'            => lc_call_number_format($number),
+            'numberRaw'         => lc_call_number_normalize($number),
+            'provider'          => (string) $row['cn_provider'],
+            'status'            => (string) $row['cn_status'],
+            'memo'              => (string) $row['cn_memo'],
+            'createdAt'         => date('Y.m.d', strtotime($row['cn_created_at'])),
+            'assignee'          => $assignee,
+            'assignedPartner'   => $assignee,
+            'assignedCampaign'  => (string) ($row['assigned_campaign'] ?? ''),
+            'partnerPrice'      => (int) ($row['assigned_partner_price'] ?? 0),
+            'advertiserPrice'   => (int) ($row['assigned_advertiser_price'] ?? 0),
+            'carId'             => (int) ($row['car_id'] ?? 0),
+            'ptId'              => (int) ($row['assigned_pt_id'] ?? 0),
+            'cpId'              => (int) ($row['assigned_cp_id'] ?? 0),
         );
     }
 }

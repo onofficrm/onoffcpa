@@ -2109,6 +2109,14 @@ export type CallNumber = {
   status: string;
   memo: string;
   createdAt: string;
+  assignee?: string;
+  assignedPartner?: string;
+  assignedCampaign?: string;
+  partnerPrice?: number;
+  advertiserPrice?: number;
+  carId?: number;
+  ptId?: number;
+  cpId?: number;
 };
 
 /** 콜디비 번호 표시: 050369821000 → 0503-6982-1000, 앞자리 0 복구 */
@@ -2237,8 +2245,20 @@ export function deleteAdminCallNumber(payload: { cnId: number }) {
   return adminApiPost<{ message: string }>('call.php', { action: 'delete_number', ...payload });
 }
 
-export function assignAdminCallRequest(payload: { carId: number; cnId: number; price: number; adminMemo?: string }) {
-  return adminApiPost<{ message: string; number?: string }>('call.php', { action: 'assign_request', ...payload });
+export function assignAdminCallRequest(payload: {
+  carId: number;
+  cnId: number;
+  price?: number;
+  partnerPrice?: number;
+  advertiserPrice?: number;
+  adminMemo?: string;
+}) {
+  return adminApiPost<{ message: string; number?: string }>('call.php', {
+    action: 'assign_request',
+    ...payload,
+    partnerPrice: payload.partnerPrice ?? payload.price,
+    advertiserPrice: payload.advertiserPrice,
+  });
 }
 
 export function rejectAdminCallRequest(payload: { carId: number; adminMemo?: string }) {
@@ -2249,8 +2269,21 @@ export function revokeAdminCallRequest(payload: { carId: number; adminMemo?: str
   return adminApiPost<{ message: string }>('call.php', { action: 'revoke_request', ...payload });
 }
 
-export function assignAdminCallDirect(payload: { ptId: number; cpId: number; cnId: number; price: number; adminMemo?: string }) {
-  return adminApiPost<{ message: string; number?: string }>('call.php', { action: 'assign_direct', ...payload });
+export function assignAdminCallDirect(payload: {
+  ptId: number;
+  cpId: number;
+  cnId: number;
+  price?: number;
+  partnerPrice?: number;
+  advertiserPrice?: number;
+  adminMemo?: string;
+}) {
+  return adminApiPost<{ message: string; number?: string }>('call.php', {
+    action: 'assign_direct',
+    ...payload,
+    partnerPrice: payload.partnerPrice ?? payload.price,
+    advertiserPrice: payload.advertiserPrice,
+  });
 }
 
 export type CallLogImportResult = {

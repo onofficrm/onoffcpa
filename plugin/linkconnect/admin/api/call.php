@@ -143,18 +143,22 @@ if ($method === 'POST') {
 
     if ($action === 'assign_request') {
         $car_id = (int) ($body['carId'] ?? 0);
-        $price = (int) ($body['price'] ?? 0);
+        $partner_price = (int) ($body['partnerPrice'] ?? ($body['price'] ?? 0));
+        $advertiser_price = (int) ($body['advertiserPrice'] ?? ($body['merchantPrice'] ?? 0));
         $request = lc_call_request_get($car_id);
         if (!$request) {
             lc_api_error('신청 내역을 찾을 수 없습니다.', 'NOT_FOUND', 404);
         }
-        if ($price <= 0) {
-            lc_api_error('콜당 디비 단가를 입력하세요.', 'INVALID_PRICE', 400);
+        if ($partner_price <= 0) {
+            lc_api_error('파트너 단가를 입력하세요.', 'INVALID_PRICE', 400);
+        }
+        if ($advertiser_price <= 0) {
+            $advertiser_price = $partner_price;
         }
 
         $result = lc_call_request_assign($car_id, (int) ($body['cnId'] ?? 0), (string) ($body['adminMemo'] ?? ''));
         if ($result['ok']) {
-            $price_result = lc_call_assign_apply_price((int) ($request['cp_id'] ?? 0), $price);
+            $price_result = lc_call_assign_apply_price((int) ($request['cp_id'] ?? 0), $partner_price, $advertiser_price);
             if (!$price_result['ok']) {
                 lc_api_error($price_result['message'], 'PRICE_SAVE_FAILED', 400);
             }
@@ -162,7 +166,8 @@ if ($method === 'POST') {
         if ($result['ok'] && function_exists('lc_admin_log_write')) {
             lc_admin_log_write('call_assign_request', 'call_request', $car_id, (string) ($result['message'] ?? ''), array(
                 'cnId' => (int) ($body['cnId'] ?? 0),
-                'price' => $price,
+                'partnerPrice' => $partner_price,
+                'advertiserPrice' => $advertiser_price,
             ));
         }
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'ASSIGN_FAILED', 400);
@@ -170,9 +175,13 @@ if ($method === 'POST') {
 
     if ($action === 'assign_direct') {
         $cp_id = (int) ($body['cpId'] ?? 0);
-        $price = (int) ($body['price'] ?? 0);
-        if ($price <= 0) {
-            lc_api_error('콜당 디비 단가를 입력하세요.', 'INVALID_PRICE', 400);
+        $partner_price = (int) ($body['partnerPrice'] ?? ($body['price'] ?? 0));
+        $advertiser_price = (int) ($body['advertiserPrice'] ?? ($body['merchantPrice'] ?? 0));
+        if ($partner_price <= 0) {
+            lc_api_error('파트너 단가를 입력하세요.', 'INVALID_PRICE', 400);
+        }
+        if ($advertiser_price <= 0) {
+            $advertiser_price = $partner_price;
         }
 
         $result = lc_call_request_assign_direct(
@@ -182,7 +191,7 @@ if ($method === 'POST') {
             (string) ($body['adminMemo'] ?? '')
         );
         if ($result['ok']) {
-            $price_result = lc_call_assign_apply_price($cp_id, $price);
+            $price_result = lc_call_assign_apply_price($cp_id, $partner_price, $advertiser_price);
             if (!$price_result['ok']) {
                 lc_api_error($price_result['message'], 'PRICE_SAVE_FAILED', 400);
             }
@@ -192,38 +201,27 @@ if ($method === 'POST') {
                 'ptId' => (int) ($body['ptId'] ?? 0),
                 'cpId' => $cp_id,
                 'cnId' => (int) ($body['cnId'] ?? 0),
-                'price' => $price,
+                'partnerPrice' => $partner_price,
+                'advertiserPrice' => $advertiser_price,
             ));
         }
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'ASSIGN_FAILED', 400);
     }
 
     if ($action === 'import_logs') {
-        $paste_text = '';
-        if (isset($body['pasteText'])) {
-            $paste_text = trim((string) $body['pasteText']);
-        } elseif (isset($body['text'])) {
-            $paste_text = trim((string) $body['text']);
+        $file_key = '';
+        foreach (array('file', 'csv', 'excel') as $key) {
+            if (!empty($_FILES[$key]) && is_array($_FILES[$key]) && (int) ($_FILES[$key]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                $file_key = $key;
+                break;
+            }
+        }
+        if ($file_key === '') {
+            lc_api_error('업로드 파일이 필요합니다.', 'NO_FILE', 400);
         }
 
-        $parsed = null;
-        if ($paste_text !== '') {
-            $parsed = lc_call_logs_import_parse_text($paste_text);
-        } else {
-            $file_key = '';
-            foreach (array('file', 'csv', 'excel') as $key) {
-                if (!empty($_FILES[$key]) && is_array($_FILES[$key]) && (int) ($_FILES[$key]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-                    $file_key = $key;
-                    break;
-                }
-            }
-            if ($file_key === '') {
-                lc_api_error('붙여넣기 내용 또는 업로드 파일이 필요합니다.', 'NO_INPUT', 400);
-            }
-            $file = $_FILES[$file_key];
-            $parsed = lc_call_logs_import_parse_file($file['tmp_name'], (string) ($file['name'] ?? 'upload.csv'));
-        }
-
+        $file = $_FILES[$file_key];
+        $parsed = lc_call_logs_import_parse_file($file['tmp_name'], (string) ($file['name'] ?? 'upload.csv'));
         if (!$parsed['ok']) {
             lc_api_error($parsed['message'], 'PARSE_FAILED', 400);
         }
@@ -249,7 +247,6 @@ if ($method === 'POST') {
                 'failed'    => (int) ($result['failed'] ?? 0),
                 'unmatched' => (int) ($result['unmatched'] ?? 0),
                 'skipConversion' => $skip_conversion,
-                'viaPaste'  => $paste_text !== '',
             ));
         }
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'IMPORT_FAILED', 400);
@@ -272,14 +269,30 @@ if ($method === 'POST') {
     }
 
     if ($action === 'save_settings') {
-        $price = (int) ($body['price'] ?? 0);
-        if ($price <= 0) {
-            lc_api_error('콜당 디비 단가를 입력하세요.', 'INVALID_PRICE', 400);
+        $partner_price = (int) ($body['partnerPrice'] ?? ($body['price'] ?? 0));
+        $advertiser_price = (int) ($body['advertiserPrice'] ?? ($body['merchantPrice'] ?? 0));
+        if ($partner_price <= 0) {
+            lc_api_error('파트너 단가를 입력하세요.', 'INVALID_PRICE', 400);
+        }
+        if ($advertiser_price <= 0) {
+            $advertiser_price = $partner_price;
+        }
+        if ($advertiser_price < $partner_price) {
+            lc_api_error('광고주 단가는 파트너 단가 이상이어야 합니다.', 'INVALID_PRICE', 400);
         }
         $body['adminEnabled'] = true;
-        $result = lc_call_settings_save((int) ($body['cpId'] ?? 0), $body, 'admin');
+        $body['price'] = $partner_price;
+        $body['advertiserPrice'] = $advertiser_price;
+        $cp_id = (int) ($body['cpId'] ?? 0);
+        $result = lc_call_settings_save($cp_id, $body, 'admin');
+        if ($result['ok'] && $cp_id > 0) {
+            $price_result = lc_call_assign_apply_price($cp_id, $partner_price, $advertiser_price);
+            if (!$price_result['ok']) {
+                lc_api_error($price_result['message'], 'PRICE_SAVE_FAILED', 400);
+            }
+        }
         if ($result['ok'] && function_exists('lc_admin_log_write')) {
-            lc_admin_log_write('call_save_settings', 'campaign', (int) ($body['cpId'] ?? 0), (string) ($result['message'] ?? ''));
+            lc_admin_log_write('call_save_settings', 'campaign', $cp_id, (string) ($result['message'] ?? ''));
         }
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'SAVE_FAILED', 400);
     }
