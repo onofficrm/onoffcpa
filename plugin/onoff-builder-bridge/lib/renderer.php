@@ -103,6 +103,11 @@ if (!function_exists('onoff_builder_landing_context_script')) {
         }
 
         $params = $_GET;
+        if ($id === 'dasibom' || $id === 'banktupt') {
+            if (empty($params['cid']) && empty($params['campaign_id'])) {
+                $params['cid'] = $id === 'banktupt' ? 'CPA-BANKTUPT' : 'CPA-DASIBOM';
+            }
+        }
         if ($id === 'hasugu_cpa') {
             if (empty($params['cid']) && empty($params['campaign_id'])) {
                 $params['cid'] = 'CPA-HASUGU';

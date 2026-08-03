@@ -990,7 +990,13 @@ if (!function_exists('onoff_builder_render_import_page')) {
                 include_once $lc_common;
             }
             if (function_exists('lc_landing_context_for_api')) {
-                $ctx = lc_landing_context_for_api($_GET);
+                $params = $_GET;
+                if ($id === 'dasibom' || $id === 'banktupt') {
+                    if (empty($params['cid']) && empty($params['campaign_id'])) {
+                        $params['cid'] = $id === 'banktupt' ? 'CPA-BANKTUPT' : 'CPA-DASIBOM';
+                    }
+                }
+                $ctx = lc_landing_context_for_api($params);
                 $json = json_encode($ctx, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP);
                 $phone = isset($ctx['partner_phone']) ? (string) $ctx['partner_phone'] : '';
                 if ($json !== false && stripos($html, 'LC_LANDING_CONTEXT') === false) {

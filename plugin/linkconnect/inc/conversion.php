@@ -1199,6 +1199,10 @@ if (!function_exists('lc_conversion_create')) {
         if ($name === '' || $phone === '') {
             return array('ok' => false, 'message' => '이름과 연락처는 필수입니다.', 'conversion' => null);
         }
+        $phone_digits = preg_replace('/\D+/', '', $phone);
+        if (strlen($phone_digits) < 10 || strlen($phone_digits) > 11) {
+            return array('ok' => false, 'message' => '연락처 형식을 확인해 주세요.', 'code' => 'INVALID_PHONE', 'conversion' => null);
+        }
 
         $pt_id = (int) ($payload['pt_id'] ?? 0);
         $cp_id = (int) ($payload['cp_id'] ?? 0);
@@ -1239,7 +1243,8 @@ if (!function_exists('lc_conversion_create')) {
         $cv_code = lc_conversion_generate_code();
         $table = lc_table('conversions');
         $merchant_price = lc_campaign_resolve_merchant_price($campaign);
-        $partner_price = lc_campaign_resolve_partner_price($campaign);
+        // 파트너 링크 없는 SEO/자체 유입은 파트너 정산단가 0
+        $partner_price = $pt_id > 0 ? lc_campaign_resolve_partner_price($campaign) : 0;
 
         lc_sql_query(" INSERT INTO `{$table}` SET
             cv_code = '" . lc_sql_escape($cv_code) . "',
@@ -1310,6 +1315,23 @@ if (!function_exists('lc_conversion_create_from_link')) {
         if (empty($payload['sub_id'])) {
             $payload['sub_id'] = (string) ($link['lk_sub_id'] ?? '');
         }
+
+        return lc_conversion_create($payload);
+    }
+}
+
+if (!function_exists('lc_conversion_create_from_seo_campaign')) {
+    /**
+     * 직접 랜딩 유입(파트너 링크 없음) → 유입경로 SEO.
+     *
+     * @return array{ok:bool,message:string,conversion:array|null,code?:string}
+     */
+    function lc_conversion_create_from_seo_campaign(array $campaign, array $payload)
+    {
+        $payload['pt_id'] = 0;
+        $payload['cp_id'] = (int) ($campaign['cp_id'] ?? 0);
+        $payload['lk_id'] = 0;
+        $payload['channel'] = 'SEO';
 
         return lc_conversion_create($payload);
     }
