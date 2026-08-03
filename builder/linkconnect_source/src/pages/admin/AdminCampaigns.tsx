@@ -729,6 +729,16 @@ export function AdminCampaigns() {
               
               {/* Actions Footer */}
               <div className="p-4 border-t border-slate-200 bg-white grid grid-cols-2 gap-2 z-20">
+                {error && isEditMode ? (
+                  <div className="col-span-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {error}
+                  </div>
+                ) : null}
+                {successMessage && !isEditMode ? (
+                  <div className="col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                    {successMessage}
+                  </div>
+                ) : null}
                 {isEditMode ? (
                   <>
                     <button

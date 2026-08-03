@@ -1089,13 +1089,24 @@ if (!function_exists('lc_campaign_save')) {
         }
 
         $target_status = isset($payload['statusCode']) ? (string) $payload['statusCode'] : '';
-        $check_mt_id = $mt_id;
-        if ($check_mt_id <= 0 && $cp_id > 0) {
-            $existing_for_check = lc_campaign_get_by_id($cp_id);
-            $check_mt_id = is_array($existing_for_check) ? (int) ($existing_for_check['mt_id'] ?? 0) : 0;
+        $existing_row = null;
+        if ($cp_id > 0) {
+            $existing_row = lc_campaign_get_by_id($cp_id);
         }
-        // 신규 등록 · 활성 저장 · 광고주 재배정 시 승인된 계약 필수
-        $needs_approved = $cp_id <= 0 || $target_status === LC_STATUS_ACTIVE || ($cp_id > 0 && $mt_id > 0);
+        $check_mt_id = $mt_id;
+        if ($check_mt_id <= 0 && is_array($existing_row)) {
+            $check_mt_id = (int) ($existing_row['mt_id'] ?? 0);
+        }
+
+        $existing_status = is_array($existing_row) ? (string) ($existing_row['cp_status'] ?? '') : '';
+        $existing_mt_id = is_array($existing_row) ? (int) ($existing_row['mt_id'] ?? 0) : 0;
+        $is_create = $cp_id <= 0;
+        // 이미 운영중인 상품의 단가/설명 수정은 계약 재검증 없이 허용
+        $is_activating = ($target_status === LC_STATUS_ACTIVE && $existing_status !== LC_STATUS_ACTIVE)
+            || ($is_create && ($target_status === '' || $target_status === LC_STATUS_ACTIVE));
+        $is_mt_reassign = !$is_create && $mt_id > 0 && $mt_id !== $existing_mt_id;
+        // 신규 등록 · 운영중 전환 · 광고주 재배정 시에만 승인된 계약 필수
+        $needs_approved = $is_create || $is_activating || $is_mt_reassign;
         if ($needs_approved && function_exists('lc_campaign_require_approved_contract')) {
             $contract_check = lc_campaign_require_approved_contract($check_mt_id);
             if (empty($contract_check['ok'])) {
@@ -1186,7 +1197,7 @@ if (!function_exists('lc_campaign_save')) {
         $is_update = $cp_id > 0;
 
         if ($is_update) {
-            $existing = lc_campaign_get_by_id($cp_id);
+            $existing = is_array($existing_row) ? $existing_row : lc_campaign_get_by_id($cp_id);
             if (!$existing) {
                 return array('ok' => false, 'message' => '캠페인을 찾을 수 없습니다.');
             }
