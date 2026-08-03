@@ -191,6 +191,23 @@ export function AdminCallDb() {
     loadAll();
   };
 
+  const handleNumberMemo = async (cnId: number, memo: string, prevMemo: string) => {
+    const next = memo.trim();
+    const prev = (prevMemo || '').trim();
+    if (next === prev) return;
+    setBusy(true);
+    try {
+      const res = await updateAdminCallNumber({ cnId, memo: next });
+      notify(res.message || '메모가 저장되었습니다.');
+      setNumbers((list) => list.map((n) => (n.cnId === cnId ? { ...n, memo: next } : n)));
+    } catch (e) {
+      notify(e instanceof Error ? e.message : '메모 저장 실패');
+      loadAll();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleDeleteNumber = async (n: CallNumber) => {
     if (n.status === 'assigned') {
       notify('배정 중인 번호는 삭제할 수 없습니다. 먼저 회수하세요.');
@@ -632,7 +649,22 @@ export function AdminCallDb() {
                       <tr key={n.cnId} className="hover:bg-slate-50">
                         <td className="px-4 py-3 font-mono font-bold text-slate-800">{formatCallPhone(n.number)}</td>
                         <td className="px-4 py-3 text-center"><span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold border ${s.cls}`}>{s.label}</span></td>
-                        <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{n.memo || '—'}</td>
+                        <td className="px-4 py-3 text-slate-500 max-w-xs">
+                          <input
+                            type="text"
+                            defaultValue={n.memo || ''}
+                            key={`${n.cnId}-${n.memo || ''}`}
+                            placeholder="메모 입력"
+                            disabled={busy}
+                            onBlur={(e) => handleNumberMemo(n.cnId, e.target.value, n.memo || '')}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur();
+                              }
+                            }}
+                            className="w-full min-w-[8rem] max-w-xs px-2.5 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:bg-white"
+                          />
+                        </td>
                         <td className="px-4 py-3 text-center">
                           <div className="inline-flex items-center gap-2">
                             <select value={n.status} onChange={(e) => handleNumberStatus(n.cnId, e.target.value)} className="px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg" disabled={n.status === 'assigned'}>
