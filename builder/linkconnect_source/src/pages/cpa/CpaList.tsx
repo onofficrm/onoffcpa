@@ -1,7 +1,10 @@
-import { Search, Info, Link as LinkIcon, Filter, ChevronDown, CheckCircle2, AlertTriangle, XCircle, TrendingUp } from 'lucide-react';
+import { Search, Info, Link as LinkIcon, Filter, ChevronDown, CheckCircle2, AlertTriangle, XCircle, TrendingUp, ExternalLink } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchPublicCampaigns, PublicCampaign } from '../../lib/api';
+import { openLandingPage } from '../../lib/utils';
+import { CPA_THUMBNAIL_LIST_IMG_CLASS, CPA_THUMBNAIL_LIST_MEDIA_CLASS } from '../../lib/cpaThumbnail';
+import { cpaCardImageUrl } from '../../lib/optimizedImage';
 import { CallDbBadge, CallDbStatsHint } from '../../components/CallDbBadge';
 
 const fallbackCategories = ['전체', '금융', '법률', '병원', '교육', '생활서비스', '렌탈', '기타'];
@@ -11,6 +14,7 @@ type CampaignCardItem = {
   code: string;
   title: string;
   category: string;
+  description: string;
   price: string;
   approvalRate: string;
   avgTime: string;
@@ -19,15 +23,18 @@ type CampaignCardItem = {
   status: string;
   badge?: string;
   recommended?: boolean;
+  landingUrl: string;
+  thumbnailUrl: string;
   callEnabled?: boolean;
 };
 
 function toCardItem(campaign: PublicCampaign): CampaignCardItem {
   return {
     id: campaign.id,
-    code: campaign.code,
+    code: campaign.code || String(campaign.id),
     title: campaign.title,
     category: campaign.category,
+    description: campaign.description || '',
     price: campaign.priceFormatted,
     approvalRate: campaign.approvalRate,
     avgTime: campaign.avgTime,
@@ -36,6 +43,8 @@ function toCardItem(campaign: PublicCampaign): CampaignCardItem {
     status: campaign.status,
     badge: campaign.badge || undefined,
     recommended: campaign.recommended,
+    landingUrl: campaign.landingUrl || '',
+    thumbnailUrl: campaign.thumbnailUrl || '',
     callEnabled: Boolean(campaign.callEnabled),
   };
 }
@@ -197,8 +206,25 @@ export function CpaList() {
 }
 
 function CampaignCard({ item }: { item: CampaignCardItem }) {
+  const hasLandingUrl = item.landingUrl.trim().length > 0;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl hover:border-emerald-300 transition-all flex flex-col">
+      <div className={`${CPA_THUMBNAIL_LIST_MEDIA_CLASS} bg-slate-100`}>
+        {item.thumbnailUrl ? (
+          <img
+            src={cpaCardImageUrl(item.thumbnailUrl)}
+            alt={item.title}
+            className={CPA_THUMBNAIL_LIST_IMG_CLASS}
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-slate-300 text-sm font-medium bg-gradient-to-br from-slate-50 to-slate-100">
+            No Image
+          </div>
+        )}
+      </div>
       <div className="p-6 flex-1">
         <div className="flex justify-between items-start mb-4">
           <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-md border border-slate-200">
@@ -226,7 +252,9 @@ function CampaignCard({ item }: { item: CampaignCardItem }) {
           <span className="min-w-0 truncate">{item.title}</span>
           {item.callEnabled ? <CallDbBadge /> : null}
         </h3>
-        <div className="text-sm text-slate-500 mb-6">유형: CPA (DB접수)</div>
+        <div className="text-sm text-slate-500 mb-6 line-clamp-2 min-h-[2.5rem]">
+          {item.description || '유형: CPA (DB접수)'}
+        </div>
 
         {item.callEnabled ? (
           <div className="mb-4 rounded-xl border border-violet-100 bg-violet-50/60 px-3 py-2">
@@ -257,16 +285,23 @@ function CampaignCard({ item }: { item: CampaignCardItem }) {
         </div>
       </div>
 
-      <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+      <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col gap-2">
+        {hasLandingUrl && (
+          <button
+            type="button"
+            onClick={() => openLandingPage(item.landingUrl)}
+            className="w-full py-2.5 bg-white border border-cyan-200 hover:bg-cyan-50 text-cyan-700 font-medium rounded-xl transition-colors text-sm flex justify-center items-center gap-1.5"
+          >
+            <ExternalLink className="w-4 h-4" />
+            랜딩페이지 보기
+          </button>
+        )}
         <Link
           to={`/cpa/${encodeURIComponent(item.code || String(item.id))}`}
-          className="flex-1 py-3 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-medium rounded-xl transition-colors text-sm text-center"
+          className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl transition-colors text-sm flex justify-center items-center gap-2"
         >
-          상세보기
-        </Link>
-        <Link to="/partner/search" className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl transition-colors text-sm flex justify-center items-center gap-2">
           <LinkIcon className="w-4 h-4" />
-          홍보하기
+          참여하기
         </Link>
       </div>
     </div>

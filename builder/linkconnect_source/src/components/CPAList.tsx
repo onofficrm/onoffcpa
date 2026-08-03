@@ -1,11 +1,12 @@
-import { ArrowRight, CheckCircle2, DollarSign, Target } from 'lucide-react';
+import { ArrowRight, CheckCircle2, DollarSign, Target, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { fetchPublicCampaigns, PublicCampaign } from '../lib/api';
+import { cn, openLandingPage } from '../lib/utils';
 import { CPA_THUMBNAIL_LIST_IMG_CLASS, CPA_THUMBNAIL_LIST_MEDIA_CLASS } from '../lib/cpaThumbnail';
 import { cpaCardImageUrl } from '../lib/optimizedImage';
+import { HomeSectionAnchor } from './HomeSectionAnchor';
 import { CallDbBadge, CallDbStatsHint } from './CallDbBadge';
-import { cn } from '../lib/utils';
 
 const filters = ['전체', '고수익', '신규', '승인율 높은 상품', '법률', '병원', '보험', '교육', '부동산'];
 
@@ -39,8 +40,9 @@ export function CPAList() {
   }, []);
 
   return (
-    <section id="cpa" className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-50 border-t border-slate-100">
+    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-50 border-t border-slate-100">
       <div className="max-w-7xl mx-auto">
+        <HomeSectionAnchor id="cpa" />
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
             지금 바로 홍보 가능한 <span className="text-emerald-500">CPA 상품</span>
@@ -124,11 +126,21 @@ export function CPAList() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <Link to="/cpa-list" className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors border border-slate-200 text-center">
-                    상세보기
-                  </Link>
-                  <Link to="/partner/search" className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-lg transition-colors shadow-md shadow-emerald-500/20 text-center">
+                <div className="grid grid-cols-1 gap-2">
+                  {(item.landingUrl || '').trim() && (
+                    <button
+                      type="button"
+                      onClick={() => openLandingPage(item.landingUrl)}
+                      className="w-full py-2.5 bg-white hover:bg-cyan-50 text-cyan-700 text-sm font-medium rounded-lg transition-colors border border-cyan-200 flex justify-center items-center gap-1.5"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      랜딩페이지 보기
+                    </button>
+                  )}
+                  <Link
+                    to={`/cpa/${encodeURIComponent(item.code || String(item.id))}`}
+                    className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-lg transition-colors shadow-md shadow-emerald-500/20 text-center"
+                  >
                     참여하기
                   </Link>
                 </div>
