@@ -2231,7 +2231,24 @@ export type CallLogImportResult = {
   preview?: Array<Record<string, unknown>>;
 };
 
-export function importAdminCallLogs(payload: { file: File; dryRun?: boolean; skipConversion?: boolean }) {
+export function importAdminCallLogs(payload: {
+  file?: File;
+  pasteText?: string;
+  dryRun?: boolean;
+  skipConversion?: boolean;
+}) {
+  const pasteText = (payload.pasteText ?? '').trim();
+  if (pasteText !== '') {
+    return adminApiPost<CallLogImportResult>('call.php', {
+      action: 'import_logs',
+      pasteText,
+      dryRun: payload.dryRun ? 1 : 0,
+      skipConversion: payload.skipConversion ? 1 : 0,
+    });
+  }
+  if (!payload.file) {
+    return Promise.reject(new Error('붙여넣기 내용 또는 파일이 필요합니다.'));
+  }
   const formData = new FormData();
   formData.append('action', 'import_logs');
   formData.append('file', payload.file);

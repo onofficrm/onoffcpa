@@ -199,19 +199,31 @@ if ($method === 'POST') {
     }
 
     if ($action === 'import_logs') {
-        $file_key = '';
-        foreach (array('file', 'csv', 'excel') as $key) {
-            if (!empty($_FILES[$key]) && is_array($_FILES[$key]) && (int) ($_FILES[$key]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-                $file_key = $key;
-                break;
-            }
-        }
-        if ($file_key === '') {
-            lc_api_error('업로드 파일이 필요합니다.', 'NO_FILE', 400);
+        $paste_text = '';
+        if (isset($body['pasteText'])) {
+            $paste_text = trim((string) $body['pasteText']);
+        } elseif (isset($body['text'])) {
+            $paste_text = trim((string) $body['text']);
         }
 
-        $file = $_FILES[$file_key];
-        $parsed = lc_call_logs_import_parse_file($file['tmp_name'], (string) ($file['name'] ?? 'upload.csv'));
+        $parsed = null;
+        if ($paste_text !== '') {
+            $parsed = lc_call_logs_import_parse_text($paste_text);
+        } else {
+            $file_key = '';
+            foreach (array('file', 'csv', 'excel') as $key) {
+                if (!empty($_FILES[$key]) && is_array($_FILES[$key]) && (int) ($_FILES[$key]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                    $file_key = $key;
+                    break;
+                }
+            }
+            if ($file_key === '') {
+                lc_api_error('붙여넣기 내용 또는 업로드 파일이 필요합니다.', 'NO_INPUT', 400);
+            }
+            $file = $_FILES[$file_key];
+            $parsed = lc_call_logs_import_parse_file($file['tmp_name'], (string) ($file['name'] ?? 'upload.csv'));
+        }
+
         if (!$parsed['ok']) {
             lc_api_error($parsed['message'], 'PARSE_FAILED', 400);
         }
@@ -237,6 +249,7 @@ if ($method === 'POST') {
                 'failed'    => (int) ($result['failed'] ?? 0),
                 'unmatched' => (int) ($result['unmatched'] ?? 0),
                 'skipConversion' => $skip_conversion,
+                'viaPaste'  => $paste_text !== '',
             ));
         }
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'IMPORT_FAILED', 400);

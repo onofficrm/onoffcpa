@@ -101,7 +101,8 @@ export function AdminCallDb() {
   const [directMemo, setDirectMemo] = useState('');
   const [directPrice, setDirectPrice] = useState('');
 
-  // 통화 엑셀 업로드
+  // 통화 로그 붙여넣기 / 파일 업로드
+  const [importPaste, setImportPaste] = useState('');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [skipConversionOnImport, setSkipConversionOnImport] = useState(true);
   const [importResult, setImportResult] = useState('');
@@ -113,6 +114,7 @@ export function AdminCallDb() {
   const [settingsCp, setSettingsCp] = useState<{ cpId: number; name: string } | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<Record<string, unknown>>({});
 
+  const hasImportSource = importPaste.trim() !== '' || !!importFile;
   const loadRecordingRequests = useCallback(() => {
     fetchAdminCallRecordingRequests(recStatusFilter || undefined)
       .then((d) => {
@@ -292,12 +294,16 @@ export function AdminCallDb() {
   };
 
   const handlePreviewLogs = async () => {
-    if (!importFile) return;
+    if (!hasImportSource) return;
     setBusy(true);
     setImportResult('');
     clearImportPreview();
     try {
-      const res = await importAdminCallLogs({ file: importFile, dryRun: true });
+      const res = await importAdminCallLogs({
+        pasteText: importPaste.trim() || undefined,
+        file: importPaste.trim() ? undefined : importFile ?? undefined,
+        dryRun: true,
+      });
       setImportPreview(res.preview ?? []);
       setImportHeaders(res.headers ?? []);
       setImportTotal(res.total ?? 0);
@@ -312,16 +318,18 @@ export function AdminCallDb() {
   };
 
   const handleImportLogs = async () => {
-    if (!importFile) return;
+    if (!hasImportSource) return;
     setBusy(true);
     setImportResult('');
     try {
       const res = await importAdminCallLogs({
-        file: importFile,
+        pasteText: importPaste.trim() || undefined,
+        file: importPaste.trim() ? undefined : importFile ?? undefined,
         skipConversion: skipConversionOnImport,
       });
       setImportResult(res.message);
       notify(res.message);
+      setImportPaste('');
       setImportFile(null);
       clearImportPreview();
       loadAll();
@@ -436,7 +444,7 @@ export function AdminCallDb() {
   const setDraft = (k: string, v: unknown) => setSettingsDraft((p) => ({ ...p, [k]: v }));
 
   return (
-    <AdminLayout activeMenu="call" title="콜디비 관리" description="수동 운영 · 가상번호 등록/배정 · 통화내역 엑셀 업로드">
+    <AdminLayout activeMenu="call" title="콜디비 관리" description="수동 운영 · 가상번호 등록/배정 · 통화내역 붙여넣기">
       <div className="mb-6 bg-violet-50 border border-violet-100 rounded-2xl p-4 text-sm text-violet-900">
         <div className="flex items-start gap-2">
           <Info className="w-5 h-5 shrink-0 mt-0.5" />
@@ -445,7 +453,7 @@ export function AdminCallDb() {
             <ol className="list-decimal pl-5 space-y-1 text-violet-900/90">
               <li>가상번호 풀에 번호를 <b>등록(일괄 가능)</b> → 파트너가 사용 가능 번호 중 <b>직접 선택</b></li>
               <li>필요 시 관리자가 풀에서 번호를 <b>수동/직접 배정</b>하거나 회수</li>
-              <li>콜업체 통화내역 엑셀/CSV를 <b>업로드</b> (가상번호 열 필수)</li>
+              <li>콜업체 통화내역을 엑셀에서 복사해 <b>붙여넣기</b> (가상번호 열 필수 · 파일 업로드도 가능)</li>
               <li>가상번호 기준으로 파트너·광고주 화면에 <b>담당 통화내역만</b> 자동 표시</li>
               <li>파트너·광고주가 <b>녹음 요청</b> → 최고관리자가 .wav 업로드 후 요청자가 재생</li>
             </ol>
@@ -660,38 +668,57 @@ export function AdminCallDb() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <div className="font-bold text-slate-800 mb-1 flex items-center gap-2">
               <Upload size={18} className="text-cyan-600" />
-              통화내역 엑셀 업로드
+              통화내역 붙여넣기
             </div>
             <p className="text-xs text-slate-500 mb-3">
-              콜업체에서 받은 통화내역 파일(xlsx, xls, csv)을 업로드합니다. <b>가상번호</b>가 배정된 파트너·캠페인에 자동 연결되어 각 센터에 표시됩니다.
+              엑셀·시트에서 헤더 포함 영역을 복사해 아래에 붙여넣으세요. <b>가상번호</b>가 배정된 파트너·캠페인에 자동 연결되어 각 센터에 표시됩니다.
             </p>
             <div className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-xl p-3 mb-4">
               필수 열: <b>가상번호</b> · 권장 열: 발신번호, 통화시작, 통화시간(초), 결과, 통화ID, 녹취URL
+              <span className="block mt-1 text-slate-400">탭(엑셀 복붙) 또는 쉼표(CSV) 구분. 첫 줄은 헤더여야 합니다.</span>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={(e) => {
-                  setImportFile(e.target.files?.[0] ?? null);
-                  clearImportPreview();
-                  setImportResult('');
-                }}
-                className="text-sm"
-              />
+            <textarea
+              value={importPaste}
+              onChange={(e) => {
+                setImportPaste(e.target.value);
+                setImportFile(null);
+                clearImportPreview();
+                setImportResult('');
+              }}
+              rows={8}
+              placeholder={'가상번호\t발신번호\t통화시작\t통화시간(초)\t결과\n05012345678\t01012345678\t2026-08-03 10:00:00\t45\t성공'}
+              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-mono bg-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 resize-y min-h-[9rem]"
+            />
+            <div className="mt-3 flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
               <label className="inline-flex items-center gap-2 text-sm text-slate-600">
                 <input type="checkbox" checked={skipConversionOnImport} onChange={(e) => setSkipConversionOnImport(e.target.checked)} className="accent-cyan-500" />
                 콜DB 전환 자동 생성 안 함 (통화내역만 표시)
               </label>
-              <button type="button" onClick={handlePreviewLogs} disabled={busy || !importFile}
+              <button type="button" onClick={handlePreviewLogs} disabled={busy || !hasImportSource}
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm disabled:opacity-50">
                 미리보기
               </button>
-              <button type="button" onClick={handleImportLogs} disabled={busy || !importFile}
+              <button type="button" onClick={handleImportLogs} disabled={busy || !hasImportSource}
                 className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-xl text-sm disabled:opacity-50">
-                <Upload size={16} /> 업로드
+                <Upload size={16} /> 등록
               </button>
             </div>
+            <details className="mt-4 group">
+              <summary className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-700">파일로 올리기 (xlsx · xls · csv)</summary>
+              <div className="mt-2">
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={(e) => {
+                    setImportFile(e.target.files?.[0] ?? null);
+                    if (e.target.files?.[0]) setImportPaste('');
+                    clearImportPreview();
+                    setImportResult('');
+                  }}
+                  className="text-sm"
+                />
+              </div>
+            </details>
             {importPreviewMsg ? <p className="mt-3 text-sm text-slate-600">{importPreviewMsg}</p> : null}
             {importPreview.length > 0 && (
               <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden">
