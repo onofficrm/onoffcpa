@@ -103,6 +103,7 @@ export function AdminCallDb() {
   const [directPartnerPrice, setDirectPartnerPrice] = useState('');
   const [directAdvertiserPrice, setDirectAdvertiserPrice] = useState('');
   const [memoDrafts, setMemoDrafts] = useState<Record<number, string>>({});
+  const [priceDrafts, setPriceDrafts] = useState<Record<number, { partner: string; advertiser: string }>>({});
 
   // 통화 엑셀 업로드
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -152,6 +153,18 @@ export function AdminCallDb() {
       });
       return next;
     });
+    setPriceDrafts((prev) => {
+      const next = { ...prev };
+      numbers.forEach((n) => {
+        if (next[n.cnId] === undefined) {
+          next[n.cnId] = {
+            partner: n.partnerPrice ? String(n.partnerPrice) : '',
+            advertiser: n.advertiserPrice ? String(n.advertiserPrice) : (n.partnerPrice ? String(n.partnerPrice) : ''),
+          };
+        }
+      });
+      return next;
+    });
   }, [numbers]);
 
   useEffect(() => {
@@ -197,17 +210,32 @@ export function AdminCallDb() {
     }
   };
 
-  const handleNumberStatus = async (cnId: number, status: string) => {
-    await updateAdminCallNumber({ cnId, status });
-    loadAll();
+  const handleNumberStatus = async (n: CallNumber, status: string) => {
+    if (status === n.status) return;
+    if (n.status === 'assigned' && status !== 'assigned') {
+      if (!window.confirm(`${formatCallPhone(n.number)} 배정을 회수하고 상태를 변경할까요?`)) {
+        return;
+      }
+    }
+    setBusy(true);
+    try {
+      const res = await updateAdminCallNumber({ cnId: n.cnId, status });
+      notify(res.message || '상태를 변경했습니다.');
+      loadAll();
+    } catch (e) {
+      notify(e instanceof Error ? e.message : '상태 변경 실패');
+      loadAll();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleDeleteNumber = async (n: CallNumber) => {
-    if (n.status === 'assigned') {
-      notify('배정 중인 번호는 삭제할 수 없습니다. 먼저 회수하세요.');
-      return;
-    }
-    if (!window.confirm(`${formatCallPhone(n.number)} 번호를 삭제할까요?`)) return;
+    const phone = formatCallPhone(n.number);
+    const confirmMsg = n.status === 'assigned'
+      ? `${phone}은(는) 배정 중입니다. 배정을 회수하고 삭제할까요?`
+      : `${phone} 번호를 삭제할까요?`;
+    if (!window.confirm(confirmMsg)) return;
     setBusy(true);
     try {
       const res = await deleteAdminCallNumber({ cnId: n.cnId });
@@ -325,6 +353,52 @@ export function AdminCallDb() {
     } catch (e) {
       notify(e instanceof Error ? e.message : '메모 저장 실패');
       setMemoDrafts((prev) => ({ ...prev, [n.cnId]: n.memo || '' }));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handlePriceSave = async (n: CallNumber) => {
+    if (!n.cpId) {
+      notify('배정된 번호만 단가를 수정할 수 있습니다.');
+      return;
+    }
+    const draft = priceDrafts[n.cnId] || {
+      partner: String(n.partnerPrice || ''),
+      advertiser: String(n.advertiserPrice || n.partnerPrice || ''),
+    };
+    const partnerPrice = Number(draft.partner);
+    const advertiserPrice = Number(draft.advertiser || draft.partner);
+    if (!Number.isFinite(partnerPrice) || partnerPrice <= 0) {
+      notify('파트너 단가를 입력하세요.');
+      return;
+    }
+    if (!Number.isFinite(advertiserPrice) || advertiserPrice < partnerPrice) {
+      notify('광고주 단가는 파트너 단가 이상이어야 합니다.');
+      return;
+    }
+    if (partnerPrice === Number(n.partnerPrice || 0) && advertiserPrice === Number(n.advertiserPrice || 0)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await updateAdminCallNumber({ cnId: n.cnId, partnerPrice, advertiserPrice });
+      notify(res.message || '단가를 저장했습니다.');
+      setPriceDrafts((prev) => {
+        const next = { ...prev };
+        delete next[n.cnId];
+        return next;
+      });
+      loadAll();
+    } catch (e) {
+      notify(e instanceof Error ? e.message : '단가 저장 실패');
+      setPriceDrafts((prev) => ({
+        ...prev,
+        [n.cnId]: {
+          partner: String(n.partnerPrice || ''),
+          advertiser: String(n.advertiserPrice || n.partnerPrice || ''),
+        },
+      }));
     } finally {
       setBusy(false);
     }
@@ -705,8 +779,6 @@ export function AdminCallDb() {
                   ) : numbers.map((n) => {
                     const s = numberStatusLabel[n.status] ?? { label: n.status, cls: 'bg-slate-100 text-slate-500 border-slate-200' };
                     const assignee = n.assignedPartner || n.assignee || '';
-                    const partnerPrice = Number(n.partnerPrice || 0);
-                    const advertiserPrice = Number(n.advertiserPrice || 0);
                     return (
                       <tr key={n.cnId} className="hover:bg-slate-50">
                         <td className="px-4 py-3 font-mono font-bold text-slate-800">{formatCallPhone(n.number)}</td>
@@ -720,10 +792,44 @@ export function AdminCallDb() {
                           ) : '—'}
                         </td>
                         <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
-                          {partnerPrice > 0 || advertiserPrice > 0 ? (
-                            <div className="text-xs leading-5">
-                              <div>파트너 {partnerPrice.toLocaleString()}원</div>
-                              <div className="text-slate-400">광고주 {(advertiserPrice || partnerPrice).toLocaleString()}원</div>
+                          {n.cpId ? (
+                            <div className="space-y-1 min-w-[130px]">
+                              <input
+                                type="number"
+                                min={1}
+                                value={priceDrafts[n.cnId]?.partner ?? (n.partnerPrice ? String(n.partnerPrice) : '')}
+                                onChange={(e) => setPriceDrafts((prev) => ({
+                                  ...prev,
+                                  [n.cnId]: {
+                                    partner: e.target.value,
+                                    advertiser: prev[n.cnId]?.advertiser ?? String(n.advertiserPrice || n.partnerPrice || ''),
+                                  },
+                                }))}
+                                onBlur={() => handlePriceSave(n)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                }}
+                                placeholder="파트너"
+                                className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                              />
+                              <input
+                                type="number"
+                                min={1}
+                                value={priceDrafts[n.cnId]?.advertiser ?? (n.advertiserPrice ? String(n.advertiserPrice) : '')}
+                                onChange={(e) => setPriceDrafts((prev) => ({
+                                  ...prev,
+                                  [n.cnId]: {
+                                    partner: prev[n.cnId]?.partner ?? String(n.partnerPrice || ''),
+                                    advertiser: e.target.value,
+                                  },
+                                }))}
+                                onBlur={() => handlePriceSave(n)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                }}
+                                placeholder="광고주"
+                                className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500"
+                              />
                             </div>
                           ) : '—'}
                         </td>
@@ -744,7 +850,12 @@ export function AdminCallDb() {
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="inline-flex items-center gap-2">
-                            <select value={n.status} onChange={(e) => handleNumberStatus(n.cnId, e.target.value)} className="px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg" disabled={n.status === 'assigned'}>
+                            <select
+                              value={n.status}
+                              onChange={(e) => handleNumberStatus(n, e.target.value)}
+                              disabled={busy}
+                              className="px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg disabled:opacity-60"
+                            >
                               <option value="available">사용가능</option>
                               <option value="paused">일시중지</option>
                               <option value="released">해지</option>
@@ -753,8 +864,8 @@ export function AdminCallDb() {
                             <button
                               type="button"
                               onClick={() => handleDeleteNumber(n)}
-                              disabled={busy || n.status === 'assigned'}
-                              title={n.status === 'assigned' ? '배정 중이라 삭제 불가' : '삭제'}
+                              disabled={busy}
+                              title="삭제"
                               className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-white bg-rose-500 border border-rose-600 rounded-lg hover:bg-rose-600 disabled:opacity-40"
                             >
                               <Trash2 size={13} /> 삭제

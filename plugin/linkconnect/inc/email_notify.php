@@ -241,6 +241,193 @@ if (!function_exists('lc_email_notify_from_email')) {
     }
 }
 
+if (!function_exists('lc_email_notify_from_name')) {
+    function lc_email_notify_from_name()
+    {
+        global $config;
+        $from_name = !empty($config['cf_admin_email_name']) ? trim((string) $config['cf_admin_email_name']) : '';
+        if ($from_name === '' && function_exists('lc_site_name')) {
+            $from_name = (string) lc_site_name();
+        }
+        if ($from_name === '') {
+            $from_name = 'OnOff CPA';
+        }
+        return $from_name;
+    }
+}
+
+/**
+ * 관리자 환경설정용 메일 발송(그누보드 config) 조회
+ *
+ * @return array{
+ *   emailUse:bool,
+ *   fromEmail:string,
+ *   fromName:string,
+ *   smtpHost:string,
+ *   smtpPort:string,
+ *   ready:bool,
+ *   mailer:bool,
+ *   fromConfigured:bool,
+ *   issues:string[]
+ * }
+ */
+if (!function_exists('lc_board_mail_settings_get')) {
+    function lc_board_mail_settings_get()
+    {
+        global $config;
+
+        $status = function_exists('lc_email_notify_system_status')
+            ? lc_email_notify_system_status()
+            : array(
+                'ready' => false,
+                'mailer' => false,
+                'emailUse' => false,
+                'fromConfigured' => false,
+                'fromEmail' => '',
+                'issues' => array(),
+            );
+
+        $from_email = isset($config['cf_admin_email']) ? trim((string) $config['cf_admin_email']) : '';
+        $from_name = isset($config['cf_admin_email_name']) ? trim((string) $config['cf_admin_email_name']) : '';
+        if ($from_name === '' && function_exists('lc_site_name')) {
+            $from_name = (string) lc_site_name();
+        }
+
+        return array(
+            'emailUse'       => !empty($config['cf_email_use']),
+            'fromEmail'      => $from_email,
+            'fromName'       => $from_name,
+            'smtpHost'       => (defined('G5_SMTP') && G5_SMTP) ? (string) G5_SMTP : '',
+            'smtpPort'       => (defined('G5_SMTP_PORT') && G5_SMTP_PORT) ? (string) G5_SMTP_PORT : '',
+            'ready'          => !empty($status['ready']),
+            'mailer'         => !empty($status['mailer']),
+            'fromConfigured' => !empty($status['fromConfigured']),
+            'issues'         => isset($status['issues']) && is_array($status['issues']) ? $status['issues'] : array(),
+        );
+    }
+}
+
+/**
+ * @param array<string,mixed> $values
+ * @return array{ok:bool,message:string,settings?:array}
+ */
+if (!function_exists('lc_board_mail_settings_save')) {
+    function lc_board_mail_settings_save(array $values)
+    {
+        global $g5, $config;
+
+        if (empty($g5['config_table'])) {
+            return array('ok' => false, 'message' => '게시판 설정을 저장할 수 없습니다.');
+        }
+
+        $email_use = null;
+        if (array_key_exists('emailUse', $values)) {
+            $email_use = !empty($values['emailUse']) && $values['emailUse'] !== '0' && $values['emailUse'] !== false ? 1 : 0;
+        } elseif (array_key_exists('mailEmailUse', $values)) {
+            $email_use = !empty($values['mailEmailUse']) && $values['mailEmailUse'] !== '0' && $values['mailEmailUse'] !== false ? 1 : 0;
+        }
+
+        $from_email = null;
+        if (array_key_exists('fromEmail', $values)) {
+            $from_email = trim((string) $values['fromEmail']);
+        } elseif (array_key_exists('mailFromEmail', $values)) {
+            $from_email = trim((string) $values['mailFromEmail']);
+        }
+
+        $from_name = null;
+        if (array_key_exists('fromName', $values)) {
+            $from_name = trim((string) $values['fromName']);
+        } elseif (array_key_exists('mailFromName', $values)) {
+            $from_name = trim((string) $values['mailFromName']);
+        }
+
+        if ($from_email !== null) {
+            if ($from_email === '' || !filter_var($from_email, FILTER_VALIDATE_EMAIL)) {
+                return array('ok' => false, 'message' => '유효한 발신 이메일을 입력하세요.');
+            }
+        }
+        if ($from_name !== null && $from_name === '') {
+            return array('ok' => false, 'message' => '발신 이름을 입력하세요.');
+        }
+
+        $sets = array();
+        if ($email_use !== null) {
+            $sets[] = "cf_email_use = '" . (int) $email_use . "'";
+        }
+        if ($from_email !== null) {
+            $sets[] = "cf_admin_email = '" . lc_sql_escape($from_email) . "'";
+        }
+        if ($from_name !== null) {
+            $sets[] = "cf_admin_email_name = '" . lc_sql_escape($from_name) . "'";
+        }
+
+        if (!$sets) {
+            return array('ok' => true, 'message' => '변경된 메일 설정이 없습니다.', 'settings' => lc_board_mail_settings_get());
+        }
+
+        $ok = lc_sql_query(' UPDATE `' . $g5['config_table'] . '` SET ' . implode(', ', $sets) . ' ', false);
+        if ($ok === false) {
+            return array('ok' => false, 'message' => '메일 설정 저장에 실패했습니다.');
+        }
+
+        if (!is_array($config)) {
+            $config = array();
+        }
+        if ($email_use !== null) {
+            $config['cf_email_use'] = (string) $email_use;
+        }
+        if ($from_email !== null) {
+            $config['cf_admin_email'] = $from_email;
+        }
+        if ($from_name !== null) {
+            $config['cf_admin_email_name'] = $from_name;
+        }
+
+        return array(
+            'ok'       => true,
+            'message'  => '메일 발송 설정이 저장되었습니다.',
+            'settings' => lc_board_mail_settings_get(),
+        );
+    }
+}
+
+/**
+ * @return array{ok:bool,message:string,to?:string,from?:string,system?:array}
+ */
+if (!function_exists('lc_board_mail_send_test')) {
+    function lc_board_mail_send_test($to = '')
+    {
+        $to = trim((string) $to);
+        if ($to === '') {
+            $to = lc_email_notify_from_email();
+        }
+        if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            return array('ok' => false, 'message' => '테스트 수신 이메일이 유효하지 않습니다.');
+        }
+
+        $system = lc_email_notify_system_status();
+        if (empty($system['ready'])) {
+            $issues = !empty($system['issues']) ? implode(' ', $system['issues']) : '메일 발송 준비가 되지 않았습니다.';
+            return array('ok' => false, 'message' => $issues, 'system' => $system);
+        }
+
+        $site = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
+        $subject = '[' . $site . '] 이메일 발송 테스트';
+        $body = '<p><strong>관리자 환경설정 테스트 메일입니다.</strong></p>'
+            . '<p>이 메일이 도착했다면 메일발송 설정이 정상입니다.</p>'
+            . '<p style="color:#64748b;font-size:13px;">발송 시각: ' . htmlspecialchars(date('Y-m-d H:i:s'), ENT_QUOTES, 'UTF-8') . '</p>';
+
+        $sent = lc_email_notify_send($to, $subject, $body);
+        return array(
+            'ok'      => (bool) $sent,
+            'message' => $sent ? '테스트 메일을 발송했습니다.' : '메일 발송에 실패했습니다. 서버 SMTP/메일 설정을 확인하세요.',
+            'to'      => $to,
+            'from'    => lc_email_notify_from_email(),
+            'system'  => lc_email_notify_system_status(),
+        );
+    }
+}
+
 /**
  * @return array{ready:bool,mailer:bool,emailUse:bool,fromConfigured:bool,fromEmail:string,issues:string[]}
  */
@@ -255,7 +442,7 @@ if (!function_exists('lc_email_notify_system_status')) {
             $issues[] = 'mailer 함수를 불러올 수 없습니다.';
         }
         if (!$email_use) {
-            $issues[] = '그누보드 환경설정에서 「메일발송 사용」이 꺼져 있습니다.';
+            $issues[] = '관리자 환경설정의 「메일발송 사용」이 꺼져 있습니다.';
         }
         if ($from === '') {
             $issues[] = '발신 이메일(관리자 메일)이 설정되지 않았습니다.';
@@ -291,7 +478,7 @@ if (!function_exists('lc_email_notify_send')) {
             return false;
         }
 
-        $from_name = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
+        $from_name = lc_email_notify_from_name();
         $from_email = lc_email_notify_from_email();
         if ($from_email === '') {
             error_log('[OnOff CPA EmailNotify] from email missing');
@@ -432,12 +619,24 @@ if (!function_exists('lc_email_notify_dispatch_db_mode')) {
     function lc_email_notify_dispatch_db_mode($center, $user_id, $mode, $subject, $body_html, $digest_subject, $digest_body)
     {
         $mode = strtolower(trim((string) $mode));
+        $center = $center === 'merchant' ? 'merchant' : 'partner';
+        $user_id = (int) $user_id;
+
         if ($mode === 'off') {
+            error_log('[OnOff CPA EmailNotify] skip ' . $center . '#' . $user_id . ' dbReceived=off');
             return false;
         }
 
         $recipient = lc_email_notify_resolve_recipient($center, $user_id);
         if ($recipient['email'] === '') {
+            error_log('[OnOff CPA EmailNotify] skip ' . $center . '#' . $user_id . ' no recipient email');
+            return false;
+        }
+
+        $system = lc_email_notify_system_status();
+        if (empty($system['ready'])) {
+            $issues = !empty($system['issues']) ? implode(' / ', $system['issues']) : 'mail system not ready';
+            error_log('[OnOff CPA EmailNotify] skip ' . $center . '#' . $user_id . ' ' . $issues);
             return false;
         }
 
@@ -447,7 +646,11 @@ if (!function_exists('lc_email_notify_dispatch_db_mode')) {
             return true;
         }
 
-        return lc_email_notify_send($recipient['email'], $subject, $body_html);
+        $ok = lc_email_notify_send($recipient['email'], $subject, $body_html);
+        if (!$ok) {
+            error_log('[OnOff CPA EmailNotify] send failed ' . $center . '#' . $user_id . ' to=' . $recipient['email']);
+        }
+        return $ok;
     }
 }
 

@@ -88,6 +88,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         lc_api_success(lc_settings_api_success_payload('OpenAI API 키가 저장되었습니다.'));
     }
 
+    if (isset($body['action']) && $body['action'] === 'test_email') {
+        if (!function_exists('lc_board_mail_send_test')) {
+            lc_api_error('메일 테스트 기능을 사용할 수 없습니다.', 'MAIL_TEST_UNAVAILABLE', 500);
+        }
+        $to = isset($body['to']) ? trim((string) $body['to']) : '';
+        $test = lc_board_mail_send_test($to);
+        if (empty($test['ok'])) {
+            lc_api_error(
+                isset($test['message']) ? (string) $test['message'] : '테스트 메일 발송에 실패했습니다.',
+                'MAIL_TEST_FAILED',
+                400
+            );
+        }
+        $payload = lc_settings_api_success_payload($test['message']);
+        $payload['test'] = $test;
+        lc_api_success($payload);
+    }
+
     $flat = array();
     if (isset($values['general']) && is_array($values['general'])) {
         $flat = array_merge($flat, $values['general']);
@@ -154,6 +172,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    $mail_values = array();
+    if (isset($values['mail']) && is_array($values['mail'])) {
+        $mail_values = $values['mail'];
+    }
+    foreach (array('mailEmailUse', 'mailFromEmail', 'mailFromName', 'emailUse', 'fromEmail', 'fromName') as $mail_key) {
+        if (array_key_exists($mail_key, $body) && !is_array($body[$mail_key])) {
+            $mail_values[$mail_key] = $body[$mail_key];
+        }
+        if (array_key_exists($mail_key, $values) && !is_array($values[$mail_key])) {
+            $mail_values[$mail_key] = $values[$mail_key];
+        }
+    }
+
     $secret_keys = function_exists('lc_settings_secret_keys') ? lc_settings_secret_keys() : array('geminiApiKey');
     foreach ($body as $key => $value) {
         if (!is_string($key) || !array_key_exists($key, lc_settings_defaults())) {
@@ -179,6 +210,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = lc_settings_save($flat);
     if (!$result['ok']) {
         lc_api_error($result['message'], 'SETTINGS_SAVE_FAILED', 400);
+    }
+
+    if ($mail_values) {
+        if (!function_exists('lc_board_mail_settings_save')) {
+            lc_api_error('메일 설정을 저장할 수 없습니다.', 'MAIL_SAVE_UNAVAILABLE', 500);
+        }
+        $mail_result = lc_board_mail_settings_save($mail_values);
+        if (empty($mail_result['ok'])) {
+            lc_api_error(
+                isset($mail_result['message']) ? (string) $mail_result['message'] : '메일 설정 저장에 실패했습니다.',
+                'MAIL_SETTINGS_SAVE_FAILED',
+                400
+            );
+        }
     }
 
     if ($requested_gemini_key !== '') {

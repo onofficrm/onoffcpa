@@ -372,29 +372,136 @@ if (!function_exists('lc_call_number_update')) {
 
         $table = lc_table('call_numbers');
         $sets = array();
-        if (isset($payload['status'])) {
-            $sets[] = "cn_status = '" . lc_sql_escape($payload['status']) . "'";
+        $messages = array();
+
+        if (array_key_exists('status', $payload) && $payload['status'] !== null && $payload['status'] !== '') {
+            $new_status = (string) $payload['status'];
+            $allowed = array(
+                LC_CALL_NUMBER_AVAILABLE,
+                LC_CALL_NUMBER_PAUSED,
+                LC_CALL_NUMBER_RELEASED,
+                LC_CALL_NUMBER_ASSIGNED,
+            );
+            if (!in_array($new_status, $allowed, true)) {
+                return array('ok' => false, 'message' => '허용되지 않은 상태입니다.');
+            }
+
+            $cur_status = (string) $number['cn_status'];
+            if ($new_status === LC_CALL_NUMBER_ASSIGNED && $cur_status !== LC_CALL_NUMBER_ASSIGNED) {
+                return array('ok' => false, 'message' => '배정은 「번호배정/직접배정」으로만 가능합니다.');
+            }
+            if ($cur_status === LC_CALL_NUMBER_ASSIGNED && $new_status !== LC_CALL_NUMBER_ASSIGNED) {
+                if (function_exists('lc_call_number_release_assignment')) {
+                    $released = lc_call_number_release_assignment($cn_id, '관리 상태 변경으로 회수');
+                    if (empty($released['ok'])) {
+                        return $released;
+                    }
+                    if (!empty($released['released'])) {
+                        $messages[] = '배정을 회수했습니다.';
+                    }
+                }
+            }
+            $sets[] = "cn_status = '" . lc_sql_escape($new_status) . "'";
         }
-        if (isset($payload['memo'])) {
+        if (array_key_exists('memo', $payload) && $payload['memo'] !== null) {
             $sets[] = "cn_memo = '" . lc_sql_escape($payload['memo']) . "'";
         }
-        if (isset($payload['providerNumberId'])) {
+        if (array_key_exists('providerNumberId', $payload) && $payload['providerNumberId'] !== null) {
             $sets[] = "cn_provider_number_id = '" . lc_sql_escape($payload['providerNumberId']) . "'";
         }
-        if (!$sets) {
+
+        $has_price = array_key_exists('partnerPrice', $payload) || array_key_exists('advertiserPrice', $payload)
+            || array_key_exists('price', $payload);
+        if ($has_price) {
+            $assignment = null;
+            if (lc_db_table_exists(lc_table('call_requests'))) {
+                $car_table = lc_table('call_requests');
+                $assignment = lc_sql_fetch(" SELECT * FROM `{$car_table}`
+                    WHERE cn_id = '{$cn_id}' AND car_status = '" . LC_CALL_REQ_ASSIGNED . "'
+                    ORDER BY car_id DESC LIMIT 1 ");
+            }
+            if (!$assignment || (int) ($assignment['cp_id'] ?? 0) <= 0) {
+                return array('ok' => false, 'message' => '배정된 번호만 단가를 수정할 수 있습니다.');
+            }
+
+            $partner_price = array_key_exists('partnerPrice', $payload)
+                ? (int) $payload['partnerPrice']
+                : (array_key_exists('price', $payload) ? (int) $payload['price'] : 0);
+            $advertiser_price = array_key_exists('advertiserPrice', $payload) ? (int) $payload['advertiserPrice'] : 0;
+
+            if ($partner_price <= 0 || $advertiser_price <= 0) {
+                $settings = function_exists('lc_call_settings_get')
+                    ? lc_call_settings_get((int) $assignment['cp_id'])
+                    : array();
+                if ($partner_price <= 0) {
+                    $partner_price = (int) ($settings['cs_price'] ?? 0);
+                }
+                if ($advertiser_price <= 0) {
+                    $advertiser_price = (int) ($settings['cs_merchant_price'] ?? $partner_price);
+                }
+            }
+
+            $price_result = lc_call_assign_apply_price((int) $assignment['cp_id'], $partner_price, $advertiser_price);
+            if (empty($price_result['ok'])) {
+                return $price_result;
+            }
+            $messages[] = '단가를 수정했습니다.';
+        }
+
+        if ($sets) {
+            $sets[] = 'cn_updated_at = NOW()';
+            lc_sql_query(" UPDATE `{$table}` SET " . implode(', ', $sets) . " WHERE cn_id = '{$cn_id}' ", false);
+            $messages[] = '수정되었습니다.';
+        }
+
+        if (!$messages) {
             return array('ok' => true, 'message' => '변경사항이 없습니다.');
         }
-        $sets[] = 'cn_updated_at = NOW()';
 
-        lc_sql_query(" UPDATE `{$table}` SET " . implode(', ', $sets) . " WHERE cn_id = '{$cn_id}' ", false);
+        return array('ok' => true, 'message' => implode(' ', array_unique($messages)));
+    }
+}
 
-        return array('ok' => true, 'message' => '수정되었습니다.');
+if (!function_exists('lc_call_number_release_assignment')) {
+    /**
+     * 번호에 연결된 활성 배정을 회수한다. (번호 상태는 변경하지 않음)
+     *
+     * @return array{ok:bool,message?:string,released:bool,carId?:int}
+     */
+    function lc_call_number_release_assignment($cn_id, $admin_memo = '')
+    {
+        $cn_id = (int) $cn_id;
+        if ($cn_id <= 0 || !lc_db_installed() || !lc_db_table_exists(lc_table('call_requests'))) {
+            return array('ok' => true, 'released' => false);
+        }
+
+        $car_table = lc_table('call_requests');
+        $request = lc_sql_fetch(" SELECT * FROM `{$car_table}`
+            WHERE cn_id = '{$cn_id}' AND car_status = '" . LC_CALL_REQ_ASSIGNED . "'
+            ORDER BY car_id DESC LIMIT 1 ");
+        if (!$request) {
+            return array('ok' => true, 'released' => false);
+        }
+
+        $car_id = (int) $request['car_id'];
+        lc_sql_query(" UPDATE `{$car_table}` SET
+            car_status = '" . LC_CALL_REQ_REVOKED . "',
+            car_admin_memo = '" . lc_sql_escape($admin_memo) . "',
+            car_processed_at = NOW()
+            WHERE car_id = '{$car_id}' ", false);
+
+        return array(
+            'ok'       => true,
+            'released' => true,
+            'carId'    => $car_id,
+            'message'  => '배정을 회수했습니다.',
+        );
     }
 }
 
 if (!function_exists('lc_call_number_delete')) {
     /**
-     * 가상번호 풀에서 삭제. 배정 중인 번호는 삭제 불가.
+     * 가상번호 풀에서 삭제. 배정 중이면 회수 후 삭제.
      *
      * @return array{ok:bool,message:string}
      */
@@ -408,14 +515,23 @@ if (!function_exists('lc_call_number_delete')) {
         if (!$number) {
             return array('ok' => false, 'message' => '번호를 찾을 수 없습니다.');
         }
-        if ((string) $number['cn_status'] === LC_CALL_NUMBER_ASSIGNED) {
-            return array('ok' => false, 'message' => '배정 중인 번호는 삭제할 수 없습니다. 먼저 회수하세요.');
+
+        $released = false;
+        if ((string) $number['cn_status'] === LC_CALL_NUMBER_ASSIGNED || function_exists('lc_call_number_release_assignment')) {
+            $rel = lc_call_number_release_assignment($cn_id, '번호 삭제로 회수');
+            if (empty($rel['ok'])) {
+                return $rel;
+            }
+            $released = !empty($rel['released']);
         }
 
         $cn_table = lc_table('call_numbers');
         lc_sql_query(" DELETE FROM `{$cn_table}` WHERE cn_id = '{$cn_id}' LIMIT 1 ", false);
 
-        return array('ok' => true, 'message' => '가상번호를 삭제했습니다.');
+        return array(
+            'ok'      => true,
+            'message' => $released ? '배정을 회수하고 가상번호를 삭제했습니다.' : '가상번호를 삭제했습니다.',
+        );
     }
 }
 

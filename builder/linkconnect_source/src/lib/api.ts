@@ -1454,8 +1454,21 @@ export function updateAdminInquiry(payload: { iqId: number; action: 'reply' | 's
   return adminApiPost<{ message: string; item: InquiryItem; summary: InquirySummary }>('inquiries.php', payload);
 }
 
+export type AdminMailSettings = {
+  emailUse: boolean;
+  fromEmail: string;
+  fromName: string;
+  smtpHost?: string;
+  smtpPort?: string;
+  ready?: boolean;
+  mailer?: boolean;
+  fromConfigured?: boolean;
+  issues?: string[];
+};
+
 export type AdminSettingsData = {
   general: Record<string, string>;
+  mail?: AdminMailSettings;
   cpa: Record<string, string | number | boolean>;
   billing: Record<string, string | number>;
   partner: Record<string, string | number | boolean>;
@@ -1463,16 +1476,32 @@ export type AdminSettingsData = {
   api: Record<string, string | number | boolean>;
 };
 
+export type AdminSettingsResponse = {
+  message: string;
+  settings: AdminSettingsData;
+  raw: Record<string, string>;
+  test?: {
+    ok?: boolean;
+    message?: string;
+    to?: string;
+    from?: string;
+  };
+};
+
 export function fetchAdminSettings() {
   return adminApiGet<{ settings: AdminSettingsData; raw: Record<string, string>; dbReady: boolean }>('settings.php');
 }
 
 export function saveAdminSettings(settings: AdminSettingsData | Record<string, unknown>) {
-  return adminApiPost<{ message: string; settings: AdminSettingsData; raw: Record<string, string> }>('settings.php', { settings });
+  return adminApiPost<AdminSettingsResponse>('settings.php', { settings });
 }
 
 export function resetAdminSettings() {
-  return adminApiPost<{ message: string; settings: AdminSettingsData; raw: Record<string, string> }>('settings.php', { action: 'reset' });
+  return adminApiPost<AdminSettingsResponse>('settings.php', { action: 'reset' });
+}
+
+export function sendAdminTestEmail(to?: string) {
+  return adminApiPost<AdminSettingsResponse>('settings.php', { action: 'test_email', to: to || '' });
 }
 
 export type ApiLogItem = {
@@ -2237,7 +2266,14 @@ export function createAdminCallNumbersBulk(payload: { numbers: string; memo?: st
   });
 }
 
-export function updateAdminCallNumber(payload: { cnId: number; status?: string; memo?: string }) {
+export function updateAdminCallNumber(payload: {
+  cnId: number;
+  status?: string;
+  memo?: string;
+  partnerPrice?: number;
+  advertiserPrice?: number;
+  price?: number;
+}) {
   return adminApiPost<{ message: string }>('call.php', { action: 'update_number', ...payload });
 }
 

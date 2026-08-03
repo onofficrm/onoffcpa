@@ -374,6 +374,20 @@ if (!function_exists('lc_settings_raw_for_admin')) {
         $raw['callApiSecretSet'] = trim((string) ($settings['callApiSecret'] ?? '')) !== '' ? '1' : '0';
         $raw['callWebhookTokenSet'] = trim((string) ($settings['callWebhookToken'] ?? '')) !== '' ? '1' : '0';
 
+        if (function_exists('lc_board_mail_settings_get')) {
+            $mail = lc_board_mail_settings_get();
+            $raw['mailEmailUse'] = !empty($mail['emailUse']) ? '1' : '0';
+            $raw['mailFromEmail'] = (string) ($mail['fromEmail'] ?? '');
+            $raw['mailFromName'] = (string) ($mail['fromName'] ?? '');
+            $raw['mailSmtpHost'] = (string) ($mail['smtpHost'] ?? '');
+            $raw['mailSmtpPort'] = (string) ($mail['smtpPort'] ?? '');
+            $raw['mailReady'] = !empty($mail['ready']) ? '1' : '0';
+            $raw['mailMailer'] = !empty($mail['mailer']) ? '1' : '0';
+            $raw['mailIssues'] = !empty($mail['issues']) && is_array($mail['issues'])
+                ? implode("\n", $mail['issues'])
+                : '';
+        }
+
         return $raw;
     }
 }
@@ -390,6 +404,19 @@ if (!function_exists('lc_settings_to_api')) {
                 'supportPhone' => (string) ($settings['supportPhone'] ?? ''),
                 'timezone'     => (string) ($settings['timezone'] ?? 'Asia/Seoul'),
             ),
+            'mail' => function_exists('lc_board_mail_settings_get')
+                ? lc_board_mail_settings_get()
+                : array(
+                    'emailUse' => false,
+                    'fromEmail' => '',
+                    'fromName' => '',
+                    'smtpHost' => '',
+                    'smtpPort' => '',
+                    'ready' => false,
+                    'mailer' => false,
+                    'fromConfigured' => false,
+                    'issues' => array(),
+                ),
             'cpa' => array(
                 'duplicateDays'       => (int) ($settings['duplicateDays'] ?? 30),
                 'defaultCvStatus'     => (string) ($settings['defaultCvStatus'] ?? 'pending'),

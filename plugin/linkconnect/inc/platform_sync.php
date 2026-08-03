@@ -336,13 +336,17 @@ if (!function_exists('lc_mp_ensure_local_conversion_for_lead')) {
         // 미러 유입도 자체 접수와 동일하게 광고주/관리자 알림을 발송한다.
         // (lc_conversion_create 를 우회하므로 여기서 직접 호출)
         if (function_exists('lc_notification_emit_conversion')) {
-            lc_notification_emit_conversion(array(
-                'cv_id'   => $cv_id,
-                'cv_code' => $cv_code,
-                'cp_name' => is_array($cp_row) ? (string) ($cp_row['cp_name'] ?? '캠페인') : '캠페인',
-                'pt_id'   => 0,
-                'mt_id'   => $local_mt_id,
-            ), 'received');
+            $meta = function_exists('lc_conversion_with_meta') ? lc_conversion_with_meta($cv_id) : null;
+            if (!is_array($meta)) {
+                $meta = array(
+                    'cv_id'   => $cv_id,
+                    'cv_code' => $cv_code,
+                    'cp_name' => is_array($cp_row) ? (string) ($cp_row['cp_name'] ?? '캠페인') : '캠페인',
+                    'pt_id'   => 0,
+                    'mt_id'   => $local_mt_id,
+                );
+            }
+            lc_notification_emit_conversion($meta, 'received');
         }
 
         return array('ok' => true, 'message' => 'created', 'cvId' => $cv_id, 'created' => true);

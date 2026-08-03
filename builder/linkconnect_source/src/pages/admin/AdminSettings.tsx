@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '../../layouts/AdminLayout';
-import { Settings, Save, RotateCcw, Check, Sparkles, PhoneCall } from 'lucide-react';
-import { fetchAdminSettings, resetAdminSettings, saveAdminSettings } from '../../lib/api';
+import { Settings, Save, RotateCcw, Check, Sparkles, PhoneCall, Mail, Send } from 'lucide-react';
+import { fetchAdminSettings, resetAdminSettings, saveAdminSettings, sendAdminTestEmail } from '../../lib/api';
+import type { AdminSettingsResponse } from '../../lib/api';
 
 type RawSettings = Record<string, string>;
 
@@ -10,6 +11,14 @@ const defaultRaw: RawSettings = {
   siteStatus: 'active',
   adminEmail: 'admin@linkconnect.com',
   supportPhone: '1588-0000',
+  mailEmailUse: '0',
+  mailFromEmail: '',
+  mailFromName: '',
+  mailSmtpHost: '',
+  mailSmtpPort: '',
+  mailReady: '0',
+  mailMailer: '0',
+  mailIssues: '',
   duplicateDays: '30',
   merchantProcessDays: '7',
   minChargeAmount: '500000',
@@ -56,12 +65,30 @@ export function AdminSettings() {
   const [callApiSecretInput, setCallApiSecretInput] = useState('');
   const [callWebhookTokenInput, setCallWebhookTokenInput] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [testMailStatus, setTestMailStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [testMailMessage, setTestMailMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const applySettingsResponse = (data: AdminSettingsResponse | { raw: Record<string, string>; settings?: AdminSettingsResponse['settings'] }) => {
+    const next = { ...defaultRaw, ...data.raw };
+    const mail = data.settings?.mail;
+    if (mail) {
+      next.mailEmailUse = mail.emailUse ? '1' : '0';
+      next.mailFromEmail = mail.fromEmail || '';
+      next.mailFromName = mail.fromName || '';
+      next.mailSmtpHost = mail.smtpHost || '';
+      next.mailSmtpPort = mail.smtpPort || '';
+      next.mailReady = mail.ready ? '1' : '0';
+      next.mailMailer = mail.mailer ? '1' : '0';
+      next.mailIssues = Array.isArray(mail.issues) ? mail.issues.join('\n') : '';
+    }
+    setRaw(next);
+  };
+
   useEffect(() => {
     fetchAdminSettings()
-      .then((data) => setRaw({ ...defaultRaw, ...data.raw }))
+      .then((data) => applySettingsResponse(data))
       .catch((err) => setError(err instanceof Error ? err.message : '설정을 불러오지 못했습니다.'))
       .finally(() => setLoading(false));
   }, []);
@@ -79,6 +106,11 @@ export function AdminSettings() {
           adminEmail: raw.adminEmail,
           supportPhone: raw.supportPhone,
           timezone: raw.timezone || 'Asia/Seoul',
+        },
+        mail: {
+          emailUse: boolVal(raw, 'mailEmailUse'),
+          fromEmail: raw.mailFromEmail || '',
+          fromName: raw.mailFromName || '',
         },
         cpa: {
           duplicateDays: Number(raw.duplicateDays || 30),
@@ -143,7 +175,7 @@ export function AdminSettings() {
           callRecordingMode: raw.callRecordingMode || 'normal',
         },
       });
-      setRaw({ ...defaultRaw, ...data.raw });
+      applySettingsResponse(data);
       setGeminiKeyInput('');
       setCallApiKeyInput('');
       setCallApiSecretInput('');
@@ -160,9 +192,25 @@ export function AdminSettings() {
     if (!window.confirm('기본값으로 복원하시겠습니까?')) return;
     try {
       const data = await resetAdminSettings();
-      setRaw({ ...defaultRaw, ...data.raw });
+      applySettingsResponse(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : '복원에 실패했습니다.');
+    }
+  };
+
+  const handleTestMail = async () => {
+    setTestMailStatus('sending');
+    setTestMailMessage('');
+    setError('');
+    try {
+      const data = await sendAdminTestEmail(raw.mailFromEmail || raw.adminEmail || '');
+      applySettingsResponse(data);
+      setTestMailMessage(data.message || '테스트 메일을 발송했습니다.');
+      setTestMailStatus('sent');
+      setTimeout(() => setTestMailStatus('idle'), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '테스트 메일 발송에 실패했습니다.');
+      setTestMailStatus('idle');
     }
   };
 
@@ -189,6 +237,50 @@ export function AdminSettings() {
             <SelectField label="플랫폼 운영 상태" value={raw.siteStatus} onChange={(v) => update('siteStatus', v)} options={[['active', '정상 운영'], ['maintenance', '점검 중']]} />
             <Field label="관리자 이메일" value={raw.adminEmail} onChange={(v) => update('adminEmail', v)} />
             <Field label="고객센터 연락처" value={raw.supportPhone} onChange={(v) => update('supportPhone', v)} />
+          </div>
+        </section>
+
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+            <Mail className="w-5 h-5 text-slate-500" />
+            <h3 className="font-bold text-slate-900">메일 발송 설정</h3>
+          </div>
+          <div className="p-6 space-y-5">
+            <p className="text-sm text-slate-500 leading-relaxed">
+              알림·인증·문의 회신 등에 사용하는 발신 메일 설정입니다. 아래 저장 시 바로 반영됩니다.
+            </p>
+            <div className={`rounded-xl border px-4 py-3 text-sm ${boolVal(raw, 'mailReady') ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+              <div className="font-bold mb-1">{boolVal(raw, 'mailReady') ? '메일 발송 준비됨' : '메일 발송 점검 필요'}</div>
+              <ul className="text-xs space-y-0.5 opacity-90">
+                <li>메일 기능: {boolVal(raw, 'mailMailer') ? '정상' : '불가'}</li>
+                <li>메일발송 사용: {boolVal(raw, 'mailEmailUse') ? 'ON' : 'OFF'}</li>
+                <li>SMTP: {raw.mailSmtpHost ? `${raw.mailSmtpHost}${raw.mailSmtpPort ? `:${raw.mailSmtpPort}` : ''}` : '서버 기본(미설정)'}</li>
+              </ul>
+              {raw.mailIssues ? (
+                <p className="mt-2 text-xs whitespace-pre-line">{raw.mailIssues}</p>
+              ) : null}
+            </div>
+            <Toggle
+              label="메일발송 사용"
+              checked={boolVal(raw, 'mailEmailUse')}
+              onChange={(v) => setRaw((prev) => setBool(prev, 'mailEmailUse', v))}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Field label="발신 이메일" value={raw.mailFromEmail} onChange={(v) => update('mailFromEmail', v)} />
+              <Field label="발신 이름" value={raw.mailFromName} onChange={(v) => update('mailFromName', v)} />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={testMailStatus === 'sending' || !raw.mailFromEmail}
+                onClick={handleTestMail}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+              >
+                <Send size={16} />
+                {testMailStatus === 'sending' ? '발송 중...' : testMailStatus === 'sent' ? '발송 완료' : '테스트 메일 보내기'}
+              </button>
+              {testMailMessage ? <span className="text-sm text-emerald-700">{testMailMessage}</span> : null}
+            </div>
           </div>
         </section>
 

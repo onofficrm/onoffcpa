@@ -119,11 +119,24 @@ if ($method === 'POST') {
     }
 
     if ($action === 'update_number') {
-        $result = lc_call_number_update((int) ($body['cnId'] ?? 0), array(
-            'status' => $body['status'] ?? null,
-            'memo'   => $body['memo'] ?? null,
-            'providerNumberId' => $body['providerNumberId'] ?? null,
-        ));
+        $payload = array();
+        if (array_key_exists('status', $body)) {
+            $payload['status'] = $body['status'];
+        }
+        if (array_key_exists('memo', $body)) {
+            $payload['memo'] = $body['memo'];
+        }
+        if (array_key_exists('providerNumberId', $body)) {
+            $payload['providerNumberId'] = $body['providerNumberId'];
+        }
+        if (array_key_exists('partnerPrice', $body) || array_key_exists('price', $body)) {
+            $payload['partnerPrice'] = (int) ($body['partnerPrice'] ?? ($body['price'] ?? 0));
+        }
+        if (array_key_exists('advertiserPrice', $body) || array_key_exists('merchantPrice', $body)) {
+            $payload['advertiserPrice'] = (int) ($body['advertiserPrice'] ?? ($body['merchantPrice'] ?? 0));
+        }
+
+        $result = lc_call_number_update((int) ($body['cnId'] ?? 0), $payload);
         if ($result['ok'] && function_exists('lc_admin_log_write')) {
             lc_admin_log_write('call_update_number', 'call_number', (int) ($body['cnId'] ?? 0), (string) ($result['message'] ?? ''), array(
                 'status' => (string) ($body['status'] ?? ''),
