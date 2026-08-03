@@ -1,0 +1,69 @@
+name: Deploy banktupt hotfix
+
+# 개인회생 랜딩 + 상담 DB 접수 파일만 빠르게 FTP (전체 배포 타임아웃 회피)
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'plugin/linkconnect/api/receive.php'
+      - 'plugin/linkconnect/inc/conversion.php'
+      - 'plugin/onoff-builder-bridge/lib/functions.php'
+      - 'plugin/onoff-builder-bridge/lib/renderer.php'
+      - 'plugin/onoff-builder-bridge/imports/banktupt/**'
+      - '.github/workflows/deploy-banktupt-hotfix.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: onoffcpa-banktupt-hotfix
+  cancel-in-progress: true
+
+jobs:
+  deploy-banktupt-hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare banktupt hotfix bundle
+        run: |
+          ROOT=".deploy/banktupt-hotfix"
+          rm -rf "$ROOT"
+          FILES=(
+            "plugin/linkconnect/api/receive.php"
+            "plugin/linkconnect/inc/conversion.php"
+            "plugin/onoff-builder-bridge/lib/functions.php"
+            "plugin/onoff-builder-bridge/lib/renderer.php"
+          )
+          for file in "${FILES[@]}"; do
+            mkdir -p "$ROOT/$(dirname "$file")"
+            cp "$file" "$ROOT/$file"
+          done
+          mkdir -p "$ROOT/plugin/onoff-builder-bridge/imports/banktupt"
+          rsync -a --delete --exclude '._*' --exclude '.DS_Store' \
+            plugin/onoff-builder-bridge/imports/banktupt/ \
+            "$ROOT/plugin/onoff-builder-bridge/imports/banktupt/"
+          find "$ROOT" -name '._*' -delete 2>/dev/null || true
+          test -f "$ROOT/plugin/linkconnect/api/receive.php"
+          test -f "$ROOT/plugin/linkconnect/inc/conversion.php"
+          test -f "$ROOT/plugin/onoff-builder-bridge/imports/banktupt/index.html"
+          JS=$(grep -oE 'index-[A-Za-z0-9_-]+\.js' "$ROOT/plugin/onoff-builder-bridge/imports/banktupt/index.html" | head -1)
+          test -n "$JS"
+          test -f "$ROOT/plugin/onoff-builder-bridge/imports/banktupt/assets/$JS"
+          echo "Banktupt bundle: $JS"
+
+      - name: FTP upload banktupt hotfix
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          protocol: ftp
+          local-dir: .deploy/banktupt-hotfix/
+          server-dir: /public_html/
+          state-name: onoffcpa-banktupt-hotfix-v1
+          dangerous-clean-slate: false
+          log-level: standard
+          timeout: 300000
