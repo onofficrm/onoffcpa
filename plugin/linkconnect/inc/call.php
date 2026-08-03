@@ -22,9 +22,91 @@ if (!function_exists('lc_call_enabled')) {
 /* ───────────────────────────── 가상번호 풀 ───────────────────────────── */
 
 if (!function_exists('lc_call_number_normalize')) {
+    /**
+     * 숫자만 남기고, 엑셀 등에서 앞자리 0이 빠진 050 가상번호를 복구.
+     * 예: 50369821193 → 050369821193
+     */
     function lc_call_number_normalize($number)
     {
-        return preg_replace('/[^0-9]/', '', (string) $number);
+        $digits = preg_replace('/[^0-9]/', '', (string) $number);
+        if ($digits === '') {
+            return '';
+        }
+
+        // 050x 가상번호(12자리)에서 선행 0이 빠진 11자리 복구
+        if (preg_match('/^50[0-9]\d{8}$/', $digits)) {
+            $digits = '0' . $digits;
+        }
+
+        return $digits;
+    }
+}
+
+if (!function_exists('lc_call_number_format')) {
+    /**
+     * 표시용 하이픈 포맷. 예: 050369821000 → 0503-6982-1000
+     */
+    function lc_call_number_format($number)
+    {
+        $digits = lc_call_number_normalize($number);
+        if ($digits === '') {
+            return '';
+        }
+
+        $len = strlen($digits);
+        if ($len === 12 && strpos($digits, '050') === 0) {
+            return substr($digits, 0, 4) . '-' . substr($digits, 4, 4) . '-' . substr($digits, 8, 4);
+        }
+        if ($len === 11 && strpos($digits, '010') === 0) {
+            return substr($digits, 0, 3) . '-' . substr($digits, 3, 4) . '-' . substr($digits, 7, 4);
+        }
+        if ($len === 11 && strpos($digits, '070') === 0) {
+            return substr($digits, 0, 3) . '-' . substr($digits, 3, 4) . '-' . substr($digits, 7, 4);
+        }
+        if ($len === 10 && strpos($digits, '02') === 0) {
+            return substr($digits, 0, 2) . '-' . substr($digits, 2, 4) . '-' . substr($digits, 6, 4);
+        }
+        if ($len === 11 && preg_match('/^0[3-6]\d/', $digits)) {
+            return substr($digits, 0, 3) . '-' . substr($digits, 3, 4) . '-' . substr($digits, 7, 4);
+        }
+
+        return $digits;
+    }
+}
+
+if (!function_exists('lc_call_number_repair_stored')) {
+    /**
+     * DB에 앞자리 0이 빠진 번호가 있으면 정규화 값으로 보정.
+     */
+    function lc_call_number_repair_stored($cn_id, $stored_number)
+    {
+        $cn_id = (int) $cn_id;
+        $old = preg_replace('/[^0-9]/', '', (string) $stored_number);
+        $fixed = lc_call_number_normalize($stored_number);
+        if ($cn_id <= 0 || $fixed === '' || $fixed === $old) {
+            return $fixed !== '' ? $fixed : $old;
+        }
+
+        $cn_table = lc_table('call_numbers');
+        lc_sql_query(" UPDATE `{$cn_table}` SET
+            cn_number = '" . lc_sql_escape($fixed) . "',
+            cn_updated_at = NOW()
+            WHERE cn_id = '{$cn_id}' ", false);
+
+        if (lc_db_table_exists(lc_table('call_requests'))) {
+            $car_table = lc_table('call_requests');
+            lc_sql_query(" UPDATE `{$car_table}` SET
+                car_virtual_number = '" . lc_sql_escape($fixed) . "'
+                WHERE cn_id = '{$cn_id}' OR car_virtual_number = '" . lc_sql_escape($old) . "' ", false);
+        }
+        if (lc_db_table_exists(lc_table('call_logs'))) {
+            $clog_table = lc_table('call_logs');
+            lc_sql_query(" UPDATE `{$clog_table}` SET
+                clog_virtual_number = '" . lc_sql_escape($fixed) . "'
+                WHERE cn_id = '{$cn_id}' OR clog_virtual_number = '" . lc_sql_escape($old) . "' ", false);
+        }
+
+        return $fixed;
     }
 }
 
@@ -862,7 +944,20 @@ if (!function_exists('lc_call_assignment_by_number')) {
         }
         $table = lc_table('call_requests');
 
-        return lc_sql_fetch(" SELECT * FROM `{$table}` WHERE car_virtual_number = '" . lc_sql_escape($number) . "' AND car_status = '" . LC_CALL_REQ_ASSIGNED . "' ORDER BY car_id DESC LIMIT 1 ");
+        // 선행 0이 빠진 레거시 배정도 매칭
+        $candidates = array($number);
+        if (strlen($number) === 12 && $number[0] === '0') {
+            $candidates[] = substr($number, 1);
+        }
+        $in = array();
+        foreach (array_unique($candidates) as $cand) {
+            $in[] = "'" . lc_sql_escape($cand) . "'";
+        }
+
+        return lc_sql_fetch(" SELECT * FROM `{$table}`
+            WHERE car_virtual_number IN (" . implode(',', $in) . ")
+              AND car_status = '" . LC_CALL_REQ_ASSIGNED . "'
+            ORDER BY car_id DESC LIMIT 1 ");
     }
 }
 
@@ -1511,9 +1606,12 @@ if (!function_exists('lc_call_recording_url')) {
 if (!function_exists('lc_call_number_to_api')) {
     function lc_call_number_to_api(array $row)
     {
+        $number = lc_call_number_repair_stored((int) ($row['cn_id'] ?? 0), (string) ($row['cn_number'] ?? ''));
+
         return array(
             'cnId'       => (int) $row['cn_id'],
-            'number'     => (string) $row['cn_number'],
+            'number'     => lc_call_number_format($number),
+            'numberRaw'  => lc_call_number_normalize($number),
             'provider'   => (string) $row['cn_provider'],
             'status'     => (string) $row['cn_status'],
             'memo'       => (string) $row['cn_memo'],
@@ -1525,6 +1623,8 @@ if (!function_exists('lc_call_number_to_api')) {
 if (!function_exists('lc_call_request_to_api')) {
     function lc_call_request_to_api(array $row)
     {
+        $virtual = lc_call_number_normalize((string) ($row['car_virtual_number'] ?? ''));
+
         return array(
             'carId'        => (int) $row['car_id'],
             'ptId'         => (int) $row['pt_id'],
@@ -1532,7 +1632,7 @@ if (!function_exists('lc_call_request_to_api')) {
             'cpId'         => (int) $row['cp_id'],
             'campaign'     => (string) ($row['cp_name'] ?? ''),
             'status'       => (string) $row['car_status'],
-            'virtualNumber' => (string) $row['car_virtual_number'],
+            'virtualNumber' => $virtual !== '' ? lc_call_number_format($virtual) : '',
             'requestMemo'  => (string) $row['car_request_memo'],
             'adminMemo'    => (string) $row['car_admin_memo'],
             'createdAt'    => date('Y.m.d H:i', strtotime($row['car_created_at'])),
@@ -1548,9 +1648,10 @@ if (!function_exists('lc_call_log_to_api')) {
     function lc_call_log_to_api(array $row, $with_recording = false, $mask = true)
     {
         $caller = (string) $row['clog_caller'];
+        $virtual = lc_call_number_normalize((string) ($row['clog_virtual_number'] ?? ''));
         $out = array(
             'clogId'        => (int) $row['clog_id'],
-            'virtualNumber' => (string) $row['clog_virtual_number'],
+            'virtualNumber' => $virtual !== '' ? lc_call_number_format($virtual) : '',
             'caller'        => $mask ? lc_conversion_mask_phone($caller) : $caller,
             'campaign'      => (string) ($row['cp_name'] ?? ''),
             'partner'       => (string) ($row['pt_code'] ?? '-'),

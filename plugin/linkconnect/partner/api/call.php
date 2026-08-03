@@ -34,7 +34,7 @@ if ($method === 'GET') {
         foreach (lc_call_numbers_list(array('status' => LC_CALL_NUMBER_AVAILABLE, 'order' => 'number_asc')) as $row) {
             $rows[] = array(
                 'cnId'   => (int) $row['cn_id'],
-                'number' => (string) $row['cn_number'],
+                'number' => lc_call_number_format(lc_call_number_repair_stored((int) $row['cn_id'], (string) $row['cn_number'])),
                 'memo'   => (string) $row['cn_memo'],
             );
         }
