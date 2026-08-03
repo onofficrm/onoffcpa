@@ -2,7 +2,7 @@ import { ArrowRight, CheckCircle2, DollarSign, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { fetchPublicCampaigns, PublicCampaign } from '../lib/api';
-import { CPA_THUMBNAIL_ASPECT_CLASS } from '../lib/cpaThumbnail';
+import { CPA_THUMBNAIL_LIST_IMG_CLASS, CPA_THUMBNAIL_LIST_MEDIA_CLASS } from '../lib/cpaThumbnail';
 import { cpaCardImageUrl } from '../lib/optimizedImage';
 import { cn } from '../lib/utils';
 
@@ -72,12 +72,12 @@ export function CPAList() {
             <div className="col-span-full py-16 text-center text-slate-500">현재 진행 중인 CPA 상품이 없습니다.</div>
           ) : items.map((item) => (
             <div key={item.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:border-emerald-300 hover:shadow-xl transition-all group relative flex flex-col shadow-sm">
-              <div className={`${CPA_THUMBNAIL_ASPECT_CLASS} overflow-hidden relative group bg-gradient-to-br from-emerald-500/10 to-cyan-500/10`}>
+              <div className={`${CPA_THUMBNAIL_LIST_MEDIA_CLASS} group bg-gradient-to-br from-emerald-500/10 to-cyan-500/10`}>
                 {item.thumbnailUrl ? (
                   <img
                     src={cpaCardImageUrl(item.thumbnailUrl)}
                     alt={item.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className={`${CPA_THUMBNAIL_LIST_IMG_CLASS} transition-transform duration-500 group-hover:scale-105`}
                     loading="lazy"
                     decoding="async"
                   />

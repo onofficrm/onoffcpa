@@ -516,6 +516,23 @@ export async function adminApiPost<T>(endpoint: string, payload?: Record<string,
   return (body as ApiSuccessBody<T>).data;
 }
 
+export async function adminApiPostFormData<T>(endpoint: string, formData: FormData): Promise<T> {
+  const response = await fetch(`${ADMIN_API_BASE}/${endpoint}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+    body: formData,
+  });
+
+  const body = await parseJson<ApiSuccessBody<T> | ApiErrorBody>(response);
+  if (!body.ok) {
+    const errBody = body as ApiErrorBody;
+    throw new PartnerApiError(errBody.error, errBody.code, response.status);
+  }
+
+  return (body as ApiSuccessBody<T>).data;
+}
+
 export type AdminPartner = {
   id: number;
   code: string;
@@ -2096,6 +2113,41 @@ export type CallLog = {
   cvId: number;
   hasRecording: boolean;
   recordingUrl?: string;
+  recordingRequest?: CallRecordingRequestMeta;
+};
+
+export type CallRecordingRequestMeta = {
+  crrId: number;
+  status: string;
+  statusLabel: string;
+  canPlay: boolean;
+  playUrl: string;
+  canRequest: boolean;
+};
+
+export type CallRecordingRequestItem = {
+  crrId: number;
+  clogId: number;
+  requesterType: string;
+  ptId: number;
+  mtId: number;
+  status: string;
+  statusLabel: string;
+  requestMemo: string;
+  adminMemo: string;
+  originalName: string;
+  requestedAt: string;
+  processedAt: string;
+  virtualNumber: string;
+  caller: string;
+  campaign: string;
+  partner: string;
+  merchant: string;
+  startedAt: string;
+  duration: number;
+  callResult: string;
+  canPlay: boolean;
+  playUrl?: string;
 };
 
 export type CallSettings = {
@@ -2129,7 +2181,7 @@ export function fetchAdminCallLogs(filters?: { result?: string; unmatched?: bool
   });
 }
 
-export function createAdminCallNumber(payload: { number: string; provider?: string; providerNumberId?: string; memo?: string }) {
+export function createAdminCallNumber(payload: { number: string; provider?: string; memo?: string }) {
   return adminApiPost<{ message: string; cnId?: number }>('call.php', { action: 'create_number', ...payload });
 }
 
@@ -2140,10 +2192,6 @@ export function createAdminCallNumbersBulk(payload: { numbers: string; memo?: st
   });
 }
 
-export function provisionAdminCallNumber(payload?: { areaCode?: string; memo?: string }) {
-  return adminApiPost<{ message: string; cnId?: number }>('call.php', { action: 'provision_number', ...(payload ?? {}) });
-}
-
 export function updateAdminCallNumber(payload: { cnId: number; status?: string; memo?: string }) {
   return adminApiPost<{ message: string }>('call.php', { action: 'update_number', ...payload });
 }
@@ -2152,7 +2200,7 @@ export function deleteAdminCallNumber(payload: { cnId: number }) {
   return adminApiPost<{ message: string }>('call.php', { action: 'delete_number', ...payload });
 }
 
-export function assignAdminCallRequest(payload: { carId: number; cnId: number; adminMemo?: string }) {
+export function assignAdminCallRequest(payload: { carId: number; cnId: number; price: number; adminMemo?: string }) {
   return adminApiPost<{ message: string; number?: string }>('call.php', { action: 'assign_request', ...payload });
 }
 
@@ -2164,6 +2212,32 @@ export function revokeAdminCallRequest(payload: { carId: number; adminMemo?: str
   return adminApiPost<{ message: string }>('call.php', { action: 'revoke_request', ...payload });
 }
 
+export function assignAdminCallDirect(payload: { ptId: number; cpId: number; cnId: number; price: number; adminMemo?: string }) {
+  return adminApiPost<{ message: string; number?: string }>('call.php', { action: 'assign_direct', ...payload });
+}
+
+export type CallLogImportResult = {
+  message: string;
+  total: number;
+  imported: number;
+  duplicate: number;
+  failed: number;
+  unmatched: number;
+  items?: Array<{ row: number; virtualNumber: string; ok: boolean; message: string; clogId: number; duplicate?: boolean }>;
+  dryRun?: boolean;
+  headers?: string[];
+  preview?: Array<Record<string, unknown>>;
+};
+
+export function importAdminCallLogs(payload: { file: File; dryRun?: boolean; skipConversion?: boolean }) {
+  const formData = new FormData();
+  formData.append('action', 'import_logs');
+  formData.append('file', payload.file);
+  if (payload.dryRun) formData.append('dryRun', '1');
+  if (payload.skipConversion) formData.append('skipConversion', '1');
+  return adminApiPostFormData<CallLogImportResult>('call.php', formData);
+}
+
 export function fetchAdminCallSettings(cpId: number) {
   return adminApiGet<{ settings: Record<string, unknown> }>('call.php', { view: 'settings', cpId: String(cpId) });
 }
@@ -2172,12 +2246,28 @@ export function saveAdminCallSettings(payload: Record<string, unknown> & { cpId:
   return adminApiPost<{ message: string }>('call.php', { action: 'save_settings', ...payload });
 }
 
-export function fetchAdminCallRecording(clogId: number) {
-  return adminApiGet<{ url: string }>('call.php', { view: 'recording', clogId: String(clogId) });
-}
-
 export function finalizeAdminConversion(payload: { cvId: number; finalAction: 'approve' | 'reject' | 'lock' | 'unlock'; memo?: string }) {
   return adminApiPost<{ message: string }>('call.php', { action: 'final_status', ...payload });
+}
+
+export function fetchAdminCallRecordingRequests(status?: string) {
+  return adminApiGet<{ items: CallRecordingRequestItem[]; dbReady: boolean; isSuperAdmin: boolean }>('call.php', {
+    view: 'recording_requests',
+    status: status ?? '',
+  });
+}
+
+export function uploadAdminCallRecordingWav(payload: { crrId: number; file: File; adminMemo?: string }) {
+  const formData = new FormData();
+  formData.append('action', 'upload_recording_wav');
+  formData.append('crrId', String(payload.crrId));
+  formData.append('wav', payload.file);
+  if (payload.adminMemo) formData.append('adminMemo', payload.adminMemo);
+  return adminApiPostFormData<{ message: string }>('call.php', formData);
+}
+
+export function rejectAdminCallRecordingRequest(payload: { crrId: number; adminMemo?: string }) {
+  return adminApiPost<{ message: string }>('call.php', { action: 'reject_recording_request', ...payload });
 }
 
 // 광고주
@@ -2201,6 +2291,10 @@ export function saveMerchantCallSettings(payload: { cpId: number; enabled: boole
   return merchantApiPost<{ message: string }>('call.php', { action: 'save_settings', ...payload });
 }
 
+export function requestMerchantCallRecording(payload: { clogId: number; memo?: string }) {
+  return merchantApiPost<{ message: string; crrId?: number }>('call.php', { action: 'request_recording', ...payload });
+}
+
 export function toggleMerchantCall(payload: { cpId: number; enabled: boolean }) {
   return merchantApiPost<{ message: string }>('call.php', { action: 'toggle', ...payload });
 }
@@ -2222,8 +2316,12 @@ export function fetchPartnerAvailableCallNumbers() {
   });
 }
 
-export function fetchPartnerCallLogs() {
-  return partnerApiGet<{ items: CallLog[]; dbReady: boolean }>('call.php', { view: 'logs' });
+export function fetchPartnerCallLogs(filters?: { cpId?: number; virtualNumber?: string }) {
+  return partnerApiGet<{ items: CallLog[]; dbReady: boolean }>('call.php', {
+    view: 'logs',
+    cpId: filters?.cpId != null ? String(filters.cpId) : '',
+    virtualNumber: filters?.virtualNumber ?? '',
+  });
 }
 
 export function requestPartnerCallNumber(payload: { cpId: number; cnId?: number; memo?: string }) {
@@ -2238,6 +2336,10 @@ export function claimPartnerCallNumber(payload: { cpId: number; cnId: number; me
     action: 'claim',
     ...payload,
   });
+}
+
+export function requestPartnerCallRecording(payload: { clogId: number; memo?: string }) {
+  return partnerApiPost<{ message: string; crrId?: number }>('call.php', { action: 'request_recording', ...payload });
 }
 export type MerchantContractParty = {
   companyName: string;
