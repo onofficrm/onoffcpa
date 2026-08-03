@@ -253,16 +253,9 @@ export function AdminCallDb() {
     setAssignCn('');
     setAssignPartnerPrice('');
     setAssignAdvertiserPrice('');
-    try {
-      const res = await fetchAdminCallSettings(req.cpId);
-      const partner = Number(res.settings?.cs_price ?? 0);
-      const advertiser = Number(res.settings?.cs_merchant_price ?? 0);
-      if (partner > 0) setAssignPartnerPrice(String(partner));
-      if (advertiser > 0) setAssignAdvertiserPrice(String(advertiser));
-      else if (partner > 0) setAssignAdvertiserPrice(String(partner));
-    } catch {
-      // ignore
-    }
+    const prices = await resolveCampaignDefaultPrices(req.cpId);
+    setAssignPartnerPrice(prices.partner);
+    setAssignAdvertiserPrice(prices.advertiser);
   };
 
   const handleAssign = async () => {
@@ -404,22 +397,42 @@ export function AdminCallDb() {
     }
   };
 
+  const resolveCampaignDefaultPrices = async (cpId: number | string) => {
+    const id = Number(cpId);
+    if (!id) return { partner: '', advertiser: '' };
+
+    const campaign = campaigns.find((c) => Number(c.id) === id);
+    let partner = Number(campaign?.partnerPrice ?? 0);
+    let advertiser = Number(campaign?.advertiserPrice ?? 0);
+
+    // 광고상품 단가가 없으면 콜설정 단가를 보조로 사용
+    if (partner <= 0 || advertiser <= 0) {
+      try {
+        const res = await fetchAdminCallSettings(id);
+        if (partner <= 0) partner = Number(res.settings?.cs_price ?? 0);
+        if (advertiser <= 0) advertiser = Number(res.settings?.cs_merchant_price ?? 0);
+      } catch {
+        // ignore
+      }
+    }
+    if (advertiser <= 0 && partner > 0) advertiser = partner;
+
+    return {
+      partner: partner > 0 ? String(partner) : '',
+      advertiser: advertiser > 0 ? String(advertiser) : '',
+    };
+  };
+
   const fillPricesFromCampaign = async (cpId: string) => {
     setDirectCp(cpId);
-    if (!cpId) return;
-    const campaign = campaigns.find((c) => String(c.id) === cpId);
-    if (campaign?.partnerPrice) setDirectPartnerPrice(String(campaign.partnerPrice));
-    if (campaign?.advertiserPrice) setDirectAdvertiserPrice(String(campaign.advertiserPrice));
-    try {
-      const res = await fetchAdminCallSettings(Number(cpId));
-      const partner = Number(res.settings?.cs_price ?? 0);
-      const advertiser = Number(res.settings?.cs_merchant_price ?? 0);
-      if (partner > 0) setDirectPartnerPrice(String(partner));
-      if (advertiser > 0) setDirectAdvertiserPrice(String(advertiser));
-      else if (partner > 0) setDirectAdvertiserPrice(String(partner));
-    } catch {
-      // ignore
+    if (!cpId) {
+      setDirectPartnerPrice('');
+      setDirectAdvertiserPrice('');
+      return;
     }
+    const prices = await resolveCampaignDefaultPrices(cpId);
+    setDirectPartnerPrice(prices.partner);
+    setDirectAdvertiserPrice(prices.advertiser);
   };
 
   const clearImportPreview = () => {
@@ -728,33 +741,47 @@ export function AdminCallDb() {
               </select>
               <select value={directCp} onChange={(e) => fillPricesFromCampaign(e.target.value)} className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
                 <option value="">캠페인 선택</option>
-                {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {campaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.partnerPrice > 0
+                      ? ` · P ${c.partnerPrice.toLocaleString()} / A ${(c.advertiserPrice || c.partnerPrice).toLocaleString()}`
+                      : ''}
+                  </option>
+                ))}
               </select>
               <select value={directCn} onChange={(e) => setDirectCn(e.target.value)} className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono">
                 <option value="">가상번호 선택</option>
                 {availableNumbers.map((n) => <option key={n.cnId} value={n.cnId}>{formatCallPhone(n.number)}</option>)}
               </select>
-              <input
-                type="number"
-                min={1}
-                value={directPartnerPrice}
-                onChange={(e) => setDirectPartnerPrice(e.target.value)}
-                placeholder="파트너 단가 (원) *"
-                className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-              />
-              <input
-                type="number"
-                min={1}
-                value={directAdvertiserPrice}
-                onChange={(e) => setDirectAdvertiserPrice(e.target.value)}
-                placeholder="광고주 단가 (원) *"
-                className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-              />
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">파트너 단가 (원)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={directPartnerPrice}
+                  onChange={(e) => setDirectPartnerPrice(e.target.value)}
+                  placeholder="캠페인 선택 시 자동입력"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">광고주 단가 (원)</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={directAdvertiserPrice}
+                  onChange={(e) => setDirectAdvertiserPrice(e.target.value)}
+                  placeholder="캠페인 선택 시 자동입력"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                />
+              </div>
               <button type="button" onClick={handleDirectAssign} disabled={busy || !directPt || !directCp || !directCn || !directPartnerPrice}
-                className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-xl text-sm disabled:opacity-50">
+                className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-xl text-sm disabled:opacity-50 self-end">
                 직접 배정
               </button>
             </div>
+            <p className="mt-2 text-[11px] text-slate-400">캠페인 선택 시 광고상품에 설정된 단가가 자동 입력됩니다. 필요하면 수정할 수 있습니다.</p>
             <input type="text" value={directMemo} onChange={(e) => setDirectMemo(e.target.value)} placeholder="배정 메모 (선택)"
               className="mt-3 w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
           </div>
@@ -1184,7 +1211,7 @@ export function AdminCallDb() {
               min={1}
               value={assignPartnerPrice}
               onChange={(e) => setAssignPartnerPrice(e.target.value)}
-              placeholder="예: 40000"
+              placeholder="캠페인 단가 자동입력"
               className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm mb-3"
             />
             <label className="block text-xs font-bold text-slate-500 mb-1">광고주 단가 (원) *</label>
@@ -1193,9 +1220,10 @@ export function AdminCallDb() {
               min={1}
               value={assignAdvertiserPrice}
               onChange={(e) => setAssignAdvertiserPrice(e.target.value)}
-              placeholder="예: 65000"
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm mb-4"
+              placeholder="캠페인 단가 자동입력"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm mb-1"
             />
+            <p className="text-[11px] text-slate-400 mb-4">광고상품 단가가 기본값으로 채워집니다. 수정 가능합니다.</p>
             {availableNumbers.length === 0 && <p className="text-xs text-rose-500 mb-3">사용 가능한 번호가 없습니다. 가상번호 풀에서 먼저 등록하세요.</p>}
             <div className="flex gap-2 justify-end">
               <button type="button" onClick={() => setAssignTarget(null)} className="px-4 py-2 text-sm font-bold text-slate-500">취소</button>
