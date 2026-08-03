@@ -561,8 +561,8 @@ if (!function_exists('lc_link_list_for_partner')) {
             (SELECT COUNT(*) FROM `{$cv_table}` cv WHERE cv.lk_id = lk.lk_id) AS received_cnt,
             (SELECT COUNT(*) FROM `{$cv_table}` cv WHERE cv.lk_id = lk.lk_id AND cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "') AS approved_cnt,
             (SELECT COUNT(*) FROM `{$cv_table}` cv WHERE cv.lk_id = lk.lk_id AND cv.cv_status = '" . lc_sql_escape(LC_STATUS_REJECTED) . "') AS canceled_cnt,
-            (SELECT COALESCE(SUM(cv.cv_price), 0) FROM `{$cv_table}` cv WHERE cv.lk_id = lk.lk_id) AS est_revenue,
-            (SELECT COALESCE(SUM(cv.cv_price), 0) FROM `{$cv_table}` cv WHERE cv.lk_id = lk.lk_id AND cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "') AS conf_revenue
+            (SELECT COALESCE(SUM(IF(cv.cv_partner_price > 0, cv.cv_partner_price, cv.cv_price)), 0) FROM `{$cv_table}` cv WHERE cv.lk_id = lk.lk_id) AS est_revenue,
+            (SELECT COALESCE(SUM(IF(cv.cv_partner_price > 0, cv.cv_partner_price, cv.cv_price)), 0) FROM `{$cv_table}` cv WHERE cv.lk_id = lk.lk_id AND cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "') AS conf_revenue
             FROM `{$lk_table}` lk
             INNER JOIN `{$cp_table}` c ON c.cp_id = lk.cp_id
             WHERE lk.pt_id = '{$pt_id}'

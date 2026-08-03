@@ -661,7 +661,9 @@ if (!function_exists('lc_email_notify_on_conversion')) {
         $cp_name = (string) ($conversion['cp_name'] ?? '캠페인');
         $pt_id = (int) ($conversion['pt_id'] ?? 0);
         $mt_id = (int) ($conversion['mt_id'] ?? 0);
-        $price = (int) ($conversion['cv_price'] ?? $conversion['cv_partner_price'] ?? 0);
+        $price = function_exists('lc_conversion_resolve_partner_price')
+            ? lc_conversion_resolve_partner_price($conversion)
+            : (int) ($conversion['cv_partner_price'] ?? $conversion['cv_price'] ?? 0);
         $reason = trim((string) ($conversion['cv_reject_reason'] ?? ''));
         $site = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
         $base = defined('G5_URL') ? G5_URL : '';

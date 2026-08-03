@@ -597,7 +597,7 @@ if (!function_exists('lc_event_ranking_rows_from_db')) {
                 p.pt_code,
                 p.pt_name,
                 COUNT(c.cv_id) AS approved_cnt,
-                COALESCE(SUM(c.cv_price), 0) AS earnings
+                COALESCE(SUM(IF(c.cv_partner_price > 0, c.cv_partner_price, c.cv_price)), 0) AS earnings
             FROM `{$pt}` p
             LEFT JOIN `{$cv}` c
                 ON c.pt_id = p.pt_id

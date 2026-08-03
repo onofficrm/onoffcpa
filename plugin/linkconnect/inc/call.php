@@ -968,30 +968,53 @@ if (!function_exists('lc_call_request_assign')) {
 
 if (!function_exists('lc_call_claim_resolve_price')) {
     /**
-     * 파트너 번호 선택 시 적용할 콜 단가.
+     * 파트너 번호 선택 시 적용할 콜 파트너 단가.
      * cs_price > 캠페인 cp_price > 전역 callDefaultPrice
      */
     function lc_call_claim_resolve_price($cp_id)
     {
+        $prices = function_exists('lc_call_claim_resolve_prices')
+            ? lc_call_claim_resolve_prices($cp_id)
+            : array('partner' => 0, 'advertiser' => 0);
+
+        return (int) ($prices['partner'] ?? 0);
+    }
+}
+
+if (!function_exists('lc_call_claim_resolve_prices')) {
+    /**
+     * 파트너/관리자 배정 시 기본 콜 단가 쌍.
+     * 콜설정 > 광고상품 단가 > 전역 기본값.
+     *
+     * @return array{partner:int,advertiser:int}
+     */
+    function lc_call_claim_resolve_prices($cp_id)
+    {
         $cp_id = (int) $cp_id;
         if ($cp_id <= 0) {
-            return 0;
+            return array('partner' => 0, 'advertiser' => 0);
         }
 
         $settings = function_exists('lc_call_settings_get') ? lc_call_settings_get($cp_id) : array();
-        $price = (int) ($settings['cs_price'] ?? 0);
-        if ($price > 0) {
-            return $price;
-        }
+        $partner = (int) ($settings['cs_price'] ?? 0);
+        $advertiser = (int) ($settings['cs_merchant_price'] ?? 0);
 
         $cp_table = lc_table('campaigns');
-        $campaign = lc_sql_fetch(" SELECT cp_price FROM `{$cp_table}` WHERE cp_id = '{$cp_id}' LIMIT 1 ");
-        $price = $campaign ? (int) $campaign['cp_price'] : 0;
-        if ($price > 0) {
-            return $price;
+        $campaign = lc_sql_fetch(" SELECT cp_price, cp_merchant_price FROM `{$cp_table}` WHERE cp_id = '{$cp_id}' LIMIT 1 ");
+        if ($partner <= 0) {
+            $partner = $campaign ? (int) ($campaign['cp_price'] ?? 0) : 0;
+        }
+        if ($advertiser <= 0) {
+            $advertiser = $campaign ? (int) ($campaign['cp_merchant_price'] ?? 0) : 0;
+        }
+        if ($partner <= 0) {
+            $partner = function_exists('lc_settings_get_int') ? (int) lc_settings_get_int('callDefaultPrice', 0) : 0;
+        }
+        if ($advertiser <= 0) {
+            $advertiser = $partner;
         }
 
-        return function_exists('lc_settings_get_int') ? (int) lc_settings_get_int('callDefaultPrice', 0) : 0;
+        return array('partner' => $partner, 'advertiser' => $advertiser);
     }
 }
 
@@ -1054,10 +1077,10 @@ if (!function_exists('lc_call_request_claim_by_partner')) {
             return array('ok' => false, 'message' => (string) ($assign['message'] ?? '번호 배정에 실패했습니다.'));
         }
 
-        $price = lc_call_claim_resolve_price($cp_id);
+        $prices = lc_call_claim_resolve_prices($cp_id);
         $price_note = '';
-        if ($price > 0) {
-            $price_result = lc_call_assign_apply_price($cp_id, $price);
+        if ((int) ($prices['partner'] ?? 0) > 0) {
+            $price_result = lc_call_assign_apply_price($cp_id, (int) $prices['partner'], (int) ($prices['advertiser'] ?? 0));
             if (empty($price_result['ok'])) {
                 $price_note = ' (단가 적용 실패: 관리자 확인 필요)';
             }
@@ -1089,8 +1112,8 @@ if (!function_exists('lc_call_request_claim_by_partner')) {
 
 if (!function_exists('lc_call_assign_apply_price')) {
     /**
-     * 가상번호 배정 시 캠페인 콜 단가·활성화 적용.
-     * 파트너 단가(cs_price/cp_price) + 광고주 단가(cs_merchant_price/cp_merchant_price)
+     * 가상번호 배정 시 콜설정(cs_*) 단가·활성화만 적용.
+     * 광고상품(cp_price/cp_merchant_price)은 덮어쓰지 않는다 — 폼 DB CPA와 콜 단가를 분리 유지.
      *
      * @return array{ok:bool,message:string}
      */
@@ -1120,16 +1143,6 @@ if (!function_exists('lc_call_assign_apply_price')) {
         if (empty($save['ok'])) {
             return $save;
         }
-
-        $cp_table = lc_table('campaigns');
-        $sets = array(
-            "cp_price = '{$partner_price}'",
-            'cp_updated_at = NOW()',
-        );
-        if (lc_db_column_exists($cp_table, 'cp_merchant_price')) {
-            $sets[] = "cp_merchant_price = '{$advertiser_price}'";
-        }
-        lc_sql_query(" UPDATE `{$cp_table}` SET " . implode(', ', $sets) . " WHERE cp_id = '{$cp_id}' ", false);
 
         return array('ok' => true, 'message' => '콜 단가가 적용되었습니다.');
     }
@@ -1422,11 +1435,15 @@ if (!function_exists('lc_call_should_create_conversion')) {
         $partner_price = (int) ($settings['cs_price'] ?? 0);
         $merchant_price = (int) ($settings['cs_merchant_price'] ?? 0);
         $cp_table = lc_table('campaigns');
-        $campaign = lc_sql_fetch(" SELECT cp_price, cp_merchant_price FROM `{$cp_table}` WHERE cp_id = '" . (int) $cp_id . "' LIMIT 1 ");
-        if ($partner_price <= 0) {
-            $partner_price = $campaign ? (int) $campaign['cp_price'] : 0;
+        $campaign = lc_sql_fetch(" SELECT * FROM `{$cp_table}` WHERE cp_id = '" . (int) $cp_id . "' LIMIT 1 ");
+        if ($partner_price <= 0 && is_array($campaign) && function_exists('lc_campaign_resolve_partner_price')) {
+            $partner_price = lc_campaign_resolve_partner_price($campaign);
+        } elseif ($partner_price <= 0) {
+            $partner_price = $campaign ? (int) ($campaign['cp_price'] ?? 0) : 0;
         }
-        if ($merchant_price <= 0) {
+        if ($merchant_price <= 0 && is_array($campaign) && function_exists('lc_campaign_resolve_merchant_price')) {
+            $merchant_price = lc_campaign_resolve_merchant_price($campaign);
+        } elseif ($merchant_price <= 0) {
             $merchant_price = $campaign ? (int) ($campaign['cp_merchant_price'] ?? 0) : 0;
         }
         if ($partner_price <= 0) {

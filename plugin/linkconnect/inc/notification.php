@@ -244,7 +244,7 @@ if (!function_exists('lc_notification_emit_conversion')) {
                 'userId'  => $pt_id,
                 'type'    => 'conversion',
                 'title'   => 'DB 승인 완료',
-                'body'    => $cp_name . ' · +' . number_format((int) ($conversion['cv_price'] ?? 0)) . '원',
+                'body'    => $cp_name . ' · +' . number_format(function_exists('lc_conversion_resolve_partner_price') ? lc_conversion_resolve_partner_price($conversion) : (int) ($conversion['cv_partner_price'] ?? $conversion['cv_price'] ?? 0)) . '원',
                 'link'    => '/partner/db-status',
                 'refType' => 'conversion',
                 'refId'   => $cv_id,

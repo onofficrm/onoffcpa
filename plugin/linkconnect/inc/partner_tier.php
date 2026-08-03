@@ -75,7 +75,7 @@ if (!function_exists('lc_partner_tier_refresh')) {
                 COUNT(cv.cv_id) AS total_db,
                 SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN 1 ELSE 0 END) AS approved_db,
                 SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_REJECTED) . "' THEN 1 ELSE 0 END) AS canceled_db,
-                SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN cv.cv_price ELSE 0 END) AS confirmed_profit
+                SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN " . lc_conversion_partner_price_expr('cv') . " ELSE 0 END) AS confirmed_profit
             FROM `{$table}` p
             LEFT JOIN `{$cv}` cv ON cv.pt_id = p.pt_id
             {$where}

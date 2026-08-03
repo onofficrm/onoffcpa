@@ -239,7 +239,7 @@ if (!function_exists('lc_partner_analytics_summary')) {
             COUNT(*) AS total_cnt,
             SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN 1 ELSE 0 END) AS approved_cnt,
             SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_REJECTED) . "' THEN 1 ELSE 0 END) AS rejected_cnt,
-            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN cv.cv_price ELSE 0 END) AS conf_revenue
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN IF(cv.cv_partner_price > 0, cv.cv_partner_price, cv.cv_price) ELSE 0 END) AS conf_revenue
             FROM `{$cv_table}` cv
             INNER JOIN `{$lk_table}` lk ON lk.lk_id = cv.lk_id
             WHERE cv.pt_id = '{$pt_id}'
@@ -457,7 +457,7 @@ if (!function_exists('lc_partner_analytics_links')) {
             COUNT(DISTINCT cv.cv_id) AS received,
             SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN 1 ELSE 0 END) AS approved,
             SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_REJECTED) . "' THEN 1 ELSE 0 END) AS canceled,
-            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN cv.cv_price ELSE 0 END) AS conf_rev
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN IF(cv.cv_partner_price > 0, cv.cv_partner_price, cv.cv_price) ELSE 0 END) AS conf_rev
             FROM `{$lk_table}` lk
             INNER JOIN `{$cp_table}` c ON c.cp_id = lk.cp_id
             LEFT JOIN `{$cl_table}` cl ON cl.lk_id = lk.lk_id
@@ -624,7 +624,7 @@ if (!function_exists('lc_partner_analytics_campaigns')) {
             COUNT(DISTINCT cl.cl_id) AS clicks,
             COUNT(DISTINCT cv.cv_id) AS received,
             SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN 1 ELSE 0 END) AS approved,
-            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN cv.cv_price ELSE 0 END) AS conf_rev
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN IF(cv.cv_partner_price > 0, cv.cv_partner_price, cv.cv_price) ELSE 0 END) AS conf_rev
             FROM `{$cp_table}` c
             INNER JOIN `{$lk_table}` lk ON lk.cp_id = c.cp_id AND lk.pt_id = '{$pt_id}'
             LEFT JOIN `{$cl_table}` cl ON cl.lk_id = lk.lk_id

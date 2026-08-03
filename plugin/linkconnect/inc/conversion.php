@@ -742,6 +742,22 @@ if (!function_exists('lc_conversion_resolve_partner_price')) {
     }
 }
 
+if (!function_exists('lc_conversion_partner_price_expr')) {
+    /**
+     * 파트너 지급단가 SQL 표현식.
+     * cv_partner_price 우선, 레거시(미분리) 건은 cv_price 폴백.
+     *
+     * @param string $alias 테이블 별칭. 빈 문자열이면 컬럼만 사용.
+     */
+    function lc_conversion_partner_price_expr($alias = 'cv')
+    {
+        $alias = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $alias);
+        $prefix = $alias !== '' ? $alias . '.' : '';
+
+        return "IF({$prefix}cv_partner_price > 0, {$prefix}cv_partner_price, {$prefix}cv_price)";
+    }
+}
+
 if (!function_exists('lc_partner_credit_for_conversion')) {
     function lc_partner_credit_for_conversion(array $conversion)
     {
@@ -1041,7 +1057,9 @@ if (!function_exists('lc_conversion_to_api_partner')) {
     function lc_conversion_to_api_partner(array $row)
     {
         $status = (string) $row['cv_status'];
-        $price = (int) $row['cv_price'];
+        $price = function_exists('lc_conversion_resolve_partner_price')
+            ? lc_conversion_resolve_partner_price($row)
+            : (int) ($row['cv_partner_price'] ?? $row['cv_price'] ?? 0);
         $approved = $status === LC_STATUS_APPROVED;
         $partner_visible = !isset($row['cv_partner_visible']) || (int) $row['cv_partner_visible'] === 1;
         $quality_score = (int) ($row['cv_quality_score'] ?? 0);
@@ -1105,6 +1123,7 @@ if (!function_exists('lc_conversion_partner_summary')) {
         $pt_id = (int) $pt_id;
         $cv_table = lc_table('conversions');
         $today = date('Y-m-d');
+        $partner_price_expr = lc_conversion_partner_price_expr('');
 
         $row = lc_sql_fetch(" SELECT
             COUNT(*) AS total_cnt,
@@ -1112,9 +1131,9 @@ if (!function_exists('lc_conversion_partner_summary')) {
             SUM(CASE WHEN cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN 1 ELSE 0 END) AS approved_cnt,
             SUM(CASE WHEN cv_status = '" . lc_sql_escape(LC_STATUS_REJECTED) . "' THEN 1 ELSE 0 END) AS rejected_cnt,
             SUM(CASE WHEN DATE(cv_created_at) = '{$today}' THEN 1 ELSE 0 END) AS today_received,
-            SUM(CASE WHEN cv_status != '" . lc_sql_escape(LC_STATUS_REJECTED) . "' THEN cv_price ELSE 0 END) AS est_revenue,
-            SUM(CASE WHEN cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN cv_price ELSE 0 END) AS conf_revenue,
-            SUM(CASE WHEN cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' AND DATE(cv_updated_at) = '{$today}' THEN cv_price ELSE 0 END) AS today_est_revenue
+            SUM(CASE WHEN cv_status != '" . lc_sql_escape(LC_STATUS_REJECTED) . "' THEN {$partner_price_expr} ELSE 0 END) AS est_revenue,
+            SUM(CASE WHEN cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN {$partner_price_expr} ELSE 0 END) AS conf_revenue,
+            SUM(CASE WHEN cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' AND DATE(cv_updated_at) = '{$today}' THEN {$partner_price_expr} ELSE 0 END) AS today_est_revenue
             FROM `{$cv_table}` WHERE pt_id = '{$pt_id}' ");
 
         return array(
@@ -1538,12 +1557,13 @@ if (!function_exists('lc_conversion_partner_campaign_stats')) {
         $cv_table = lc_table('conversions');
         $cp_table = lc_table('campaigns');
         $cl_table = lc_table('clicks');
+        $partner_price_expr = lc_conversion_partner_price_expr('cv');
         $rows = array();
         $result = lc_sql_query(" SELECT c.cp_name AS campaign,
             COUNT(DISTINCT cl.cl_id) AS clicks,
             COUNT(cv.cv_id) AS received,
             SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN 1 ELSE 0 END) AS approved,
-            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN cv.cv_price ELSE 0 END) AS conf_rev
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN {$partner_price_expr} ELSE 0 END) AS conf_rev
             FROM `{$cp_table}` c
             INNER JOIN `{$cv_table}` cv ON cv.cp_id = c.cp_id AND cv.pt_id = '{$pt_id}'
             LEFT JOIN `{$cl_table}` cl ON cl.cp_id = c.cp_id AND cl.pt_id = '{$pt_id}'
