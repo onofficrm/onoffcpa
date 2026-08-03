@@ -45,8 +45,13 @@ if (!function_exists('lc_call_numbers_list')) {
             $where .= " AND (cn_number LIKE '%{$q}%' OR cn_memo LIKE '%{$q}%') ";
         }
 
+        $order = 'cn_id DESC';
+        if (!empty($filters['order']) && $filters['order'] === 'number_asc') {
+            $order = 'cn_number ASC, cn_id ASC';
+        }
+
         $rows = array();
-        $result = lc_sql_query(" SELECT * FROM `{$table}` WHERE {$where} ORDER BY cn_id DESC LIMIT 500 ", false);
+        $result = lc_sql_query(" SELECT * FROM `{$table}` WHERE {$where} ORDER BY {$order} LIMIT 500 ", false);
         if ($result) {
             while ($row = sql_fetch_array($result)) {
                 $rows[] = $row;
@@ -100,6 +105,78 @@ if (!function_exists('lc_call_number_create')) {
             cn_updated_at = NOW() ", false);
 
         return array('ok' => true, 'message' => '가상번호가 등록되었습니다.', 'cnId' => (int) lc_sql_insert_id());
+    }
+}
+
+if (!function_exists('lc_call_number_create_bulk')) {
+    /**
+     * 줄바꿈/콤마/공백으로 구분된 가상번호를 일괄 등록.
+     *
+     * @return array{ok:bool,message:string,created?:int,skipped?:int,errors?:array,cnIds?:array}
+     */
+    function lc_call_number_create_bulk($raw, $memo = '')
+    {
+        $parts = preg_split('/[\s,;|]+/u', (string) $raw);
+        if (!is_array($parts)) {
+            $parts = array();
+        }
+
+        $created = 0;
+        $skipped = 0;
+        $errors = array();
+        $cn_ids = array();
+        $seen = array();
+
+        foreach ($parts as $part) {
+            $number = lc_call_number_normalize($part);
+            if ($number === '') {
+                continue;
+            }
+            if (isset($seen[$number])) {
+                $skipped++;
+                continue;
+            }
+            $seen[$number] = true;
+
+            $result = lc_call_number_create(array(
+                'number' => $number,
+                'memo'   => $memo,
+            ));
+            if (!empty($result['ok'])) {
+                $created++;
+                $cn_ids[] = (int) ($result['cnId'] ?? 0);
+            } else {
+                $skipped++;
+                $errors[] = $number . ': ' . (string) ($result['message'] ?? '등록 실패');
+            }
+        }
+
+        if ($created === 0 && $skipped === 0) {
+            return array('ok' => false, 'message' => '등록할 가상번호를 입력하세요.');
+        }
+        if ($created === 0) {
+            return array(
+                'ok'      => false,
+                'message' => '등록된 번호가 없습니다. ' . (string) ($errors[0] ?? ''),
+                'created' => 0,
+                'skipped' => $skipped,
+                'errors'  => array_slice($errors, 0, 10),
+            );
+        }
+
+        $message = $created . '개 가상번호를 등록했습니다.';
+        if ($skipped > 0) {
+            $message .= ' (' . $skipped . '개 건너뜀)';
+        }
+
+        return array(
+            'ok'      => true,
+            'message' => $message,
+            'created' => $created,
+            'skipped' => $skipped,
+            'errors'  => array_slice($errors, 0, 10),
+            'cnIds'   => $cn_ids,
+        );
     }
 }
 
@@ -511,15 +588,33 @@ if (!function_exists('lc_call_request_assign')) {
         $car_table = lc_table('call_requests');
         $cn_table = lc_table('call_numbers');
 
+        // 동시 선택 방지: 행 잠금 후 available 일 때만 선점
+        lc_sql_begin();
+        $locked = lc_sql_fetch(" SELECT * FROM `{$cn_table}` WHERE cn_id = '{$cn_id}' LIMIT 1 FOR UPDATE ");
+        if (!$locked || (string) $locked['cn_status'] !== LC_CALL_NUMBER_AVAILABLE) {
+            lc_sql_rollback();
+            return array('ok' => false, 'message' => '다른 파트너가 이미 선택한 번호입니다. 다른 번호를 골라주세요.');
+        }
+
+        lc_sql_query(" UPDATE `{$cn_table}` SET
+            cn_status = '" . LC_CALL_NUMBER_ASSIGNED . "',
+            cn_updated_at = NOW()
+            WHERE cn_id = '{$cn_id}' AND cn_status = '" . LC_CALL_NUMBER_AVAILABLE . "' ", false);
+
+        $after = lc_sql_fetch(" SELECT cn_status, cn_number FROM `{$cn_table}` WHERE cn_id = '{$cn_id}' LIMIT 1 ");
+        if (!$after || (string) $after['cn_status'] !== LC_CALL_NUMBER_ASSIGNED) {
+            lc_sql_rollback();
+            return array('ok' => false, 'message' => '다른 파트너가 이미 선택한 번호입니다. 다른 번호를 골라주세요.');
+        }
+
         lc_sql_query(" UPDATE `{$car_table}` SET
             car_status = '" . LC_CALL_REQ_ASSIGNED . "',
             cn_id = '{$cn_id}',
-            car_virtual_number = '" . lc_sql_escape($number['cn_number']) . "',
+            car_virtual_number = '" . lc_sql_escape($after['cn_number']) . "',
             car_admin_memo = '" . lc_sql_escape($admin_memo) . "',
             car_processed_at = NOW()
             WHERE car_id = '{$car_id}' ", false);
-
-        lc_sql_query(" UPDATE `{$cn_table}` SET cn_status = '" . LC_CALL_NUMBER_ASSIGNED . "', cn_updated_at = NOW() WHERE cn_id = '{$cn_id}' ", false);
+        lc_sql_commit();
 
         if (function_exists('lc_notification_create')) {
             lc_notification_create(array(
@@ -527,14 +622,141 @@ if (!function_exists('lc_call_request_assign')) {
                 'userId'  => (int) $request['pt_id'],
                 'type'    => 'call',
                 'title'   => '가상번호 배정 완료',
-                'body'    => $number['cn_number'] . ' 번호가 배정되었습니다.',
+                'body'    => $after['cn_number'] . ' 번호가 배정되었습니다.',
                 'link'    => '/partner/call',
                 'refType' => 'call_request',
                 'refId'   => $car_id,
             ));
         }
 
-        return array('ok' => true, 'message' => '가상번호를 배정했습니다.', 'number' => $number['cn_number'], 'cpId' => (int) $request['cp_id']);
+        return array(
+            'ok'      => true,
+            'message' => '가상번호를 배정했습니다.',
+            'number'  => $after['cn_number'],
+            'cpId'    => (int) $request['cp_id'],
+            'carId'   => $car_id,
+        );
+    }
+}
+
+if (!function_exists('lc_call_claim_resolve_price')) {
+    /**
+     * 파트너 번호 선택 시 적용할 콜 단가.
+     * cs_price > 캠페인 cp_price > 전역 callDefaultPrice
+     */
+    function lc_call_claim_resolve_price($cp_id)
+    {
+        $cp_id = (int) $cp_id;
+        if ($cp_id <= 0) {
+            return 0;
+        }
+
+        $settings = function_exists('lc_call_settings_get') ? lc_call_settings_get($cp_id) : array();
+        $price = (int) ($settings['cs_price'] ?? 0);
+        if ($price > 0) {
+            return $price;
+        }
+
+        $cp_table = lc_table('campaigns');
+        $campaign = lc_sql_fetch(" SELECT cp_price FROM `{$cp_table}` WHERE cp_id = '{$cp_id}' LIMIT 1 ");
+        $price = $campaign ? (int) $campaign['cp_price'] : 0;
+        if ($price > 0) {
+            return $price;
+        }
+
+        return function_exists('lc_settings_get_int') ? (int) lc_settings_get_int('callDefaultPrice', 0) : 0;
+    }
+}
+
+if (!function_exists('lc_call_request_claim_by_partner')) {
+    /**
+     * 파트너가 풀에서 사용 가능한 가상번호를 선택해 즉시 배정.
+     *
+     * @return array{ok:bool,message:string,carId?:int,number?:string,cpId?:int}
+     */
+    function lc_call_request_claim_by_partner($pt_id, $cp_id, $cn_id, $memo = '')
+    {
+        if (!lc_db_installed()) {
+            return array('ok' => false, 'message' => 'DB가 설치되지 않았습니다.');
+        }
+
+        $pt_id = (int) $pt_id;
+        $cp_id = (int) $cp_id;
+        $cn_id = (int) $cn_id;
+        if ($pt_id <= 0 || $cp_id <= 0 || $cn_id <= 0) {
+            return array('ok' => false, 'message' => '캠페인과 가상번호를 모두 선택하세요.');
+        }
+
+        $cp_table = lc_table('campaigns');
+        $campaign = lc_sql_fetch(" SELECT cp_id, mt_id, cp_name FROM `{$cp_table}` WHERE cp_id = '{$cp_id}' LIMIT 1 ");
+        if (!$campaign) {
+            return array('ok' => false, 'message' => '캠페인을 찾을 수 없습니다.');
+        }
+
+        $car_table = lc_table('call_requests');
+        $dup = lc_sql_fetch(" SELECT car_id FROM `{$car_table}` WHERE pt_id = '{$pt_id}' AND cp_id = '{$cp_id}' AND car_status IN ('" . LC_CALL_REQ_PENDING . "','" . LC_CALL_REQ_ASSIGNED . "') LIMIT 1 ");
+        if ($dup) {
+            return array('ok' => false, 'message' => '이미 신청했거나 배정된 캠페인입니다.');
+        }
+
+        $number = lc_call_number_get($cn_id);
+        if (!$number || $number['cn_status'] !== LC_CALL_NUMBER_AVAILABLE) {
+            return array('ok' => false, 'message' => '선택 가능한 번호가 아닙니다. 목록을 새로고침 후 다시 골라주세요.');
+        }
+
+        lc_sql_query(" INSERT INTO `{$car_table}` SET
+            pt_id = '{$pt_id}',
+            cp_id = '{$cp_id}',
+            mt_id = '" . (int) $campaign['mt_id'] . "',
+            car_status = '" . LC_CALL_REQ_PENDING . "',
+            car_request_memo = '" . lc_sql_escape($memo) . "',
+            car_created_at = NOW() ", false);
+        $car_id = (int) lc_sql_insert_id();
+        if ($car_id <= 0) {
+            return array('ok' => false, 'message' => '번호 선택 요청 생성에 실패했습니다.');
+        }
+
+        $assign = lc_call_request_assign($car_id, $cn_id, '파트너 선택');
+        if (empty($assign['ok'])) {
+            lc_sql_query(" UPDATE `{$car_table}` SET
+                car_status = '" . LC_CALL_REQ_REJECTED . "',
+                car_admin_memo = '" . lc_sql_escape((string) ($assign['message'] ?? '배정 실패')) . "',
+                car_processed_at = NOW()
+                WHERE car_id = '{$car_id}' ", false);
+
+            return array('ok' => false, 'message' => (string) ($assign['message'] ?? '번호 배정에 실패했습니다.'));
+        }
+
+        $price = lc_call_claim_resolve_price($cp_id);
+        $price_note = '';
+        if ($price > 0) {
+            $price_result = lc_call_assign_apply_price($cp_id, $price);
+            if (empty($price_result['ok'])) {
+                $price_note = ' (단가 적용 실패: 관리자 확인 필요)';
+            }
+        } else {
+            $price_note = ' (콜 단가는 관리자 설정 후 수익 집계됩니다)';
+        }
+
+        if (function_exists('lc_notification_create')) {
+            lc_notification_create(array(
+                'center'  => 'admin',
+                'type'    => 'call',
+                'title'   => '파트너 가상번호 선택',
+                'body'    => '파트너 #' . $pt_id . ' · ' . (string) ($campaign['cp_name'] ?? ('캠페인 #' . $cp_id)) . ' · ' . (string) $assign['number'],
+                'link'    => '/admin/call',
+                'refType' => 'call_request',
+                'refId'   => $car_id,
+            ));
+        }
+
+        return array(
+            'ok'      => true,
+            'message' => (string) $assign['number'] . ' 번호가 배정되었습니다.' . $price_note,
+            'carId'   => $car_id,
+            'number'  => (string) $assign['number'],
+            'cpId'    => $cp_id,
+        );
     }
 }
 

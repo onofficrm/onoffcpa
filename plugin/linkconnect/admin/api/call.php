@@ -107,6 +107,17 @@ if ($method === 'POST') {
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'CREATE_FAILED', 400);
     }
 
+    if ($action === 'create_numbers_bulk') {
+        $result = lc_call_number_create_bulk((string) ($body['numbers'] ?? ''), (string) ($body['memo'] ?? ''));
+        if ($result['ok'] && function_exists('lc_admin_log_write')) {
+            lc_admin_log_write('call_create_numbers_bulk', 'call_number', 0, (string) ($result['message'] ?? ''), array(
+                'created' => (int) ($result['created'] ?? 0),
+                'skipped' => (int) ($result['skipped'] ?? 0),
+            ));
+        }
+        $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'CREATE_FAILED', 400);
+    }
+
     if ($action === 'update_number') {
         $result = lc_call_number_update((int) ($body['cnId'] ?? 0), array(
             'status' => $body['status'] ?? null,

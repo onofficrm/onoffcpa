@@ -5,7 +5,7 @@ $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHO
 
 /**
  * 파트너 콜디비 API
- * - 가상번호 신청(관리자 배정 대기), 신청/배정 현황, 배정된 번호 노출, 콜 통화내역
+ * - 사용 가능 가상번호 조회/선택(즉시 배정), 신청/배정 현황, 콜 통화내역
  */
 
 function lc_partner_call_current_pt()
@@ -26,6 +26,18 @@ if ($method === 'GET') {
 
     if ($view === 'requests') {
         $rows = array_map('lc_call_request_to_api', lc_call_requests_list(array('pt_id' => $pt_id)));
+        lc_api_success(array('items' => $rows, 'dbReady' => lc_db_installed()));
+    }
+
+    if ($view === 'available_numbers') {
+        $rows = array();
+        foreach (lc_call_numbers_list(array('status' => LC_CALL_NUMBER_AVAILABLE, 'order' => 'number_asc')) as $row) {
+            $rows[] = array(
+                'cnId'   => (int) $row['cn_id'],
+                'number' => (string) $row['cn_number'],
+                'memo'   => (string) $row['cn_memo'],
+            );
+        }
         lc_api_success(array('items' => $rows, 'dbReady' => lc_db_installed()));
     }
 
@@ -58,9 +70,25 @@ if ($method === 'POST') {
     $body = lc_api_read_json_body();
     $action = isset($body['action']) ? (string) $body['action'] : '';
 
-    if ($action === 'request') {
-        $result = lc_call_request_create($pt_id, (int) ($body['cpId'] ?? 0), (string) ($body['memo'] ?? ''));
-        $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'REQUEST_FAILED', 400);
+    if ($action === 'claim' || $action === 'request') {
+        $cn_id = (int) ($body['cnId'] ?? 0);
+        if ($cn_id > 0) {
+            $result = lc_call_request_claim_by_partner(
+                $pt_id,
+                (int) ($body['cpId'] ?? 0),
+                $cn_id,
+                (string) ($body['memo'] ?? '')
+            );
+            $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'CLAIM_FAILED', 400);
+        }
+
+        // cnId 없으면 기존 방식(관리자 배정 대기)
+        if ($action === 'request') {
+            $result = lc_call_request_create($pt_id, (int) ($body['cpId'] ?? 0), (string) ($body['memo'] ?? ''));
+            $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'REQUEST_FAILED', 400);
+        }
+
+        lc_api_error('가상번호를 선택하세요.', 'NUMBER_REQUIRED', 400);
     }
 
     if ($action === 'request_recording') {

@@ -7,6 +7,7 @@ import {
   CallRequest,
   assignAdminCallRequest,
   createAdminCallNumber,
+  createAdminCallNumbersBulk,
   fetchAdminCallLogs,
   fetchAdminCallNumbers,
   fetchAdminCallRecording,
@@ -60,6 +61,8 @@ export function AdminCallDb() {
   // 번호 추가
   const [newNumber, setNewNumber] = useState('');
   const [newMemo, setNewMemo] = useState('');
+  const [bulkNumbers, setBulkNumbers] = useState('');
+  const [bulkMemo, setBulkMemo] = useState('');
 
   // 배정 모달
   const [assignTarget, setAssignTarget] = useState<CallRequest | null>(null);
@@ -95,6 +98,22 @@ export function AdminCallDb() {
       loadAll();
     } catch (e) {
       notify(e instanceof Error ? e.message : '등록 실패');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleBulkAddNumbers = async () => {
+    if (!bulkNumbers.trim()) return;
+    setBusy(true);
+    try {
+      const res = await createAdminCallNumbersBulk({ numbers: bulkNumbers, memo: bulkMemo });
+      notify(res.message);
+      setBulkNumbers('');
+      setBulkMemo('');
+      loadAll();
+    } catch (e) {
+      notify(e instanceof Error ? e.message : '일괄 등록 실패');
     } finally {
       setBusy(false);
     }
@@ -291,6 +310,7 @@ export function AdminCallDb() {
         <div className="space-y-5">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <div className="font-bold text-slate-800 mb-3">가상번호 등록</div>
+            <p className="text-xs text-slate-500 mb-3">등록된 사용가능 번호를 파트너가 직접 선택할 수 있습니다.</p>
             <div className="flex flex-col sm:flex-row gap-3">
               <input type="text" value={newNumber} onChange={(e) => setNewNumber(e.target.value)} placeholder="가상번호 (예: 0507xxxxxxx)"
                 className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono" />
@@ -302,6 +322,25 @@ export function AdminCallDb() {
               <button type="button" onClick={handleProvision} disabled={busy} className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-xl text-sm disabled:opacity-50 whitespace-nowrap">
                 <PhoneCall size={16} /> 콜업체 자동발급
               </button>
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <div className="text-sm font-bold text-slate-700 mb-1">일괄 등록</div>
+              <p className="text-xs text-slate-500 mb-2">한 줄에 하나씩, 또는 콤마/공백으로 구분해 여러 번호를 붙여넣으세요.</p>
+              <textarea
+                value={bulkNumbers}
+                onChange={(e) => setBulkNumbers(e.target.value)}
+                rows={4}
+                placeholder={"050312340001\n050312340002\n050312340003"}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono mb-2"
+              />
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input type="text" value={bulkMemo} onChange={(e) => setBulkMemo(e.target.value)} placeholder="공통 메모 (선택)"
+                  className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                <button type="button" onClick={handleBulkAddNumbers} disabled={busy || !bulkNumbers.trim()}
+                  className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-sm disabled:opacity-50">
+                  <Plus size={16} /> 일괄 등록
+                </button>
+              </div>
             </div>
           </div>
 
