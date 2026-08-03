@@ -1852,6 +1852,41 @@ export function markMerchantNotificationsRead(id?: number) {
   return merchantApiPost<{ message: string }>('notifications.php', { action: 'read', id: id ?? 0 });
 }
 
+export type MerchantNotifyDbMode = 'realtime' | 'digest' | 'off';
+
+export type MerchantNotificationPrefs = {
+  dbReceived: MerchantNotifyDbMode | string;
+  lowBalance: boolean;
+};
+
+export type MerchantNotificationPrefsResponse = {
+  prefs: MerchantNotificationPrefs;
+  meta?: Record<string, { label: string; help: string; type: string }>;
+  recipient: { email: string; name: string };
+  system: {
+    ready: boolean;
+    mailer: boolean;
+    emailUse: boolean;
+    fromConfigured: boolean;
+    fromEmail: string;
+    issues: string[];
+  };
+  dbReady?: boolean;
+  message?: string;
+};
+
+export function fetchMerchantNotificationPrefs() {
+  return merchantApiGet<MerchantNotificationPrefsResponse>('notification_prefs.php');
+}
+
+export function saveMerchantNotificationPrefs(prefs: Partial<MerchantNotificationPrefs>) {
+  return merchantApiPost<MerchantNotificationPrefsResponse>('notification_prefs.php', { prefs });
+}
+
+export function sendMerchantNotificationTest() {
+  return merchantApiPost<MerchantNotificationPrefsResponse>('notification_prefs.php', { action: 'test' });
+}
+
 export function fetchAdminNotifications() {
   return adminApiGet<{ items: LcNotification[]; unread: number; total: number }>('notifications.php');
 }

@@ -25,7 +25,6 @@ const centerConfig = {
 const navLinks = [
   { to: '/', label: '홈페이지' },
   { to: '/cpa-list', label: 'CPA' },
-  { to: '/events', label: '이벤트/프로모션' },
   { to: '/notice', label: '공지사항' },
   { to: '/partner', label: '파트너센터', center: 'partner' as const },
   { to: '/advertiser', label: '광고주센터', center: 'advertiser' as const },
@@ -60,7 +59,7 @@ export function CenterTopBar({ center }: CenterTopBarProps) {
         <nav className="hidden xl:flex items-center gap-1 text-sm font-medium">
           {navLinks.map((item, index) => {
             const isActive = item.center === center;
-            const showDivider = index === 0 || index === 4;
+            const showDivider = index === 0 || index === 3;
 
             return (
               <React.Fragment key={item.to + item.label}>

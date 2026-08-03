@@ -217,27 +217,94 @@ if (!function_exists('lc_email_notify_mailer_ready')) {
     }
 }
 
+if (!function_exists('lc_email_notify_board_enabled')) {
+    function lc_email_notify_board_enabled()
+    {
+        global $config;
+        return !empty($config['cf_email_use']);
+    }
+}
+
+if (!function_exists('lc_email_notify_from_email')) {
+    function lc_email_notify_from_email()
+    {
+        global $config;
+        $from_email = !empty($config['cf_admin_email']) ? (string) $config['cf_admin_email'] : '';
+        if ($from_email === '' && function_exists('lc_contact_email')) {
+            $from_email = (string) lc_contact_email();
+        }
+        $from_email = trim($from_email);
+        if ($from_email !== '' && filter_var($from_email, FILTER_VALIDATE_EMAIL)) {
+            return $from_email;
+        }
+        return '';
+    }
+}
+
+/**
+ * @return array{ready:bool,mailer:bool,emailUse:bool,fromConfigured:bool,fromEmail:string,issues:string[]}
+ */
+if (!function_exists('lc_email_notify_system_status')) {
+    function lc_email_notify_system_status()
+    {
+        $mailer = lc_email_notify_mailer_ready();
+        $email_use = lc_email_notify_board_enabled();
+        $from = lc_email_notify_from_email();
+        $issues = array();
+        if (!$mailer) {
+            $issues[] = 'mailer 함수를 불러올 수 없습니다.';
+        }
+        if (!$email_use) {
+            $issues[] = '그누보드 환경설정에서 「메일발송 사용」이 꺼져 있습니다.';
+        }
+        if ($from === '') {
+            $issues[] = '발신 이메일(관리자 메일)이 설정되지 않았습니다.';
+        }
+
+        return array(
+            'ready'          => $mailer && $email_use && $from !== '',
+            'mailer'         => $mailer,
+            'emailUse'       => $email_use,
+            'fromConfigured' => $from !== '',
+            'fromEmail'      => $from,
+            'issues'         => $issues,
+        );
+    }
+}
+
 if (!function_exists('lc_email_notify_send')) {
     function lc_email_notify_send($to, $subject, $html)
     {
         if (!lc_email_notify_mailer_ready()) {
+            error_log('[OnOff CPA EmailNotify] mailer unavailable');
+            return false;
+        }
+
+        if (!lc_email_notify_board_enabled()) {
+            error_log('[OnOff CPA EmailNotify] cf_email_use is off');
             return false;
         }
 
         $to = trim((string) $to);
         if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            error_log('[OnOff CPA EmailNotify] invalid recipient');
             return false;
         }
 
-        global $config;
         $from_name = function_exists('lc_site_name') ? lc_site_name() : 'OnOff CPA';
-        $from_email = !empty($config['cf_admin_email']) ? (string) $config['cf_admin_email'] : (function_exists('lc_contact_email') ? lc_contact_email() : '');
-        if ($from_email === '' || !filter_var($from_email, FILTER_VALIDATE_EMAIL)) {
+        $from_email = lc_email_notify_from_email();
+        if ($from_email === '') {
+            error_log('[OnOff CPA EmailNotify] from email missing');
             return false;
         }
 
         try {
-            return (bool) @mailer($from_name, $from_email, $to, $subject, $html, 1);
+            $result = @mailer($from_name, $from_email, $to, $subject, $html, 1);
+            $ok = (bool) $result;
+            if (!$ok) {
+                error_log('[OnOff CPA EmailNotify] mailer returned empty for ' . $to);
+            }
+            return $ok;
         } catch (Throwable $e) {
             error_log('[OnOff CPA EmailNotify] send failed: ' . $e->getMessage());
             return false;
@@ -397,9 +464,19 @@ if (!function_exists('lc_email_notify_on_conversion')) {
         $base = defined('G5_URL') ? G5_URL : '';
 
         if ($event === 'received') {
+            $cv_name = trim((string) ($conversion['cv_name'] ?? ''));
+            $cv_phone = trim((string) ($conversion['cv_phone'] ?? ''));
+            $cv_region = trim((string) ($conversion['cv_region'] ?? ''));
+            $cv_inquiry = trim((string) ($conversion['cv_inquiry'] ?? ''));
+
             if ($mt_id > 0) {
                 $prefs = lc_email_notify_get_prefs('merchant', $mt_id);
-                $rows = lc_email_notify_row('캠페인', $cp_name) . lc_email_notify_row('DB코드', $cv_code);
+                $rows = lc_email_notify_row('캠페인', $cp_name)
+                    . lc_email_notify_row('DB코드', $cv_code)
+                    . ($cv_name !== '' ? lc_email_notify_row('이름', $cv_name) : '')
+                    . ($cv_phone !== '' ? lc_email_notify_row('연락처', $cv_phone) : '')
+                    . ($cv_region !== '' ? lc_email_notify_row('지역', $cv_region) : '')
+                    . ($cv_inquiry !== '' ? lc_email_notify_row('문의', $cv_inquiry) : '');
                 lc_email_notify_dispatch_db_mode(
                     'merchant',
                     $mt_id,
@@ -407,7 +484,7 @@ if (!function_exists('lc_email_notify_on_conversion')) {
                     '[' . $site . '] 신규 DB 접수: ' . $cp_name,
                     lc_email_notify_wrap('신규 DB가 접수되었습니다.', $rows, '디비 확인', $base . '/advertiser/db'),
                     $cp_name . ' · ' . $cv_code,
-                    '신규 DB 접수'
+                    '신규 DB 접수' . ($cv_name !== '' ? ' · ' . $cv_name : '')
                 );
             }
             if ($pt_id > 0) {

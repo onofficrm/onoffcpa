@@ -31,6 +31,7 @@ import { AdvertiserCall } from './pages/advertiser/AdvertiserCall';
 import { AdvertiserBilling } from './pages/advertiser/AdvertiserBilling';
 import { AdvertiserReports } from './pages/advertiser/AdvertiserReports';
 import { AdvertiserSupport } from './pages/advertiser/AdvertiserSupport';
+import { AdvertiserSettings } from './pages/advertiser/AdvertiserSettings';
 
 import { AdvertiserDashboard } from './pages/advertiser/Dashboard';
 import { AdvertiserContract } from './pages/advertiser/AdvertiserContract';
@@ -108,6 +109,7 @@ export default function App() {
             <Route path="advertiser/call" element={<AdvertiserCall />} />
             <Route path="advertiser/billing" element={<AdvertiserBilling />} />
             <Route path="advertiser/reports" element={<AdvertiserReports />} />
+            <Route path="advertiser/settings" element={<AdvertiserSettings />} />
           </Route>
         </Route>
         <Route element={<AdminRouteGuard />}>

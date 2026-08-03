@@ -1,7 +1,7 @@
 import React from 'react';
 import { ImpersonateBanner } from '../components/ImpersonateBanner';
 import { SuperAdminWidget, SuperAdminHeaderButton } from '../components/SuperAdminWidget';
-import { LayoutDashboard, FileText, Target, Wallet, BarChart3, MessageSquare, PhoneCall, Megaphone, ScrollText } from 'lucide-react';
+import { LayoutDashboard, FileText, Target, Wallet, BarChart3, MessageSquare, PhoneCall, Megaphone, ScrollText, Bell } from 'lucide-react';
 import { MemberAuthMenu } from '../components/MemberAuthMenu';
 import { CenterTopBar } from '../components/CenterTopBar';
 import {
@@ -75,6 +75,7 @@ export function AdvertiserLayout({
             <CenterNavItem icon={<Wallet size={20} />} label="광고비 충전/내역" active={activeMenu === 'billing'} to="/advertiser/billing" accent="cyan" />
             <CenterNavItem icon={<Megaphone size={20} />} label="마케팅 성과" active={activeMenu === 'marketing'} to="/advertiser/marketing" accent="cyan" />
             <CenterNavItem icon={<BarChart3 size={20} />} label="성과 리포트" active={activeMenu === 'reports'} to="/advertiser/reports" accent="cyan" />
+            <CenterNavItem icon={<Bell size={20} />} label="알림 설정" active={activeMenu === 'settings'} to="/advertiser/settings" accent="cyan" />
             <CenterNavItem icon={<MessageSquare size={20} />} label="문의하기" active={activeMenu === 'support'} to="/advertiser/support" accent="cyan" />
           </nav>
           <div className="mt-4 pt-4 border-t border-slate-800/80">

@@ -14,10 +14,9 @@ export const companySubItems: NavLinkItem[] = [
 /** @deprecated Footer 등 — companySubItems 사용 */
 export const companyNavItems = companySubItems;
 
-/** 캠페인·프로모션 */
+/** 캠페인·프로모션 (이벤트는 메뉴에서 숨김 — /events 직접 접근은 유지) */
 export const campaignNavItems: NavLinkItem[] = [
   { to: '/cpa-list', label: 'CPA' },
-  { to: '/events', label: '이벤트/프로모션' },
 ];
 
 /** 센터 */
