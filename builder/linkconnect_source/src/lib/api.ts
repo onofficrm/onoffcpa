@@ -2057,6 +2057,19 @@ export type CallNumber = {
   createdAt: string;
 };
 
+/** 콜디비 번호 표시: 050369821000 → 0503-6982-1000, 앞자리 0 복구 */
+export function formatCallPhone(num: string): string {
+  let d = String(num || '').replace(/\D/g, '');
+  if (/^50[0-9]\d{8}$/.test(d)) d = `0${d}`;
+  if (d.length === 12 && d.startsWith('050')) {
+    return `${d.slice(0, 4)}-${d.slice(4, 8)}-${d.slice(8)}`;
+  }
+  if (d.length === 11 && (d.startsWith('010') || d.startsWith('070'))) {
+    return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+  }
+  return d || String(num || '');
+}
+
 export type CallRequest = {
   carId: number;
   ptId: number;
@@ -2133,6 +2146,10 @@ export function provisionAdminCallNumber(payload?: { areaCode?: string; memo?: s
 
 export function updateAdminCallNumber(payload: { cnId: number; status?: string; memo?: string }) {
   return adminApiPost<{ message: string }>('call.php', { action: 'update_number', ...payload });
+}
+
+export function deleteAdminCallNumber(payload: { cnId: number }) {
+  return adminApiPost<{ message: string }>('call.php', { action: 'delete_number', ...payload });
 }
 
 export function assignAdminCallRequest(payload: { carId: number; cnId: number; adminMemo?: string }) {

@@ -11,6 +11,7 @@ import {
   fetchPartnerCallLogs,
   fetchPartnerCallRequests,
   fetchPartnerCampaigns,
+  formatCallPhone,
 } from '../../lib/api';
 
 const reqStatusLabel: Record<string, { label: string; cls: string }> = {
@@ -31,13 +32,6 @@ function formatDuration(sec: number) {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m}분 ${s}초`;
-}
-
-function formatPhone(num: string) {
-  const d = num.replace(/\D/g, '');
-  if (d.length === 11) return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
-  if (d.length === 12) return `${d.slice(0, 4)}-${d.slice(4, 8)}-${d.slice(8)}`;
-  return num;
 }
 
 export function PartnerCall() {
@@ -168,7 +162,7 @@ export function PartnerCall() {
                     }`}
                   >
                     <div className={`font-mono font-bold text-sm ${active ? 'text-emerald-700' : 'text-slate-800'}`}>
-                      {formatPhone(n.number)}
+                      {formatCallPhone(n.number)}
                     </div>
                     {n.memo ? <div className="mt-1 text-[11px] text-slate-500 truncate">{n.memo}</div> : null}
                   </button>

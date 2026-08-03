@@ -132,6 +132,15 @@ if ($method === 'POST') {
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'UPDATE_FAILED', 400);
     }
 
+    if ($action === 'delete_number') {
+        $cn_id = (int) ($body['cnId'] ?? 0);
+        $result = lc_call_number_delete($cn_id);
+        if ($result['ok'] && function_exists('lc_admin_log_write')) {
+            lc_admin_log_write('call_delete_number', 'call_number', $cn_id, (string) ($result['message'] ?? ''), array());
+        }
+        $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'DELETE_FAILED', 400);
+    }
+
     if ($action === 'assign_request') {
         $car_id = (int) ($body['carId'] ?? 0);
         $price = (int) ($body['price'] ?? 0);

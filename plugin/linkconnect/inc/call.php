@@ -296,6 +296,33 @@ if (!function_exists('lc_call_number_update')) {
     }
 }
 
+if (!function_exists('lc_call_number_delete')) {
+    /**
+     * 가상번호 풀에서 삭제. 배정 중인 번호는 삭제 불가.
+     *
+     * @return array{ok:bool,message:string}
+     */
+    function lc_call_number_delete($cn_id)
+    {
+        if (!lc_db_installed()) {
+            return array('ok' => false, 'message' => 'DB가 설치되지 않았습니다.');
+        }
+        $cn_id = (int) $cn_id;
+        $number = lc_call_number_get($cn_id);
+        if (!$number) {
+            return array('ok' => false, 'message' => '번호를 찾을 수 없습니다.');
+        }
+        if ((string) $number['cn_status'] === LC_CALL_NUMBER_ASSIGNED) {
+            return array('ok' => false, 'message' => '배정 중인 번호는 삭제할 수 없습니다. 먼저 회수하세요.');
+        }
+
+        $cn_table = lc_table('call_numbers');
+        lc_sql_query(" DELETE FROM `{$cn_table}` WHERE cn_id = '{$cn_id}' LIMIT 1 ", false);
+
+        return array('ok' => true, 'message' => '가상번호를 삭제했습니다.');
+    }
+}
+
 /* ───────────────────────────── 캠페인 콜 설정 ───────────────────────────── */
 
 if (!function_exists('lc_call_settings_defaults')) {
