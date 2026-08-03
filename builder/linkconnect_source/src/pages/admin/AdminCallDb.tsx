@@ -371,7 +371,7 @@ export function AdminCallDb() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 font-bold text-slate-800">가상번호 목록 ({numbers.length})</div>
+            <div className="px-5 py-4 border-b border-slate-100 font-bold text-slate-800">가상번호 목록 ({numbers.length}) · 0503-6982-1000 형식</div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 text-slate-500 text-left">
@@ -395,7 +395,7 @@ export function AdminCallDb() {
                         <td className="px-4 py-3 text-center"><span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold border ${s.cls}`}>{s.label}</span></td>
                         <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{n.memo || '—'}</td>
                         <td className="px-4 py-3 text-center">
-                          <div className="inline-flex items-center gap-2">
+                          <div className="inline-flex items-center gap-2 justify-center flex-wrap">
                             <select value={n.status} onChange={(e) => handleNumberStatus(n.cnId, e.target.value)} className="px-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-lg" disabled={n.status === 'assigned'}>
                               <option value="available">사용가능</option>
                               <option value="paused">일시중지</option>
@@ -406,8 +406,8 @@ export function AdminCallDb() {
                               type="button"
                               onClick={() => handleDeleteNumber(n)}
                               disabled={busy || n.status === 'assigned'}
-                              title={n.status === 'assigned' ? '배정 중이라 삭제 불가' : '삭제'}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 disabled:opacity-40"
+                              title={n.status === 'assigned' ? '배정 중이라 삭제 불가' : '번호 삭제'}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-white bg-rose-500 border border-rose-600 rounded-lg hover:bg-rose-600 disabled:opacity-40"
                             >
                               <Trash2 size={13} /> 삭제
                             </button>

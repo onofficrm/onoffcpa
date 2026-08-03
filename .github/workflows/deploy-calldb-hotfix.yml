@@ -1,0 +1,70 @@
+name: Deploy CallDB hotfix
+
+# 콜디비 PHP + SPA 번들만 빠르게 FTP (전체 배포 적체 회피)
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'plugin/linkconnect/inc/call.php'
+      - 'plugin/linkconnect/admin/api/call.php'
+      - 'plugin/linkconnect/partner/api/call.php'
+      - 'plugin/onoff-builder-bridge/imports/linkconnect/**'
+      - 'builder/linkconnect_source/src/pages/admin/AdminCallDb.tsx'
+      - 'builder/linkconnect_source/src/pages/partner/PartnerCall.tsx'
+      - 'builder/linkconnect_source/src/lib/api.ts'
+      - '.github/workflows/deploy-calldb-hotfix.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: onoffcpa-calldb-hotfix
+  cancel-in-progress: true
+
+jobs:
+  deploy-calldb-hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare CallDB hotfix bundle
+        run: |
+          ROOT=".deploy/calldb-hotfix"
+          rm -rf "$ROOT"
+          FILES=(
+            "plugin/linkconnect/inc/call.php"
+            "plugin/linkconnect/admin/api/call.php"
+            "plugin/linkconnect/partner/api/call.php"
+          )
+          for file in "${FILES[@]}"; do
+            mkdir -p "$ROOT/$(dirname "$file")"
+            cp "$file" "$ROOT/$file"
+          done
+          mkdir -p "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect"
+          rsync -a --exclude '._*' --exclude '.DS_Store' \
+            plugin/onoff-builder-bridge/imports/linkconnect/ \
+            "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/"
+          find "$ROOT" -name '._*' -delete 2>/dev/null || true
+          test -f "$ROOT/plugin/linkconnect/inc/call.php"
+          test -f "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html"
+          JS=$(grep -oE 'index-[A-Za-z0-9_-]+\.js' "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html" | head -1)
+          test -n "$JS"
+          test -f "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/assets/$JS"
+          echo "SPA bundle: $JS"
+          echo "Bundle files:" && find "$ROOT" -type f | wc -l
+
+      - name: FTP upload CallDB hotfix
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          protocol: ftp
+          local-dir: .deploy/calldb-hotfix/
+          server-dir: /public_html/
+          state-name: onoffcpa-calldb-hotfix-v1
+          dangerous-clean-slate: false
+          log-level: standard
+          timeout: 300000
