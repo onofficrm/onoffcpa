@@ -127,6 +127,8 @@ export type PartnerCampaign = {
   trackingBaseUrl?: string;
   thumbnailUrl?: string;
   hasPublishedGuide?: boolean;
+  /** 관리자 콜디비 활성화된 상품 */
+  callEnabled?: boolean;
   campaignType?: 'cpa' | 'cps';
   merchantCode?: string;
   promoUrl?: string;

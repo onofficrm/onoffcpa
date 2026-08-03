@@ -104,10 +104,12 @@ if (!function_exists('lc_campaign_resolve_merchant_price')) {
 }
 
 if (!function_exists('lc_campaign_to_api')) {
-    function lc_campaign_to_api(array $row)
+    function lc_campaign_to_api(array $row, $call_enabled_set = null)
     {
+        $cp_id = (int) $row['cp_id'];
+
         return array(
-            'id'                => (int) $row['cp_id'],
+            'id'                => $cp_id,
             'code'              => (string) $row['cp_code'],
             'title'             => (string) $row['cp_name'],
             'category'          => (string) $row['cp_category'],
@@ -130,8 +132,11 @@ if (!function_exists('lc_campaign_to_api')) {
                 )
                 : (string) $row['cp_landing_url'],
             'thumbnailUrl'      => function_exists('lc_campaign_thumbnail_public_url')
-                ? lc_campaign_thumbnail_public_url((int) $row['cp_id'])
+                ? lc_campaign_thumbnail_public_url($cp_id)
                 : '',
+            'callEnabled'       => function_exists('lc_campaign_call_enabled')
+                ? lc_campaign_call_enabled($cp_id, $call_enabled_set)
+                : false,
         );
     }
 }
@@ -263,13 +268,17 @@ if (!function_exists('lc_campaign_list_for_api')) {
                 return lc_campaign_cps_sample_for_api($filters);
             }
 
+            $cp_ids = array_column($rows, 'cp_id');
             $published = function_exists('lc_campaign_promo_guide_published_cp_id_set')
-                ? lc_campaign_promo_guide_published_cp_id_set(array_column($rows, 'cp_id'))
+                ? lc_campaign_promo_guide_published_cp_id_set($cp_ids)
+                : array();
+            $call_enabled = function_exists('lc_call_admin_enabled_cp_id_set')
+                ? lc_call_admin_enabled_cp_id_set($cp_ids)
                 : array();
 
             $items = array();
             foreach ($rows as $row) {
-                $api = lc_campaign_to_api($row);
+                $api = lc_campaign_to_api($row, $call_enabled);
                 $api['hasPublishedGuide'] = !empty($published[(int) ($row['cp_id'] ?? 0)]);
                 $items[] = $api;
             }

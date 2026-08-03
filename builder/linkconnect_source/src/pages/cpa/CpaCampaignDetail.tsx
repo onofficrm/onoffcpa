@@ -27,6 +27,7 @@ import { openLandingPage } from '../../lib/utils';
 import { CpsChannelGuide } from '../../components/cps/CpsChannelGuide';
 import { CPA_THUMBNAIL_ASPECT_CLASS } from '../../lib/cpaThumbnail';
 import { cpaHeroImageUrl, promoPreviewImageUrl, optimizedImageUrl } from '../../lib/optimizedImage';
+import { CallDbBadge } from '../../components/CallDbBadge';
 
 function GuideList({ title, items, tone = 'slate' }: { title: string; items: string[]; tone?: 'slate' | 'amber' | 'rose' }) {
   if (!items.length) return null;
@@ -271,6 +272,7 @@ export function CpaCampaignDetail() {
                 {campaign.hasPublishedGuide ? (
                   <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-xs font-bold text-cyan-300">홍보 가이드</span>
                 ) : null}
+                {campaign.callEnabled ? <CallDbBadge className="bg-violet-500/20 text-violet-200 border-violet-400/30" /> : null}
               </div>
               <h1 className="text-2xl md:text-3xl font-bold truncate">{campaign.title}</h1>
               <p className="text-sm text-slate-400 mt-1 font-mono">{campaign.code}</p>

@@ -2,6 +2,7 @@ import { Search, Info, Link as LinkIcon, Filter, ChevronDown, CheckCircle2, Aler
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchPublicCampaigns, PublicCampaign } from '../../lib/api';
+import { CallDbBadge, CallDbStatsHint } from '../../components/CallDbBadge';
 
 const fallbackCategories = ['전체', '금융', '법률', '병원', '교육', '생활서비스', '렌탈', '기타'];
 
@@ -18,6 +19,7 @@ type CampaignCardItem = {
   status: string;
   badge?: string;
   recommended?: boolean;
+  callEnabled?: boolean;
 };
 
 function toCardItem(campaign: PublicCampaign): CampaignCardItem {
@@ -34,6 +36,7 @@ function toCardItem(campaign: PublicCampaign): CampaignCardItem {
     status: campaign.status,
     badge: campaign.badge || undefined,
     recommended: campaign.recommended,
+    callEnabled: Boolean(campaign.callEnabled),
   };
 }
 
@@ -219,8 +222,17 @@ function CampaignCard({ item }: { item: CampaignCardItem }) {
           </div>
         </div>
 
-        <h3 className="text-xl font-bold text-slate-900 mb-1">{item.title}</h3>
+        <h3 className="text-xl font-bold text-slate-900 mb-1 flex items-center gap-1.5 min-w-0">
+          <span className="min-w-0 truncate">{item.title}</span>
+          {item.callEnabled ? <CallDbBadge /> : null}
+        </h3>
         <div className="text-sm text-slate-500 mb-6">유형: CPA (DB접수)</div>
+
+        {item.callEnabled ? (
+          <div className="mb-4 rounded-xl border border-violet-100 bg-violet-50/60 px-3 py-2">
+            <CallDbStatsHint className="border-0 pb-0" />
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100/50">

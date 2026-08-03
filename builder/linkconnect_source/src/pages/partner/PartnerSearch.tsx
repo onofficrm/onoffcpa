@@ -10,6 +10,7 @@ import {
 } from '../../lib/api';
 import { AiPromoPanel } from '../../components/AiPromoPanel';
 import { PartnerCampaignDetailModal } from '../../components/partner/PartnerCampaignDetailModal';
+import { CallDbBadge, CallDbStatsHint } from '../../components/CallDbBadge';
 
 const fallbackCategories = ['전체', '금융', '법률', '병원', '교육', '생활서비스', '렌탈', '기타'];
 
@@ -29,6 +30,7 @@ type CampaignCardItem = {
   badge?: string;
   recommended?: boolean;
   hasPublishedGuide?: boolean;
+  callEnabled?: boolean;
   landingUrl: string;
   raw: PartnerCampaign;
 };
@@ -48,7 +50,8 @@ function toCardItem(campaign: PartnerCampaign): CampaignCardItem {
     badge: campaign.badge || undefined,
     recommended: campaign.recommended,
     hasPublishedGuide: campaign.hasPublishedGuide,
-    landingUrl: campaign.landingUrl,
+    callEnabled: Boolean(campaign.callEnabled),
+    landingUrl: campaign.landingUrl || '',
     raw: campaign,
   };
 }
@@ -410,8 +413,17 @@ function CampaignCard({
           </div>
         </div>
 
-        <h3 className="text-lg font-bold text-slate-900 mb-1">{item.title}</h3>
+        <h3 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-1.5 min-w-0">
+          <span className="min-w-0 truncate">{item.title}</span>
+          {item.callEnabled ? <CallDbBadge /> : null}
+        </h3>
         <p className="text-sm text-slate-500 mb-5 line-clamp-1">{item.description}</p>
+
+        {item.callEnabled ? (
+          <div className="mb-4 rounded-xl border border-violet-100 bg-violet-50/60 px-3 py-2">
+            <CallDbStatsHint className="border-0 pb-0" />
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-3 mb-5">
           <div className="bg-emerald-50/50 rounded-xl p-3 border border-emerald-100/50">

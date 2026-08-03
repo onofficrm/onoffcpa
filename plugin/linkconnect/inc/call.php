@@ -19,6 +19,74 @@ if (!function_exists('lc_call_enabled')) {
     }
 }
 
+if (!function_exists('lc_call_admin_enabled_cp_id_set')) {
+    /**
+     * 관리자가 콜디비를 활성화한 캠페인 ID 집합.
+     * (call_settings 행이 있고 cs_admin_enabled=1 — 기본값만으로는 true 취급하지 않음)
+     *
+     * @param array<int,int|string> $cp_ids 비우면 전체 조회
+     * @return array<int,true>
+     */
+    function lc_call_admin_enabled_cp_id_set(array $cp_ids = array())
+    {
+        $set = array();
+        if (!function_exists('lc_call_enabled') || !lc_call_enabled()) {
+            return $set;
+        }
+        if (!lc_db_installed() || !lc_db_table_exists(lc_table('call_settings'))) {
+            return $set;
+        }
+
+        $ids = array();
+        foreach ($cp_ids as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+
+        $table = lc_table('call_settings');
+        $where = ' cs_admin_enabled = 1 ';
+        if (!empty($ids)) {
+            $where .= ' AND cp_id IN (' . implode(',', array_map('intval', array_values($ids))) . ') ';
+        }
+
+        $result = lc_sql_query(" SELECT cp_id FROM `{$table}` WHERE {$where} ", false);
+        if ($result) {
+            while ($row = sql_fetch_array($result)) {
+                $cp_id = (int) ($row['cp_id'] ?? 0);
+                if ($cp_id > 0) {
+                    $set[$cp_id] = true;
+                }
+            }
+        }
+
+        return $set;
+    }
+}
+
+if (!function_exists('lc_campaign_call_enabled')) {
+    /**
+     * 단일 캠페인 콜디비 가능 여부.
+     *
+     * @param array<int,true>|null $enabled_set 미리 로드한 집합 (목록용)
+     */
+    function lc_campaign_call_enabled($cp_id, $enabled_set = null)
+    {
+        $cp_id = (int) $cp_id;
+        if ($cp_id <= 0) {
+            return false;
+        }
+        if (is_array($enabled_set)) {
+            return !empty($enabled_set[$cp_id]);
+        }
+
+        $set = lc_call_admin_enabled_cp_id_set(array($cp_id));
+
+        return !empty($set[$cp_id]);
+    }
+}
+
 /* ───────────────────────────── 가상번호 풀 ───────────────────────────── */
 
 if (!function_exists('lc_call_number_normalize')) {

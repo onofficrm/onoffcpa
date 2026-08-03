@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { fetchPublicCampaigns, PublicCampaign } from '../lib/api';
 import { CPA_THUMBNAIL_LIST_IMG_CLASS, CPA_THUMBNAIL_LIST_MEDIA_CLASS } from '../lib/cpaThumbnail';
 import { cpaCardImageUrl } from '../lib/optimizedImage';
+import { CallDbBadge, CallDbStatsHint } from './CallDbBadge';
 import { cn } from '../lib/utils';
 
 const filters = ['전체', '고수익', '신규', '승인율 높은 상품', '법률', '병원', '보험', '교육', '부동산'];
@@ -101,10 +102,14 @@ export function CPAList() {
                 </div>
               </div>
               <div className="p-5 flex-1 flex flex-col">
-                <h3 className="text-lg font-bold text-slate-900 mb-2 line-clamp-1">{item.title}</h3>
+                <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-1.5 min-w-0">
+                  <span className="line-clamp-1 min-w-0">{item.title}</span>
+                  {item.callEnabled ? <CallDbBadge /> : null}
+                </h3>
                 <p className="text-sm text-slate-600 mb-6 line-clamp-2 min-h-[40px]">{item.description || `${item.title} 캠페인`}</p>
 
                 <div className="space-y-3 mb-6 bg-slate-50 p-3 rounded-xl border border-slate-100 mt-auto">
+                  {item.callEnabled ? <CallDbStatsHint /> : null}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500 flex items-center gap-1.5"><Target className="w-4 h-4" />지급 조건</span>
                     <span className="text-slate-700 font-medium">DB 승인 시</span>
