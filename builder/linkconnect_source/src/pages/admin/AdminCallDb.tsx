@@ -768,7 +768,7 @@ export function AdminCallDb() {
                     <th className="px-4 py-3">번호</th>
                     <th className="px-4 py-3 text-center">상태</th>
                     <th className="px-4 py-3">배정된 사람</th>
-                    <th className="px-4 py-3">설정 단가</th>
+                    <th className="px-3 py-3 w-[120px]">설정 단가</th>
                     <th className="px-4 py-3">메모</th>
                     <th className="px-4 py-3 text-center">관리</th>
                   </tr>
@@ -791,9 +791,10 @@ export function AdminCallDb() {
                             </div>
                           ) : '—'}
                         </td>
-                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                        <td className="px-3 py-3 text-slate-700 align-top">
                           {n.cpId ? (
-                            <div className="space-y-1 min-w-[130px]">
+                            <div className="w-[108px] space-y-1">
+                              <label className="block text-[10px] font-bold text-slate-400 leading-none">파트너</label>
                               <input
                                 type="number"
                                 min={1}
@@ -809,9 +810,10 @@ export function AdminCallDb() {
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') e.currentTarget.blur();
                                 }}
-                                placeholder="파트너"
-                                className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                                placeholder="0"
+                                className="w-full max-w-[108px] box-border px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs tabular-nums"
                               />
+                              <label className="block text-[10px] font-bold text-slate-400 leading-none pt-0.5">광고주</label>
                               <input
                                 type="number"
                                 min={1}
@@ -827,13 +829,13 @@ export function AdminCallDb() {
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') e.currentTarget.blur();
                                 }}
-                                placeholder="광고주"
-                                className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500"
+                                placeholder="0"
+                                className="w-full max-w-[108px] box-border px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500 tabular-nums"
                               />
                             </div>
                           ) : '—'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 align-top">
                           <input
                             type="text"
                             value={memoDrafts[n.cnId] ?? n.memo ?? ''}
@@ -845,7 +847,7 @@ export function AdminCallDb() {
                               }
                             }}
                             placeholder="메모 입력"
-                            className="w-full min-w-[140px] px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm"
+                            className="w-full max-w-[220px] min-w-[120px] px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm"
                           />
                         </td>
                         <td className="px-4 py-3 text-center">
