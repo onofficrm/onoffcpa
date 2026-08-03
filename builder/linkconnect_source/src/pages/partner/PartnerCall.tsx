@@ -55,6 +55,22 @@ export function PartnerCall() {
     [requests],
   );
 
+  /** 이미 신청/배정된 캠페인 — 캠페인당 번호 1개 */
+  const occupiedCpIds = useMemo(() => {
+    const ids = new Set<number>();
+    requests.forEach((r) => {
+      if (r.status === 'assigned' || r.status === 'pending') {
+        ids.add(r.cpId);
+      }
+    });
+    return ids;
+  }, [requests]);
+
+  const claimableCampaigns = useMemo(
+    () => campaigns.filter((c) => !occupiedCpIds.has(c.id)),
+    [campaigns, occupiedCpIds],
+  );
+
   const loadRequests = useCallback(() => {
     fetchPartnerCallRequests().then((d) => setRequests(d.items)).catch(() => setRequests([]));
   }, []);
@@ -140,6 +156,7 @@ export function PartnerCall() {
             <div>
               <p className="font-bold mb-1">콜디비 이용 방법</p>
               <ol className="list-decimal pl-5 space-y-1 text-violet-900/90">
+                <li>캠페인마다 가상번호 <b>1개</b>를 받을 수 있습니다. 다른 캠페인은 추가로 선택하세요.</li>
                 <li>캠페인을 고른 뒤, 사용 가능한 가상번호 중 <b>원하는 번호를 선택</b></li>
                 <li>선택 즉시 배정되며, 홍보 채널에 해당 번호를 노출</li>
                 <li>관리자가 통화내역 엑셀 업로드 시, <b>내 담당 번호</b> 통화만 아래에 표시</li>
@@ -164,7 +181,7 @@ export function PartnerCall() {
             </button>
           </div>
           <p className="text-sm text-slate-500 mb-4">
-            관리자가 등록해 둔 사용 가능 번호 중에서 골라 바로 배정받으세요. 선택과 동시에 선점되어 다른 파트너와 중복되지 않습니다.
+            캠페인별로 번호 1개씩 배정됩니다. 이미 번호가 있는 캠페인은 목록에서 제외됩니다.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -174,7 +191,7 @@ export function PartnerCall() {
               className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
             >
               <option value="">캠페인 선택</option>
-              {campaigns.map((c) => (
+              {claimableCampaigns.map((c) => (
                 <option key={c.id} value={c.id}>{c.title}</option>
               ))}
             </select>
@@ -225,6 +242,11 @@ export function PartnerCall() {
           )}
 
           {message && <p className="mt-3 text-sm text-emerald-600">{message}</p>}
+          {claimableCampaigns.length === 0 && campaigns.length > 0 ? (
+            <p className="mt-3 text-sm text-slate-500">
+              진행 중인 모든 캠페인에 번호가 배정되어 있습니다. 새 캠페인이 열리면 추가로 받을 수 있습니다.
+            </p>
+          ) : null}
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

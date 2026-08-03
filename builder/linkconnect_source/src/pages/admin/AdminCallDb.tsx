@@ -515,6 +515,7 @@ export function AdminCallDb() {
             <div className="font-bold mb-1">콜디비 수동 운영 절차</div>
             <ol className="list-decimal pl-5 space-y-1 text-violet-900/90">
               <li>가상번호 풀에 번호를 <b>등록(일괄 가능)</b> → 파트너가 사용 가능 번호 중 <b>직접 선택</b></li>
+              <li>파트너는 <b>캠페인당 번호 1개</b> (다른 캠페인은 각각 추가 배정 가능)</li>
               <li>필요 시 관리자가 풀에서 번호를 <b>수동/직접 배정</b>하거나 회수</li>
               <li>콜업체 통화내역 엑셀/CSV를 <b>업로드</b> (가상번호 열 필수)</li>
               <li>가상번호 기준으로 파트너·광고주 화면에 <b>담당 통화내역만</b> 자동 표시</li>
@@ -643,7 +644,9 @@ export function AdminCallDb() {
 
           <div className="bg-white rounded-2xl border border-cyan-200 shadow-sm p-5">
             <div className="font-bold text-slate-800 mb-1">파트너·캠페인 직접 배정</div>
-            <p className="text-xs text-slate-500 mb-3">파트너 신청 없이 관리자가 가상번호를 바로 배정할 수 있습니다. 이미 배정된 경우 번호가 교체됩니다.</p>
+            <p className="text-xs text-slate-500 mb-3">
+              파트너는 캠페인당 번호 1개입니다. 다른 캠페인을 고르면 추가로 배정되고, 같은 캠페인이면 기존 번호를 교체합니다.
+            </p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <select value={directPt} onChange={(e) => setDirectPt(e.target.value)} className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
                 <option value="">파트너 선택</option>

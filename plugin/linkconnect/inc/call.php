@@ -739,7 +739,7 @@ if (!function_exists('lc_call_request_create')) {
         $table = lc_table('call_requests');
         $dup = lc_sql_fetch(" SELECT car_id FROM `{$table}` WHERE pt_id = '{$pt_id}' AND cp_id = '{$cp_id}' AND car_status IN ('" . LC_CALL_REQ_PENDING . "','" . LC_CALL_REQ_ASSIGNED . "') LIMIT 1 ");
         if ($dup) {
-            return array('ok' => false, 'message' => '이미 신청했거나 배정된 캠페인입니다.');
+            return array('ok' => false, 'message' => '이 캠페인에는 이미 가상번호가 있습니다. 파트너는 캠페인당 번호 1개만 받을 수 있습니다. 다른 캠페인을 선택하세요.');
         }
 
         lc_sql_query(" INSERT INTO `{$table}` SET
@@ -907,7 +907,7 @@ if (!function_exists('lc_call_request_claim_by_partner')) {
         $car_table = lc_table('call_requests');
         $dup = lc_sql_fetch(" SELECT car_id FROM `{$car_table}` WHERE pt_id = '{$pt_id}' AND cp_id = '{$cp_id}' AND car_status IN ('" . LC_CALL_REQ_PENDING . "','" . LC_CALL_REQ_ASSIGNED . "') LIMIT 1 ");
         if ($dup) {
-            return array('ok' => false, 'message' => '이미 신청했거나 배정된 캠페인입니다.');
+            return array('ok' => false, 'message' => '이 캠페인에는 이미 가상번호가 있습니다. 파트너는 캠페인당 번호 1개만 받을 수 있습니다. 다른 캠페인을 선택하세요.');
         }
 
         $number = lc_call_number_get($cn_id);
@@ -1412,8 +1412,9 @@ if (!function_exists('lc_call_conversion_create')) {
 
 if (!function_exists('lc_call_request_assign_direct')) {
     /**
-     * API 연동 전 수동 운영: 관리자가 파트너·캠페인에 가상번호를 직접 배정.
-     * 파트너 신청이 없으면 신청 레코드를 만들고 즉시 배정합니다.
+     * 관리자가 파트너·캠페인에 가상번호를 직접 배정.
+     * 규칙: 파트너는 캠페인당 번호 1개 (다른 캠페인은 각각 추가 배정 가능).
+     * 같은 캠페인에 이미 배정된 경우 번호를 교체합니다.
      */
     function lc_call_request_assign_direct($pt_id, $cp_id, $cn_id, $admin_memo = '')
     {
@@ -1475,7 +1476,7 @@ if (!function_exists('lc_call_request_assign_direct')) {
                 car_processed_at = NULL
                 WHERE car_id = '{$car_id}' ", false);
 
-            return lc_call_request_assign($car_id, $cn_id, $admin_memo !== '' ? $admin_memo : '관리자 직접 배정(교체)');
+            return lc_call_request_assign($car_id, $cn_id, $admin_memo !== '' ? $admin_memo : '관리자 직접 배정(캠페인 번호 교체)');
         }
 
         $car_id = 0;
