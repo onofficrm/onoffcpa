@@ -674,12 +674,12 @@ export function AdminCallDb() {
                         <div className="flex items-center justify-center gap-1">
                           {r.status === 'pending' && (
                             <>
-                              <button type="button" onClick={() => openAssign(r)} className="px-2.5 py-1 text-xs font-bold bg-cyan-50 text-cyan-700 rounded-lg">번호배정</button>
-                              <button type="button" onClick={() => handleReject(r)} className="px-2.5 py-1 text-xs font-bold bg-slate-50 rounded-lg">반려</button>
+                              <button type="button" onClick={() => openAssign(r)} className="cursor-pointer px-2.5 py-1 text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200 rounded-lg hover:bg-cyan-100 active:bg-cyan-200 transition-colors">번호배정</button>
+                              <button type="button" onClick={() => handleReject(r)} className="cursor-pointer px-2.5 py-1 text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors">반려</button>
                             </>
                           )}
                           {r.status === 'assigned' && (
-                            <button type="button" onClick={() => handleRevoke(r)} className="px-2.5 py-1 text-xs font-bold bg-rose-50 text-rose-700 rounded-lg">번호회수</button>
+                            <button type="button" onClick={() => handleRevoke(r)} className="cursor-pointer px-2.5 py-1 text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 rounded-lg hover:bg-rose-100 active:bg-rose-200 transition-colors">번호회수</button>
                           )}
                           {(r.status === 'rejected' || r.status === 'revoked') && <span className="text-xs text-slate-400">완료</span>}
                         </div>
@@ -1128,14 +1128,14 @@ export function AdminCallDb() {
                                 <button
                                   type="button"
                                   onClick={() => openUploadModal(item)}
-                                  className="px-2.5 py-1 text-xs font-bold bg-cyan-50 text-cyan-700 rounded-lg"
+                                  className="cursor-pointer px-2.5 py-1 text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200 rounded-lg hover:bg-cyan-100 active:bg-cyan-200 transition-colors"
                                 >
                                   .wav 업로드
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleRejectRecording(item)}
-                                  className="px-2.5 py-1 text-xs font-bold bg-slate-50 rounded-lg"
+                                  className="cursor-pointer px-2.5 py-1 text-xs font-bold bg-slate-50 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors"
                                 >
                                   반려
                                 </button>
