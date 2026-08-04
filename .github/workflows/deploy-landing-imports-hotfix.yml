@@ -1,0 +1,65 @@
+name: Deploy landing imports hotfix
+
+# dasibom / hasugu_cpa 랜딩 imports만 빠르게 FTP (전체 배포 타임아웃·지연 회피)
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'plugin/onoff-builder-bridge/imports/dasibom/**'
+      - 'plugin/onoff-builder-bridge/imports/hasugu_cpa/**'
+      - 'plugin/onoff-builder-bridge/imports/.htaccess'
+      - '.github/workflows/deploy-landing-imports-hotfix.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: onoffcpa-landing-imports-hotfix
+  cancel-in-progress: true
+
+jobs:
+  deploy-landing-imports-hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare landing imports bundle
+        run: |
+          ROOT=".deploy/landing-imports-hotfix"
+          rm -rf "$ROOT"
+          for id in dasibom hasugu_cpa; do
+            mkdir -p "$ROOT/plugin/onoff-builder-bridge/imports/$id"
+            rsync -a --delete \
+              --exclude '._*' \
+              --exclude '.DS_Store' \
+              --exclude '*.map' \
+              "plugin/onoff-builder-bridge/imports/$id/" \
+              "$ROOT/plugin/onoff-builder-bridge/imports/$id/"
+            test -f "$ROOT/plugin/onoff-builder-bridge/imports/$id/index.html"
+            JS=$(grep -oE 'index-[A-Za-z0-9_-]+\.js' "$ROOT/plugin/onoff-builder-bridge/imports/$id/index.html" | head -1)
+            test -n "$JS"
+            test -f "$ROOT/plugin/onoff-builder-bridge/imports/$id/assets/$JS"
+            echo "Bundle $id: $JS"
+          done
+          if [[ -f plugin/onoff-builder-bridge/imports/.htaccess ]]; then
+            cp plugin/onoff-builder-bridge/imports/.htaccess \
+              "$ROOT/plugin/onoff-builder-bridge/imports/.htaccess"
+          fi
+          find "$ROOT" -name '._*' -delete 2>/dev/null || true
+          echo "Files: $(find "$ROOT" -type f | wc -l)"
+
+      - name: FTP upload landing imports hotfix
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          protocol: ftp
+          local-dir: .deploy/landing-imports-hotfix/
+          server-dir: /public_html/
+          state-name: onoffcpa-landing-imports-hotfix-v1
+          dangerous-clean-slate: false
+          log-level: standard
+          timeout: 300000
