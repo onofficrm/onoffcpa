@@ -73,7 +73,7 @@ if (!function_exists('lc_merchant_contract_render_html')) {
         $party_b = lc_merchant_contract_party_b();
         $version = lc_merchant_contract_current_version();
         $fees = lc_merchant_contract_fee_extras_from($extras);
-        $platform_name = function_exists('lc_site_name') ? (string) lc_site_name() : '온오프CPA';
+        $platform_name = function_exists('lc_site_name') ? trim((string) lc_site_name()) : '';
         if ($platform_name === '') {
             $platform_name = '온오프CPA';
         }
