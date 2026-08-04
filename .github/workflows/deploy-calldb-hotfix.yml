@@ -53,7 +53,7 @@ jobs:
           test -n "$JS"
           test -f "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/assets/$JS"
           # 절대 linkconnect 브랜드 SPA 배포 금지
-          bash scripts/assert-onoffcpa-spa-branding.sh \
+          bash scripts/assert-onoffcpa-spa-branding.sh --require-lock \
             "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html"
           echo "SPA bundle: $JS"
           echo "Bundle files:" && find "$ROOT" -type f | wc -l

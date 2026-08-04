@@ -1,0 +1,25 @@
+---
+description: onoffcpa SPA 브랜드 — linkconnect imports 교차 복사 절대 금지
+globs: plugin/onoff-builder-bridge/imports/linkconnect/**/*,builder/linkconnect_source/**/*,scripts/sync-linkconnect-builder.sh,scripts/assert-onoffcpa-spa-branding.sh
+alwaysApply: true
+---
+
+# OnOff CPA SPA 브랜드 분리 (필수)
+
+`plugin/onoff-builder-bridge/imports/linkconnect/` 폴더명은 legacy 이며 **온오프CPA 전용 SPA**다.
+
+## 금지
+
+- linkconnect 저장소의 `imports/linkconnect` 또는 dist 를 onoffcpa 로 rsync/cp/동기화
+- CallDB·핫픽스 작업 중 “같은 폴더명이니 복사”하는 행위
+- `spa-brand.onoffcpa` lock 삭제 후 링크커넥트 번들 배포
+
+## 허용 (유일한 갱신 경로)
+
+```bash
+cd builder/linkconnect_source && npm run deploy:imports
+```
+
+가드: `scripts/assert-onoffcpa-spa-branding.sh` + 런타임 `onoff_builder_assert_onoffcpa_spa_html`.
+
+잘못 덮이면 https://onoffcpa.icrm.co.kr/ 이 링크커넥트로 보인다.

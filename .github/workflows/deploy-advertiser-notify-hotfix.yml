@@ -53,7 +53,7 @@ jobs:
           JS=$(grep -oE 'index-[A-Za-z0-9_-]+\.js' "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html" | head -1)
           test -n "$JS"
           test -f "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/assets/$JS"
-          bash scripts/assert-onoffcpa-spa-branding.sh \
+          bash scripts/assert-onoffcpa-spa-branding.sh --require-lock \
             "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html"
           echo "SPA bundle: $JS"
 

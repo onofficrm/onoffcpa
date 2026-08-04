@@ -881,6 +881,48 @@ if (!function_exists('onoff_builder_resolve_import_index_file')) {
     }
 }
 
+if (!function_exists('onoff_builder_assert_onoffcpa_spa_html')) {
+    /**
+     * onoffcpa 홈 SPA(id=linkconnect)가 링크커넥트 번들로 덮였는지 검사.
+     * CI를 우회한 잘못된 FTP/rsync 배포 시 잘못된 브랜드 노출을 막는다.
+     *
+     * @param string $html
+     * @param string $index_file
+     * @return void
+     */
+    function onoff_builder_assert_onoffcpa_spa_html($html, $index_file = '')
+    {
+        $html = (string) $html;
+        $title = '';
+        if (preg_match('#<title>(.*?)</title>#is', $html, $m)) {
+            $title = html_entity_decode(trim(strip_tags($m[1])), ENT_QUOTES, 'UTF-8');
+        }
+
+        $has_onoff = (strpos($html, '온오프CPA') !== false || stripos($html, 'OnOff CPA') !== false);
+        $title_has_linkconnect = (strpos($title, '링크커넥트') !== false || stripos($title, 'LinkConnect') !== false);
+        $title_ok = (strpos($title, '온오프CPA') !== false || stripos($title, 'OnOff CPA') !== false);
+
+        $lock = '';
+        if ($index_file !== '') {
+            $lock = dirname($index_file) . '/spa-brand.onoffcpa';
+        }
+        $lock_ok = ($lock !== '' && is_file($lock) && (bool) preg_match('/^brand=onoffcpa\s*$/m', (string) @file_get_contents($lock)));
+
+        if ($has_onoff && $title_ok && !$title_has_linkconnect && $lock_ok) {
+            return;
+        }
+
+        if (function_exists('error_log')) {
+            error_log('[onoff-builder-bridge] OnOff CPA SPA branding guard failed: title=' . $title . ' lock=' . ($lock_ok ? 'ok' : 'missing') . ' file=' . $index_file);
+        }
+
+        onoff_builder_render_page_error(
+            '온오프CPA 메인 SPA 브랜드 검증에 실패했습니다. linkconnect 저장소 SPA를 복사하지 말고 '
+            . 'onoffcpa/builder/linkconnect_source 에서 npm run deploy:imports 로 재배포해 주세요.'
+        );
+    }
+}
+
 if (!function_exists('onoff_builder_render_import_page')) {
     function onoff_builder_render_import_page($id)
     {
@@ -932,6 +974,11 @@ if (!function_exists('onoff_builder_render_import_page')) {
 
         if (function_exists('onoff_builder_is_vite_dev_index_html') && onoff_builder_is_vite_dev_index_html($html)) {
             onoff_builder_render_page_error(onoff_builder_vite_source_message());
+        }
+
+        // 홈 SPA는 온오프CPA 전용 — 링크커넥트 번들 덮어쓰기 차단
+        if ($id === 'linkconnect' && function_exists('onoff_builder_assert_onoffcpa_spa_html')) {
+            onoff_builder_assert_onoffcpa_spa_html($html, $index_file);
         }
 
         $html = onoff_builder_remove_base_tags($html);

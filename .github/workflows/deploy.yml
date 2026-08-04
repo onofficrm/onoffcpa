@@ -25,7 +25,7 @@ jobs:
           find . -name '.DS_Store' -delete 2>/dev/null || true
 
       - name: Assert OnOff CPA SPA branding
-        run: bash scripts/assert-onoffcpa-spa-branding.sh
+        run: bash scripts/assert-onoffcpa-spa-branding.sh --require-lock
 
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

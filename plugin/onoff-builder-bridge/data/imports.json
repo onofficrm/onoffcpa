@@ -9,13 +9,13 @@
   },
   {
     "id": "linkconnect",
-    "name": "LinkConnect 메인",
+    "name": "OnOff CPA 메인",
     "path": "linkconnect",
     "entry": "index.html",
     "enabled": true,
     "needs_build": false,
     "mode": "standalone",
-    "seo_title": "LinkConnect",
+    "seo_title": "OnOff CPA",
     "seo_description": "CPA/CPS 제휴마케팅 플랫폼",
     "created_at": "2026-07-06 23:37:00"
   },
