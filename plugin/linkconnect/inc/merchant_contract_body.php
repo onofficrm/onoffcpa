@@ -3,15 +3,80 @@ if (!defined('_GNUBOARD_')) {
     exit;
 }
 
+if (!function_exists('lc_merchant_contract_parse_amount')) {
+    /**
+     * 금액 문자열/숫자를 원 단위 정수로 정규화.
+     */
+    function lc_merchant_contract_parse_amount($value)
+    {
+        if (is_int($value) || is_float($value)) {
+            return max(0, (int) $value);
+        }
+        $digits = preg_replace('/\D+/', '', (string) $value);
+
+        return $digits === '' ? 0 : max(0, (int) $digits);
+    }
+}
+
+if (!function_exists('lc_merchant_contract_korean_money_short')) {
+    /**
+     * 60000 → "6만 원", 305000 → "30만 5천 원"
+     */
+    function lc_merchant_contract_korean_money_short($amount)
+    {
+        $n = lc_merchant_contract_parse_amount($amount);
+        if ($n <= 0) {
+            return '';
+        }
+        $man = (int) floor($n / 10000);
+        $rest = $n % 10000;
+        $parts = array();
+        if ($man > 0) {
+            $parts[] = number_format($man) . '만';
+        }
+        if ($rest > 0) {
+            if ($rest % 1000 === 0) {
+                $parts[] = number_format($rest / 1000) . '천';
+            } else {
+                $parts[] = number_format($rest);
+            }
+        }
+
+        return implode(' ', $parts) . ' 원';
+    }
+}
+
+if (!function_exists('lc_merchant_contract_fee_extras_from')) {
+    /**
+     * @param array<string,mixed> $source
+     * @return array{entryFee:int,dbUnitPrice:int,minPrecharge:int,negotiatedTerms:string,specialClauses:string}
+     */
+    function lc_merchant_contract_fee_extras_from(array $source)
+    {
+        return array(
+            'entryFee'        => lc_merchant_contract_parse_amount($source['entryFee'] ?? ($source['entry_fee'] ?? 0)),
+            'dbUnitPrice'     => lc_merchant_contract_parse_amount($source['dbUnitPrice'] ?? ($source['db_unit_price'] ?? 0)),
+            'minPrecharge'    => lc_merchant_contract_parse_amount($source['minPrecharge'] ?? ($source['min_precharge'] ?? 0)),
+            'negotiatedTerms' => trim((string) ($source['negotiatedTerms'] ?? '')),
+            'specialClauses'  => trim((string) ($source['specialClauses'] ?? '')),
+        );
+    }
+}
+
 if (!function_exists('lc_merchant_contract_render_html')) {
     /**
      * @param array<string,string> $party_a
-     * @param array{negotiatedTerms?:string,specialClauses?:string} $extras
+     * @param array<string,mixed> $extras
      */
     function lc_merchant_contract_render_html(array $party_a, array $extras = array())
     {
         $party_b = lc_merchant_contract_party_b();
         $version = lc_merchant_contract_current_version();
+        $fees = lc_merchant_contract_fee_extras_from($extras);
+        $platform_name = function_exists('lc_site_name') ? (string) lc_site_name() : '온오프CPA';
+        if ($platform_name === '') {
+            $platform_name = '온오프CPA';
+        }
 
         $esc = static function ($value) {
             return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
@@ -28,11 +93,31 @@ if (!function_exists('lc_merchant_contract_render_html')) {
         $b_biz = $esc($party_b['business_number'] ?? '');
         $b_addr = $esc($party_b['company_address'] ?? '');
         $b_phone = $esc($party_b['company_phone'] ?? '');
+        $platform_esc = $esc($platform_name);
 
         $a_display = $a_name !== '' ? $a_name : '[ 광고주 회사명 ]';
 
-        $negotiated = trim((string) ($extras['negotiatedTerms'] ?? ''));
-        $special = trim((string) ($extras['specialClauses'] ?? ''));
+        $entry_fee = (int) $fees['entryFee'];
+        $db_price = (int) $fees['dbUnitPrice'];
+        $min_precharge = (int) $fees['minPrecharge'];
+
+        $entry_label = $entry_fee > 0
+            ? number_format($entry_fee) . '원(VAT 별도)'
+            : '[ 입점비 ]원(VAT 별도)';
+        $db_short = $db_price > 0 ? lc_merchant_contract_korean_money_short($db_price) : '';
+        $db_label = $db_price > 0
+            ? number_format($db_price) . '원(금 ' . $db_short . ', VAT 별도)'
+            : '[ 광고 단가 ]원(VAT 별도)';
+        $precharge_label = $min_precharge > 0
+            ? number_format($min_precharge) . '원(VAT 별도)'
+            : '[ 최소 선충전금 ]원(VAT 별도)';
+
+        $entry_label = $esc($entry_label);
+        $db_label = $esc($db_label);
+        $precharge_label = $esc($precharge_label);
+
+        $negotiated = $fees['negotiatedTerms'];
+        $special = $fees['specialClauses'];
         $extra_sections = '';
         if ($negotiated !== '') {
             $negotiated_html = nl2br($esc($negotiated));
@@ -64,7 +149,7 @@ HTML;
     <p class="lc-contract-version">계약서 버전: {$esc($version)}</p>
     <h1>CPA 광고 제휴 계약서</h1>
     <p class="lc-contract-lead">
-      {$a_display}(이하 &quot;갑&quot;이라 한다)와 CPA 광고 플랫폼 &apos;링크커넥트&apos;를 운영하는 {$b_name}(이하 &quot;을&quot;이라 한다)는
+      {$a_display}(이하 &quot;갑&quot;이라 한다)와 CPA 광고 플랫폼 &apos;{$platform_esc}&apos;를 운영하는 {$b_name}(이하 &quot;을&quot;이라 한다)는
       온라인 CPA(Cost Per Action) 마케팅 업무 제휴와 관련하여 상호 신의성실의 원칙에 따라 다음과 같이 계약을 체결한다.
     </p>
   </header>
@@ -124,10 +209,12 @@ HTML;
   <section class="lc-contract-article">
     <h2>제 4 조 [ 광고비 및 정산 방식 ]</h2>
     <ol>
-      <li><strong>단가</strong>: 유효 DB 1건당 광고비는 캠페인별로 플랫폼에 설정·합의한 단가(VAT 별도)로 산정한다.</li>
-      <li><strong>선충전 원칙</strong>: 광고비는 &quot;갑&quot;이 &quot;을&quot;의 플랫폼(또는 지정 계좌)에 선충전하는 것을 원칙으로 하며, 유효 DB 발생 시 충전금에서 실시간(또는 주기적)으로 차감된다.</li>
-      <li><strong>기본 선충전액</strong>: 계정당 최소 [ 500,000 원 ](VAT 별도)</li>
-      <li>충전된 광고비가 모두 소진되기 전, &quot;갑&quot;은 광고가 중단되지 않도록 사전에 재충전하여야 한다.</li>
+      <li><strong>입점비</strong><br>랜딩페이지제작 및 입점비는 {$entry_label}로 한다.</li>
+      <li><strong>광고 단가</strong><br>유효 DB 1건당 광고비는 {$db_label}으로 한다.<br>단, 양 당사자가 서면(전자문서 및 이메일 포함)으로 합의하는 경우 광고 단가를 변경할 수 있다.</li>
+      <li><strong>선충전 방식</strong><br>광고비는 &quot;갑&quot;이 &quot;을&quot;의 플랫폼 또는 지정 계좌에 선충전하는 것을 원칙으로 하며, 승인된 유효 DB 발생 시 충전금에서 자동 차감된다.</li>
+      <li><strong>최소 선충전금</strong><br>최초 선충전금은 {$precharge_label}으로 한다.</li>
+      <li><strong>충전금 관리</strong><br>&quot;갑&quot;은 광고가 중단되지 않도록 충전금이 소진되기 전에 추가 충전하여야 한다.<br>충전금 부족으로 인해 광고가 중단되어 발생하는 손실에 대하여 &quot;을&quot;은 책임을 부담하지 않는다.</li>
+      <li><strong>잔여 충전금 환불</strong><br>광고 종료 또는 계약 해지 시 잔여 선충전금은 미정산 금액을 제외한 후 영업일 기준 5일 이내 환불한다.</li>
     </ol>
   </section>
 

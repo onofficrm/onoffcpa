@@ -312,6 +312,23 @@ export function AdvertiserContractView() {
             <ReadOnlyField label="담당자 이메일" value={contract.signerEmail} />
             <ReadOnlyField label="PDF 해시 (일부)" value={contract.pdfHashMasked} />
           </div>
+          {(contract.entryFee || contract.dbUnitPrice || contract.minPrecharge) ? (
+            <div className="grid sm:grid-cols-3 gap-3">
+              <ReadOnlyField
+                label="입점비"
+                value={contract.entryFee ? `${Number(contract.entryFee).toLocaleString('ko-KR')}원` : '—'}
+              />
+              <ReadOnlyField
+                label="DB당 과금"
+                value={contract.dbUnitPrice ? `${Number(contract.dbUnitPrice).toLocaleString('ko-KR')}원` : '—'}
+              />
+              <ReadOnlyField
+                label="최소 선충전금"
+                value={contract.minPrecharge ? `${Number(contract.minPrecharge).toLocaleString('ko-KR')}원` : '—'}
+              />
+            </div>
+          ) : null}
+
           {(contract.negotiatedTerms?.trim() || contract.specialClauses?.trim()) ? (
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-slate-800">별도 협의·특별조항</h3>

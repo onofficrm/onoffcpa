@@ -50,11 +50,11 @@ if (is_file(LC_PLUGIN_PATH . '/inc/merchant.php')) {
 if (is_file(LC_PLUGIN_PATH . '/inc/merchant_contract_config.php')) {
     require_once LC_PLUGIN_PATH . '/inc/merchant_contract_config.php';
 }
-if (is_file(LC_PLUGIN_PATH . '/inc/merchant_contract.php')) {
-    require_once LC_PLUGIN_PATH . '/inc/merchant_contract.php';
-}
 if (is_file(LC_PLUGIN_PATH . '/inc/merchant_contract_body.php')) {
     require_once LC_PLUGIN_PATH . '/inc/merchant_contract_body.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/merchant_contract.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/merchant_contract.php';
 }
 if (is_file(LC_PLUGIN_PATH . '/inc/merchant_contract_pdf.php')) {
     require_once LC_PLUGIN_PATH . '/inc/merchant_contract_pdf.php';

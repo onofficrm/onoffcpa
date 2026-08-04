@@ -426,6 +426,9 @@ if (!function_exists('lc_merchant_contract_get_form_defaults')) {
             'signerEmail'        => '',
             'negotiatedTerms'    => '',
             'specialClauses'     => '',
+            'entryFee'           => '',
+            'dbUnitPrice'        => '',
+            'minPrecharge'       => '',
             'step'               => 1,
             'agreements'         => array(
                 'readAll'      => false,
@@ -497,6 +500,11 @@ if (!function_exists('lc_merchant_contract_get_form_defaults')) {
                 }
                 if (!empty($agreement['agreementCheckedAt'])) {
                     $defaults['agreementCheckedAt'] = (string) $agreement['agreementCheckedAt'];
+                }
+                foreach (array('entryFee', 'dbUnitPrice', 'minPrecharge', 'negotiatedTerms', 'specialClauses') as $fee_key) {
+                    if (isset($agreement[$fee_key]) && (string) $agreement[$fee_key] !== '') {
+                        $defaults[$fee_key] = (string) $agreement[$fee_key];
+                    }
                 }
             }
         }
@@ -738,6 +746,15 @@ if (!function_exists('lc_merchant_contract_save_draft')) {
         );
         $negotiated_terms = lc_merchant_contract_sanitize_text($payload['negotiatedTerms'] ?? '', 8000);
         $special_clauses = lc_merchant_contract_sanitize_text($payload['specialClauses'] ?? '', 8000);
+        $entry_fee = function_exists('lc_merchant_contract_parse_amount')
+            ? lc_merchant_contract_parse_amount($payload['entryFee'] ?? 0)
+            : (int) preg_replace('/\D+/', '', (string) ($payload['entryFee'] ?? '0'));
+        $db_unit_price = function_exists('lc_merchant_contract_parse_amount')
+            ? lc_merchant_contract_parse_amount($payload['dbUnitPrice'] ?? 0)
+            : (int) preg_replace('/\D+/', '', (string) ($payload['dbUnitPrice'] ?? '0'));
+        $min_precharge = function_exists('lc_merchant_contract_parse_amount')
+            ? lc_merchant_contract_parse_amount($payload['minPrecharge'] ?? 0)
+            : (int) preg_replace('/\D+/', '', (string) ($payload['minPrecharge'] ?? '0'));
 
         $step = isset($payload['step']) ? (int) $payload['step'] : 1;
         $agreements = isset($payload['agreements']) && is_array($payload['agreements']) ? $payload['agreements'] : array();
@@ -746,6 +763,21 @@ if (!function_exists('lc_merchant_contract_save_draft')) {
             $company_check = lc_merchant_contract_validate_company_form($form);
             if ($step > 1 && !$company_check['ok']) {
                 return array('ok' => false, 'message' => '광고주 정보를 먼저 완성해 주세요.', 'errors' => $company_check['errors']);
+            }
+        }
+        if ($step >= 2) {
+            $fee_errors = array();
+            if ($entry_fee <= 0) {
+                $fee_errors['entryFee'] = '입점비를 입력해 주세요.';
+            }
+            if ($db_unit_price <= 0) {
+                $fee_errors['dbUnitPrice'] = 'DB당 과금(광고 단가)을 입력해 주세요.';
+            }
+            if ($min_precharge <= 0) {
+                $fee_errors['minPrecharge'] = '최소 선충전금을 입력해 주세요.';
+            }
+            if ($fee_errors) {
+                return array('ok' => false, 'message' => '광고비 조건을 입력해 주세요.', 'errors' => $fee_errors);
             }
         }
         if ($step >= 3) {
@@ -765,6 +797,9 @@ if (!function_exists('lc_merchant_contract_save_draft')) {
         $terms_extras = array(
             'negotiatedTerms' => $negotiated_terms,
             'specialClauses'  => $special_clauses,
+            'entryFee'        => $entry_fee,
+            'dbUnitPrice'     => $db_unit_price,
+            'minPrecharge'    => $min_precharge,
         );
         $contract_html = function_exists('lc_merchant_contract_render_html')
             ? lc_merchant_contract_render_html($party_a, $terms_extras)
@@ -782,6 +817,9 @@ if (!function_exists('lc_merchant_contract_save_draft')) {
             'draftSavedAt'       => date('c'),
             'negotiatedTerms'    => $negotiated_terms,
             'specialClauses'     => $special_clauses,
+            'entryFee'           => $entry_fee,
+            'dbUnitPrice'        => $db_unit_price,
+            'minPrecharge'       => $min_precharge,
         );
 
         $company_snapshot = lc_merchant_contract_build_company_snapshot_from_form($mt_id, $form);
@@ -932,6 +970,9 @@ if (!function_exists('lc_merchant_contract_view_to_api')) {
         $terms_extras = array(
             'negotiatedTerms' => (string) ($defaults['negotiatedTerms'] ?? ''),
             'specialClauses'  => (string) ($defaults['specialClauses'] ?? ''),
+            'entryFee'        => $defaults['entryFee'] ?? 0,
+            'dbUnitPrice'     => $defaults['dbUnitPrice'] ?? 0,
+            'minPrecharge'    => $defaults['minPrecharge'] ?? 0,
         );
 
         $contract_html = function_exists('lc_merchant_contract_render_html')
@@ -1193,6 +1234,15 @@ if (!function_exists('lc_merchant_contract_sign')) {
         );
         $negotiated_terms = lc_merchant_contract_sanitize_text($payload['negotiatedTerms'] ?? '', 8000);
         $special_clauses = lc_merchant_contract_sanitize_text($payload['specialClauses'] ?? '', 8000);
+        $entry_fee = function_exists('lc_merchant_contract_parse_amount')
+            ? lc_merchant_contract_parse_amount($payload['entryFee'] ?? 0)
+            : (int) preg_replace('/\D+/', '', (string) ($payload['entryFee'] ?? '0'));
+        $db_unit_price = function_exists('lc_merchant_contract_parse_amount')
+            ? lc_merchant_contract_parse_amount($payload['dbUnitPrice'] ?? 0)
+            : (int) preg_replace('/\D+/', '', (string) ($payload['dbUnitPrice'] ?? '0'));
+        $min_precharge = function_exists('lc_merchant_contract_parse_amount')
+            ? lc_merchant_contract_parse_amount($payload['minPrecharge'] ?? 0)
+            : (int) preg_replace('/\D+/', '', (string) ($payload['minPrecharge'] ?? '0'));
         $agreements = isset($payload['agreements']) && is_array($payload['agreements']) ? $payload['agreements'] : array();
 
         $company_check = lc_merchant_contract_validate_company_form($form);
@@ -1229,6 +1279,37 @@ if (!function_exists('lc_merchant_contract_sign')) {
         if ($special_clauses === '' && is_array($draft) && isset($draft['mc_special_clauses'])) {
             $special_clauses = (string) $draft['mc_special_clauses'];
         }
+        if (is_array($draft)) {
+            $draft_agreement = lc_merchant_contract_decode_snapshot($draft['mc_agreement_snapshot'] ?? '');
+            if (is_array($draft_agreement)) {
+                if ($entry_fee <= 0 && !empty($draft_agreement['entryFee'])) {
+                    $entry_fee = function_exists('lc_merchant_contract_parse_amount')
+                        ? lc_merchant_contract_parse_amount($draft_agreement['entryFee'])
+                        : (int) $draft_agreement['entryFee'];
+                }
+                if ($db_unit_price <= 0 && !empty($draft_agreement['dbUnitPrice'])) {
+                    $db_unit_price = function_exists('lc_merchant_contract_parse_amount')
+                        ? lc_merchant_contract_parse_amount($draft_agreement['dbUnitPrice'])
+                        : (int) $draft_agreement['dbUnitPrice'];
+                }
+                if ($min_precharge <= 0 && !empty($draft_agreement['minPrecharge'])) {
+                    $min_precharge = function_exists('lc_merchant_contract_parse_amount')
+                        ? lc_merchant_contract_parse_amount($draft_agreement['minPrecharge'])
+                        : (int) $draft_agreement['minPrecharge'];
+                }
+            }
+        }
+        if ($entry_fee <= 0 || $db_unit_price <= 0 || $min_precharge <= 0) {
+            return array(
+                'ok' => false,
+                'message' => '광고비 조건(입점비·DB당 과금·최소 선충전금)을 입력해 주세요.',
+                'errors' => array(
+                    'entryFee' => $entry_fee <= 0 ? '입점비를 입력해 주세요.' : '',
+                    'dbUnitPrice' => $db_unit_price <= 0 ? 'DB당 과금을 입력해 주세요.' : '',
+                    'minPrecharge' => $min_precharge <= 0 ? '최소 선충전금을 입력해 주세요.' : '',
+                ),
+            );
+        }
 
         $form['hasSignature'] = $signature_path !== '';
         $signer_check = lc_merchant_contract_validate_signer_form($form, true);
@@ -1249,6 +1330,9 @@ if (!function_exists('lc_merchant_contract_sign')) {
         $terms_extras = array(
             'negotiatedTerms' => $negotiated_terms,
             'specialClauses'  => $special_clauses,
+            'entryFee'        => $entry_fee,
+            'dbUnitPrice'     => $db_unit_price,
+            'minPrecharge'    => $min_precharge,
         );
         $contract_html = function_exists('lc_merchant_contract_render_html')
             ? lc_merchant_contract_render_html($party_a, $terms_extras)
@@ -1266,6 +1350,9 @@ if (!function_exists('lc_merchant_contract_sign')) {
             'userAgent'          => $meta['user_agent'],
             'negotiatedTerms'    => $negotiated_terms,
             'specialClauses'     => $special_clauses,
+            'entryFee'           => $entry_fee,
+            'dbUnitPrice'        => $db_unit_price,
+            'minPrecharge'       => $min_precharge,
         );
 
         if (!lc_sql_begin()) {

@@ -3,7 +3,7 @@ import { Check } from 'lucide-react';
 
 const STEPS = [
   { id: 1, label: '광고주 정보 확인' },
-  { id: 2, label: '별도 협의·특별조항' },
+  { id: 2, label: '광고비·협의 조건' },
   { id: 3, label: '계약서 확인 및 동의' },
   { id: 4, label: '담당자 입력 및 서명' },
 ] as const;
@@ -72,6 +72,12 @@ export type ContractFormState = {
   signerEmail: string;
   negotiatedTerms: string;
   specialClauses: string;
+  /** 입점비(원) */
+  entryFee: string;
+  /** DB당 과금·광고 단가(원) */
+  dbUnitPrice: string;
+  /** 최소 선충전금(원) */
+  minPrecharge: string;
   agreements: Record<ContractAgreementKey, boolean>;
   step: number;
 };
@@ -91,6 +97,9 @@ export const EMPTY_CONTRACT_FORM: ContractFormState = {
   signerEmail: '',
   negotiatedTerms: '',
   specialClauses: '',
+  entryFee: '',
+  dbUnitPrice: '',
+  minPrecharge: '',
   agreements: {
     readAll: false,
     hasAuthority: false,
@@ -99,6 +108,17 @@ export const EMPTY_CONTRACT_FORM: ContractFormState = {
   },
   step: 1,
 };
+
+export function formatWonInput(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 12);
+  if (!digits) return '';
+  return Number(digits).toLocaleString('ko-KR');
+}
+
+export function parseWonInput(value: string): number {
+  const digits = value.replace(/\D/g, '');
+  return digits ? Number(digits) : 0;
+}
 
 export function formatBusinessNumber(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 10);
@@ -133,9 +153,19 @@ export function validateStep1(form: ContractFormState) {
   return errors;
 }
 
-/** 2단계: 별도 협의·특별조항은 선택 입력 */
-export function validateStep2(_form: ContractFormState) {
-  return {} as Record<string, string>;
+/** 2단계: 입점비·DB당 과금·최소 선충전금 필수, 별도 협의·특별조항은 선택 */
+export function validateStep2(form: ContractFormState) {
+  const errors: Record<string, string> = {};
+  if (parseWonInput(form.entryFee) <= 0) {
+    errors.entryFee = '입점비를 입력해 주세요.';
+  }
+  if (parseWonInput(form.dbUnitPrice) <= 0) {
+    errors.dbUnitPrice = 'DB당 과금(광고 단가)을 입력해 주세요.';
+  }
+  if (parseWonInput(form.minPrecharge) <= 0) {
+    errors.minPrecharge = '최소 선충전금을 입력해 주세요.';
+  }
+  return errors;
 }
 
 export function validateStep3(form: ContractFormState) {

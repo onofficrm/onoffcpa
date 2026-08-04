@@ -53,6 +53,9 @@ if ($html === '' && function_exists('lc_merchant_contract_render_html')) {
     ), array(
         'negotiatedTerms' => $form['negotiatedTerms'] ?? '',
         'specialClauses'  => $form['specialClauses'] ?? '',
+        'entryFee'        => $form['entryFee'] ?? 0,
+        'dbUnitPrice'     => $form['dbUnitPrice'] ?? 0,
+        'minPrecharge'    => $form['minPrecharge'] ?? 0,
     ));
 }
 if ($html !== '' && function_exists('lc_merchant_contract_append_addenda_to_html')) {

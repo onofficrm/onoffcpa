@@ -14,6 +14,8 @@ import {
   TextField,
   draftStorageKey,
   formatBusinessNumber,
+  formatWonInput,
+  parseWonInput,
   validateStep1,
   validateStep2,
   validateStep3,
@@ -46,6 +48,9 @@ function mapStateToForm(state: MerchantContractState): ContractFormState {
     signerEmail: state.form.signerEmail ?? '',
     negotiatedTerms: state.form.negotiatedTerms ?? '',
     specialClauses: state.form.specialClauses ?? '',
+    entryFee: state.form.entryFee ? formatWonInput(String(state.form.entryFee)) : '',
+    dbUnitPrice: state.form.dbUnitPrice ? formatWonInput(String(state.form.dbUnitPrice)) : '',
+    minPrecharge: state.form.minPrecharge ? formatWonInput(String(state.form.minPrecharge)) : '',
     agreements: {
       readAll: Boolean(state.form.agreements?.readAll),
       hasAuthority: Boolean(state.form.agreements?.hasAuthority),
@@ -75,6 +80,9 @@ function formToPayload(form: ContractFormState, csrfToken: string, step: number)
     signerEmail: form.signerEmail,
     negotiatedTerms: form.negotiatedTerms,
     specialClauses: form.specialClauses,
+    entryFee: parseWonInput(form.entryFee),
+    dbUnitPrice: parseWonInput(form.dbUnitPrice),
+    minPrecharge: parseWonInput(form.minPrecharge),
     agreements: form.agreements,
   };
 }
@@ -448,32 +456,95 @@ export function AdvertiserContract() {
       {step === 2 ? (
         <section className="bg-white border border-slate-200 rounded-2xl p-5 md:p-8 shadow-sm space-y-6">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">2단계: 별도 협의·특별조항</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">2단계: 광고비·협의 조건</h2>
             <p className="text-sm text-slate-500">
-              기본 계약서 외에 합의할 내용이 있으면 입력하세요. 없으면 비워 두고 다음으로 진행할 수 있습니다.
-              입력한 내용은 다음 단계의 계약서 전문(제11·12조)에 반영됩니다.
+              입점비·DB당 과금·최소 선충전금을 입력하면 다음 단계 계약서 제4조에 반영됩니다.
+              별도 협의·특별조항은 선택 사항이며, 입력 시 제11·12조에 포함됩니다.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 md:p-5 space-y-4">
+            <h3 className="text-sm font-bold text-slate-800">제4조 광고비 조건 (필수)</h3>
+            <div className="grid md:grid-cols-3 gap-4">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-semibold text-slate-800">1. 입점비 *</span>
+                <p className="text-xs text-slate-500">랜딩 제작 및 입점비 (VAT 별도)</p>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={form.entryFee}
+                    onChange={(e) => updateForm({ entryFee: formatWonInput(e.target.value) })}
+                    placeholder="예: 300,000"
+                    className={`w-full px-3.5 py-2.5 pr-10 rounded-xl border text-sm ${
+                      errors.entryFee ? 'border-amber-400 bg-amber-50' : 'border-slate-300 bg-white'
+                    }`}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">원</span>
+                </div>
+                <FieldError message={errors.entryFee} />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-semibold text-slate-800">2. DB당 과금 *</span>
+                <p className="text-xs text-slate-500">유효 DB 1건당 광고 단가 (VAT 별도)</p>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={form.dbUnitPrice}
+                    onChange={(e) => updateForm({ dbUnitPrice: formatWonInput(e.target.value) })}
+                    placeholder="예: 60,000"
+                    className={`w-full px-3.5 py-2.5 pr-10 rounded-xl border text-sm ${
+                      errors.dbUnitPrice ? 'border-amber-400 bg-amber-50' : 'border-slate-300 bg-white'
+                    }`}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">원</span>
+                </div>
+                <FieldError message={errors.dbUnitPrice} />
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-semibold text-slate-800">4. 최소 선충전금 *</span>
+                <p className="text-xs text-slate-500">최초 선충전 최소 금액 (VAT 별도)</p>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={form.minPrecharge}
+                    onChange={(e) => updateForm({ minPrecharge: formatWonInput(e.target.value) })}
+                    placeholder="예: 500,000"
+                    className={`w-full px-3.5 py-2.5 pr-10 rounded-xl border text-sm ${
+                      errors.minPrecharge ? 'border-amber-400 bg-amber-50' : 'border-slate-300 bg-white'
+                    }`}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">원</span>
+                </div>
+                <FieldError message={errors.minPrecharge} />
+              </label>
+            </div>
+            <p className="text-xs text-slate-500">
+              3·5·6항(선충전 방식·충전금 관리·잔여 환불)은 표준 문구로 자동 포함됩니다.
             </p>
           </div>
 
           <label className="block space-y-1.5">
-            <span className="text-sm font-semibold text-slate-800">별도 협의사항</span>
-            <p className="text-xs text-slate-500">단가 예외, 검수 기간 조정, 캠페인 운영 조건 등 상호 합의 내용을 적어 주세요.</p>
+            <span className="text-sm font-semibold text-slate-800">별도 협의사항 (선택)</span>
+            <p className="text-xs text-slate-500">검수 기간 조정, 캠페인 운영 조건 등 상호 합의 내용을 적어 주세요.</p>
             <textarea
               value={form.negotiatedTerms}
               onChange={(e) => updateForm({ negotiatedTerms: e.target.value })}
-              rows={6}
-              placeholder="예: 유효 DB 1건당 단가는 별도 합의된 ○○원(VAT 별도)을 적용한다. …"
+              rows={5}
+              placeholder="예: 검수 기간은 접수일로부터 5영업일로 한다. …"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500"
             />
           </label>
 
           <label className="block space-y-1.5">
-            <span className="text-sm font-semibold text-slate-800">특별조항 (독소조항·제한 조건 등)</span>
+            <span className="text-sm font-semibold text-slate-800">특별조항 (선택)</span>
             <p className="text-xs text-slate-500">독점, 최소 보장, 위약금, 금지 사항 등 특별 제한·의무 조항이 있으면 적어 주세요.</p>
             <textarea
               value={form.specialClauses}
               onChange={(e) => updateForm({ specialClauses: e.target.value })}
-              rows={6}
+              rows={5}
               placeholder="예: 갑은 계약 기간 중 동일 업종에 대해 타 제휴 플랫폼에 동일 조건의 상품을 등록하지 않는다. …"
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:border-cyan-500"
             />

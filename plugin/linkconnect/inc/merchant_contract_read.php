@@ -89,6 +89,9 @@ if (!function_exists('lc_merchant_contract_form_from_row')) {
             'signerEmail'        => '',
             'negotiatedTerms'    => '',
             'specialClauses'     => '',
+            'entryFee'           => '',
+            'dbUnitPrice'        => '',
+            'minPrecharge'       => '',
             'agreements'         => array(
                 'readAll'      => false,
                 'hasAuthority' => false,
@@ -146,6 +149,11 @@ if (!function_exists('lc_merchant_contract_form_from_row')) {
             }
             if ($form['specialClauses'] === '' && !empty($agreement['specialClauses'])) {
                 $form['specialClauses'] = (string) $agreement['specialClauses'];
+            }
+            foreach (array('entryFee', 'dbUnitPrice', 'minPrecharge') as $fee_key) {
+                if (($form[$fee_key] === '' || $form[$fee_key] === '0') && isset($agreement[$fee_key]) && (string) $agreement[$fee_key] !== '') {
+                    $form[$fee_key] = (string) $agreement[$fee_key];
+                }
             }
         }
 
@@ -275,6 +283,9 @@ if (!function_exists('lc_merchant_contract_read_to_api')) {
             ), array(
                 'negotiatedTerms' => $form['negotiatedTerms'],
                 'specialClauses'  => $form['specialClauses'],
+                'entryFee'        => $form['entryFee'] ?? 0,
+                'dbUnitPrice'     => $form['dbUnitPrice'] ?? 0,
+                'minPrecharge'    => $form['minPrecharge'] ?? 0,
             ));
         }
 
@@ -303,6 +314,9 @@ if (!function_exists('lc_merchant_contract_read_to_api')) {
             'signerEmail'        => $form['signerEmail'],
             'negotiatedTerms'    => $form['negotiatedTerms'],
             'specialClauses'     => $form['specialClauses'],
+            'entryFee'           => $form['entryFee'] ?? '',
+            'dbUnitPrice'        => $form['dbUnitPrice'] ?? '',
+            'minPrecharge'       => $form['minPrecharge'] ?? '',
             'signedAt'           => (string) ($contract['mc_signed_at'] ?? ''),
             'signedIp'           => (string) ($contract['mc_signed_ip'] ?? ''),
             'userAgent'          => (string) ($contract['mc_user_agent'] ?? ''),

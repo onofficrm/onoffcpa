@@ -2487,6 +2487,9 @@ export type MerchantContractForm = {
   signerEmail: string;
   negotiatedTerms?: string;
   specialClauses?: string;
+  entryFee?: string | number;
+  dbUnitPrice?: string | number;
+  minPrecharge?: string | number;
   step: number;
   agreements: {
     readAll: boolean;
@@ -2582,6 +2585,9 @@ export type MerchantContractRead = {
   signerEmail: string;
   negotiatedTerms?: string;
   specialClauses?: string;
+  entryFee?: string | number;
+  dbUnitPrice?: string | number;
+  minPrecharge?: string | number;
   signedAt: string;
   signedIp: string;
   userAgent: string;
