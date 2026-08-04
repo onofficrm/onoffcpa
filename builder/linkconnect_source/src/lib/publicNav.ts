@@ -8,11 +8,20 @@ export interface NavLinkItem {
 export const companySubItems: NavLinkItem[] = [
   { to: '/about', label: '회사소개' },
   { to: '/affiliate', label: '제휴마케팅이란?' },
+  { to: '/about#call-db', label: '콜디비란?' },
   { to: '/notice', label: '공지사항' },
 ];
 
 /** @deprecated Footer 등 — companySubItems 사용 */
 export const companyNavItems = companySubItems;
+
+export function isCompanyNavActive(pathname: string): boolean {
+  return companySubItems.some((item) => {
+    const path = item.to.split('#')[0] || item.to;
+    if (path === '/') return false;
+    return pathname === path || pathname.startsWith(`${path}/`);
+  });
+}
 
 /** 캠페인·프로모션 (이벤트는 메뉴에서 숨김 — /events 직접 접근은 유지) */
 export const campaignNavItems: NavLinkItem[] = [
@@ -31,7 +40,3 @@ export const adminNavItem: NavLinkItem = {
   label: '관리자센터',
   accent: 'cyan',
 };
-
-export function isCompanyNavActive(pathname: string): boolean {
-  return companySubItems.some((item) => pathname === item.to || pathname.startsWith(`${item.to}/`));
-}

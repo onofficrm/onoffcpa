@@ -3,14 +3,17 @@ import {
   BadgeDollarSign,
   BarChart3,
   Handshake,
+  Headphones,
   Link2,
+  PhoneCall,
+  Route,
   ShieldCheck,
   Sparkles,
   TrendingUp,
   Users,
-  Zap,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
 const asset = (path: string) => `${import.meta.env.BASE_URL}${path}`;
 
@@ -36,43 +39,48 @@ const coreValues = [
     image: images.dashboard,
     imageAlt: '실시간 성과 대시보드',
     title: '투명하고 정교한 실시간 트래킹 & 어뷰징 관리',
-    desc: '링크 클릭부터 CPA 전환까지 모든 데이터를 실시간 대시보드로 공개합니다. 24시간 모니터링으로 허위 실적을 차단해 깨끗한 생태계를 만듭니다.',
+    desc: '링크 클릭부터 CPA 전환·콜디비까지 모든 데이터를 실시간 대시보드로 공개합니다. 모니터링으로 허위 실적을 차단해 깨끗한 생태계를 만듭니다.',
   },
   {
     icon: <BadgeDollarSign className="w-6 h-6 text-amber-500" />,
     image: images.settlement,
     imageAlt: '광고주와 파트너 상생',
     title: '지연 없는 정산과 신뢰 기반의 상생 파트너십',
-    desc: '마케터의 수익이 지연 없이 보상받도록 신속한 정산을 약속합니다. 광고주에게는 ROI, 마케터에게는 업계 최고 수준의 커미션을 보장합니다.',
+    desc: '마케터의 수익이 지연 없이 보상받도록 신속한 정산을 약속합니다. 광고주에게는 ROI, 마케터에게는 합리적인 커미션을 보장합니다.',
   },
 ];
 
 const highlights = [
-  { value: '300억+', label: '연간 견인 매출', sub: '자체 운영 노하우', icon: <TrendingUp className="w-5 h-5" /> },
-  { value: 'CPA', label: '성과형 네트워크', sub: 'CPA 전문', icon: <Link2 className="w-5 h-5" /> },
-  { value: '실시간', label: '성과 추적', sub: '투명한 데이터', icon: <Zap className="w-5 h-5" /> },
+  { value: 'CPA', label: '성과형 네트워크', sub: 'CPA · 콜디비', icon: <Link2 className="w-5 h-5" /> },
+  { value: '실시간', label: '성과 추적', sub: '투명한 데이터', icon: <BarChart3 className="w-5 h-5" /> },
+  { value: '0503', label: '콜디비 연동', sub: '가상번호 추적', icon: <PhoneCall className="w-5 h-5" /> },
   { value: 'Win-Win', label: '상생 파트너십', sub: '광고주 · 파트너', icon: <Handshake className="w-5 h-5" /> },
 ];
 
-const introPoints = [
-  {
-    title: '성장하는 제휴 마케팅 시장',
-    text: '해외는 수십 조원 규모, 국내는 무궁무진한 잠재력. 온오프CPA는 연간 300억 원 이상의 견인 매출 노하우로 새로운 기준을 제시합니다.',
-  },
-  {
-    title: '광고주와 파트너를 잇는 네트워크',
-    text: '비즈니스 성장을 원하는 광고주와, 영향력을 수익으로 전환하고 싶은 파트너(마케터·인플루언서·블로거)를 효율적으로 연결합니다.',
-  },
-  {
-    title: '모두가 이기는 Win-Win',
-    text: 'CPA 전문 네트워크로 광고주와 마케터 모두 확실한 성과와 수익을 만들 수 있도록 함께합니다.',
-  },
+const storyParagraphs = [
+  '온오프CPA는 CPA 기반 제휴마케팅을 중심으로, 광고주와 파트너가 함께 성장할 수 있는 성과형 플랫폼입니다.',
+  '우리는 상담·문의·전환 DB를 투명하게 추적하고, 파트너에게는 빠른 정산과 명확한 실적 데이터를, 광고주에게는 실질적인 성과 중심 유입을 제공합니다.',
+  '단순히 광고주와 마케터를 중개하는 데 그치지 않습니다. 캠페인 운영, 어뷰징 관리, 콜디비(전화 문의) 추적까지 이어지는 운영 경험을 바탕으로 현장에서 필요한 기능을 직접 설계합니다.',
+  '광고주는 불필요한 광고비 낭비를 줄이면서 검증 가능한 상담·전환 성과를 원합니다. 파트너는 자신의 홍보 성과를 실시간으로 확인하고, 노력에 맞는 보상을 받기를 원합니다.',
+  '온오프CPA는 그 간극을 메우기 위해 만들어졌습니다. 클릭·신청폼·전화 문의까지 성과로 연결하고, 광고주와 파트너가 같은 데이터를 보며 신뢰를 쌓을 수 있는 환경을 지향합니다.',
+  '연결이 곧 수익이 되는 구조. 성과로 증명하는 제휴마케팅 플랫폼, 온오프CPA입니다.',
 ];
 
 export function About() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.hash === '#call-db') {
+      window.requestAnimationFrame(() => {
+        document.getElementById('call-db')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      return;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.hash, location.pathname]);
+
   return (
     <main>
-      {/* Hero */}
       <section className="pt-28 pb-16 md:pt-32 md:pb-24 px-4 sm:px-6 lg:px-8 bg-slate-950 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-900/20 via-slate-950 to-slate-950" />
         <div className="absolute top-1/4 -right-32 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
@@ -86,15 +94,17 @@ export function About() {
                 About OnOff CPA
               </p>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
-                가치를 연결하고,
+                연결이 곧 수익이 되는
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-                  성과로 증명
+                  성과형 CPA 플랫폼
                 </span>
-                하다.
               </h1>
-              <p className="text-lg text-slate-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                대한민국 성과 중심 제휴 마케팅 플랫폼, 온오프CPA(OnOff CPA)입니다.
+              <p className="text-lg text-slate-300 leading-relaxed max-w-xl mx-auto lg:mx-0 mb-3">
+                안녕하세요. 온오프CPA입니다.
+              </p>
+              <p className="text-base text-slate-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                CPA 상담·전환 DB와 콜디비를 중심으로, 광고주와 파트너가 함께 성장하는 제휴마케팅 플랫폼을 만듭니다.
               </p>
             </div>
 
@@ -110,7 +120,6 @@ export function About() {
         </div>
       </section>
 
-      {/* Intro — 이미지 + 핵심 포인트 */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div className="relative order-2 lg:order-1">
@@ -120,34 +129,126 @@ export function About() {
               className="w-full rounded-2xl border border-slate-100 shadow-lg object-cover aspect-video"
             />
             <div className="absolute -bottom-4 -right-4 hidden md:block bg-emerald-500 text-white text-sm font-bold px-4 py-2 rounded-xl shadow-lg">
-              CPA 전문
+              CPA · 콜디비
             </div>
           </div>
 
-          <div className="space-y-6 order-1 lg:order-2">
+          <div className="space-y-5 order-1 lg:order-2">
             <h2 className="text-2xl md:text-3xl font-bold text-slate-900 leading-snug">
-              연결을 수익으로 바꾸는
+              성과로 증명하는
               <br />
-              <span className="text-emerald-600">성과형 제휴 마케팅</span>
+              <span className="text-emerald-600">온오프CPA의 연결</span>
             </h2>
-            <div className="space-y-5">
-              {introPoints.map((point, i) => (
-                <article key={point.title} className="flex gap-4">
-                  <div className="shrink-0 w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-sm">
-                    {i + 1}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 mb-1">{point.title}</h3>
-                    <p className="text-slate-600 text-sm md:text-base leading-relaxed">{point.text}</p>
-                  </div>
-                </article>
+            <div className="space-y-4 text-slate-600 text-sm md:text-base leading-relaxed">
+              {storyParagraphs.map((paragraph) => (
+                <p key={paragraph.slice(0, 24)}>{paragraph}</p>
               ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Stats strip */}
+      <section id="call-db" className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-violet-50/60 to-white border-y border-slate-100 scroll-mt-24">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-100 border border-violet-200 text-violet-700 text-xs font-bold mb-4">
+                <Headphones className="w-4 h-4" />
+                CALL DB
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 leading-tight">
+                전화 문의까지 잡는
+                <br />
+                <span className="text-violet-600">콜디비(Call DB)</span>
+              </h2>
+              <p className="text-slate-600 leading-relaxed mb-6">
+                CPA는 폼 신청이 핵심이지만, 실제 고객은 전화로 문의하는 경우가 많습니다.
+                온오프CPA는 파트너에게 <b>전용 가상번호</b>를 배정해 전화 유입도 성과로 추적합니다.
+              </p>
+              <ul className="space-y-4 mb-8">
+                <li className="flex gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
+                    <PhoneCall className="w-5 h-5 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900">파트너별 고유 번호 배정</p>
+                    <p className="text-sm text-slate-600 mt-0.5">
+                      파트너마다 단독 가상번호를 제공해 홍보 채널별 전화 유입을 구분합니다.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
+                    <Route className="w-5 h-5 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900">번호 기준 자동 매칭</p>
+                    <p className="text-sm text-slate-600 mt-0.5">
+                      고객 전화가 들어오면 가상번호로 파트너·광고주 캠페인을 식별하고 콜 DB로 기록합니다.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center shrink-0">
+                    <TrendingUp className="w-5 h-5 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900">CPA 수익 기회 확대</p>
+                    <p className="text-sm text-slate-600 mt-0.5">
+                      신청폼 없이 전화만 한 고객도 유효 전환으로 연결해 CPA 캠페인 수익 기회를 넓힙니다.
+                    </p>
+                  </div>
+                </li>
+              </ul>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  to="/partner/call"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm transition-colors"
+                >
+                  파트너 콜디비 바로가기
+                  <ArrowUpRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  to="/cpa-list"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border border-violet-200 text-violet-700 hover:bg-violet-50 font-bold text-sm bg-white transition-colors"
+                >
+                  CPA 캠페인 보기
+                </Link>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="absolute -inset-3 bg-violet-500/10 rounded-3xl blur-xl" aria-hidden />
+              <div className="relative rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-700 to-indigo-800 p-8 md:p-10 text-white shadow-2xl">
+                <p className="text-violet-200 text-sm font-semibold mb-2">콜디비 운영 흐름</p>
+                <ol className="space-y-4 text-sm">
+                  <li className="flex gap-3 items-start">
+                    <span className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-xs font-bold shrink-0">1</span>
+                    <span>파트너가 CPA 캠페인 홍보 + 전용 가상번호 노출</span>
+                  </li>
+                  <li className="flex gap-3 items-start">
+                    <span className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-xs font-bold shrink-0">2</span>
+                    <span>고객이 전화 문의 → 가상번호로 파트너·캠페인 식별</span>
+                  </li>
+                  <li className="flex gap-3 items-start">
+                    <span className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-xs font-bold shrink-0">3</span>
+                    <span>광고주 착신 연결 + 통화 로그·콜 DB 적재</span>
+                  </li>
+                  <li className="flex gap-3 items-start">
+                    <span className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-xs font-bold shrink-0">4</span>
+                    <span>유효 전환 확정 시 CPA 수익 정산</span>
+                  </li>
+                </ol>
+                <div className="mt-8 pt-6 border-t border-white/15">
+                  <p className="text-violet-200 text-xs mb-1">전화 유입도 성과로 연결</p>
+                  <p className="text-xl md:text-2xl font-bold tracking-tight">폼 + 콜 = 더 많은 CPA 기회</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="py-14 px-4 sm:px-6 lg:px-8 bg-slate-50 border-y border-slate-100">
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
           {highlights.map((item) => (
@@ -163,7 +264,6 @@ export function About() {
         </div>
       </section>
 
-      {/* 3 core values — 이미지 카드 */}
       <section className="py-24 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
@@ -171,7 +271,7 @@ export function About() {
               온오프CPA가 약속하는 <span className="text-emerald-500">3가지 핵심 가치</span>
             </h2>
             <p className="text-slate-500 max-w-xl mx-auto">
-              연결부터 정산까지, 성과 중심 제휴 마케팅의 새로운 기준
+              연결부터 정산까지, 성과 중심 제휴 마케팅의 기준
             </p>
           </div>
 
@@ -205,7 +305,6 @@ export function About() {
         </div>
       </section>
 
-      {/* Visual banner — 트래킹 강조 */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-slate-950">
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-10 items-center">
           <div>
@@ -219,8 +318,8 @@ export function About() {
               <span className="text-cyan-400">한눈에 보는 성과</span>
             </h2>
             <p className="text-slate-400 leading-relaxed mb-6">
-              CPA DB 캠페인의 클릭·전환·수익 데이터를 실시간 대시보드에서 확인하세요.
-              광고주와 파트너 모두 투명한 데이터로 안심하고 운영할 수 있습니다.
+              CPA DB 캠페인과 파트너 전용 가상번호 기반 콜디비까지.
+              클릭·신청·전화 문의의 전환을 실시간 대시보드에서 확인하세요.
             </p>
             <Link
               to="/affiliate"
@@ -234,7 +333,7 @@ export function About() {
             <div className="absolute -inset-2 bg-cyan-500/10 rounded-2xl blur-lg" />
             <img
               src={images.tracking}
-              alt="CPA 성과 트래킹 대시보드"
+              alt="CPA 성과 트래킹"
               className="relative w-full rounded-2xl border border-white/10 shadow-2xl object-cover aspect-[4/3]"
               loading="lazy"
             />
@@ -242,7 +341,6 @@ export function About() {
         </div>
       </section>
 
-      {/* Closing CTA */}
       <section className="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-900 to-slate-950 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/30 via-slate-950 to-cyan-950/20" />
         <div className="max-w-4xl mx-auto relative text-center">
@@ -260,8 +358,8 @@ export function About() {
             <span className="text-emerald-400">온오프CPA</span>
           </h2>
           <p className="text-slate-400 text-lg leading-relaxed max-w-2xl mx-auto mb-10">
-            연간 300억 매출 견인의 저력, 투명한 데이터와 강력한 네트워크로
-            여러분의 비즈니스를 다음 단계로 도약시켜 드립니다.
+            광고주와 파트너가 같은 성과 데이터를 보고 성장하는 선순환.
+            투명한 추적과 합리적인 정산으로 더 큰 기회를 만듭니다.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link

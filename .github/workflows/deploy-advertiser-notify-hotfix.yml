@@ -11,9 +11,12 @@ on:
       - 'plugin/linkconnect/merchant/api/notification_prefs.php'
       - 'plugin/onoff-builder-bridge/imports/linkconnect/**'
       - 'builder/linkconnect_source/src/pages/advertiser/AdvertiserSettings.tsx'
+      - 'builder/linkconnect_source/src/pages/About.tsx'
+      - 'builder/linkconnect_source/src/components/Header.tsx'
       - 'builder/linkconnect_source/src/layouts/AdvertiserLayout.tsx'
       - 'builder/linkconnect_source/src/App.tsx'
       - 'builder/linkconnect_source/src/lib/api.ts'
+      - 'builder/linkconnect_source/src/lib/publicNav.ts'
       - '.github/workflows/deploy-advertiser-notify-hotfix.yml'
 
 concurrency:

@@ -50,30 +50,37 @@ function CompanyNavDropdown({ onNavigate }: { onNavigate?: () => void }) {
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
-      <button
-        type="button"
+      <Link
+        to="/about"
         className={`inline-flex items-center gap-1 ${navLinkClass(active)}`}
         aria-expanded={open}
         aria-haspopup="true"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(false)}
       >
         회사소개
-        <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
+        <ChevronDown
+          className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen((v) => !v);
+          }}
+        />
+      </Link>
 
       {open && (
-        <div className="absolute top-full left-0 pt-1 w-52 z-50">
+        <div className="absolute top-full left-0 pt-1 w-52 z-[100]">
           <div className="py-2 bg-slate-900 border border-white/10 rounded-xl shadow-2xl">
             {companySubItems.map((item) => (
               <Link
-                key={item.to}
+                key={item.label}
                 to={item.to}
                 onClick={() => {
                   setOpen(false);
                   onNavigate?.();
                 }}
                 className={`block px-4 py-2.5 text-sm font-medium transition-colors ${
-                  isActive(location.pathname, item.to)
+                  isActive(location.pathname, item.to.split('#')[0] || item.to)
                     ? 'text-emerald-400 bg-white/5'
                     : 'text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
@@ -111,15 +118,15 @@ export function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center h-20">
+        <div className="flex items-center justify-between h-20 w-full gap-3 lg:gap-4">
           {/* 로고 */}
-          <Link to="/" className="flex items-center gap-2 shrink-0 mr-6">
+          <Link to="/" className="flex items-center gap-2 shrink-0">
             <BrandMark className="w-7 h-7" />
-            <span className="text-xl xl:text-2xl font-bold text-white tracking-tight">온오프CPA</span>
+            <span className="text-xl xl:text-2xl font-bold text-white tracking-tight whitespace-nowrap">온오프CPA</span>
           </Link>
 
-          {/* 메인 메뉴 */}
-          <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 flex-1 min-w-0 overflow-x-auto" aria-label="주요 메뉴">
+          {/* 메인 메뉴 — overflow 제거(드롭다운 클릭 가능하도록) */}
+          <nav className="hidden md:flex items-center justify-center flex-1 gap-3 lg:gap-5 xl:gap-6 min-w-0 overflow-visible" aria-label="주요 메뉴">
             <CompanyNavDropdown />
             {campaignNavItems.map((item) => (
               <Link key={item.to} to={item.to} className={navLinkClass(isActive(location.pathname, item.to))}>
@@ -138,7 +145,7 @@ export function Header() {
           </nav>
 
           {/* 우측: 로그인 · 회원가입 · 관리자센터(맨 끝) */}
-          <div className="hidden md:flex items-center gap-2 lg:gap-3 shrink-0 ml-auto pl-4 lg:pl-6 border-l border-white/10">
+          <div className="hidden md:flex items-center gap-2 lg:gap-3 shrink-0 pl-3 lg:pl-4 border-l border-white/10">
             <MemberAuthMenu variant="header-dark" onNavigate={closeMobile} />
             <AdminCenterBadge />
           </div>
@@ -146,7 +153,7 @@ export function Header() {
           {/* 모바일 햄버거 */}
           <button
             type="button"
-            className="md:hidden ml-auto text-slate-300 hover:text-white p-2"
+            className="md:hidden ml-auto text-slate-300 hover:text-white p-2 shrink-0"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-expanded={isMobileMenuOpen}
             aria-label="메뉴"
@@ -161,7 +168,7 @@ export function Header() {
           <p className="px-3 pt-2 pb-1 text-xs font-bold text-slate-500 uppercase tracking-wider">회사소개</p>
           {companySubItems.map((item) => (
             <Link
-              key={item.to}
+              key={item.label}
               to={item.to}
               onClick={closeMobile}
               className={`block px-3 py-2.5 pl-5 text-base font-medium rounded-lg ${
