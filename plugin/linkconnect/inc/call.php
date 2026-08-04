@@ -604,8 +604,12 @@ if (!function_exists('lc_call_settings_save')) {
         $mt_id = (int) $campaign['mt_id'];
 
         $table = lc_table('call_settings');
+        if (!lc_db_table_exists($table)) {
+            return array('ok' => false, 'message' => '콜 설정 테이블이 없습니다. DB 마이그레이션을 실행하세요.');
+        }
         $before = lc_call_settings_get($cp_id, $mt_id);
         $existing = !empty($before['cs_id']);
+        $has_merchant_price_col = lc_db_column_exists($table, 'cs_merchant_price');
 
         // 광고주가 편집 가능한 필드 (관리자도 수신번호 입력 가능)
         $merchant_fields = array(
@@ -628,9 +632,11 @@ if (!function_exists('lc_call_settings_save')) {
             'cs_price'          => isset($payload['price'])
                 ? (int) $payload['price']
                 : (isset($payload['partnerPrice']) ? (int) $payload['partnerPrice'] : null),
-            'cs_merchant_price' => isset($payload['advertiserPrice'])
-                ? (int) $payload['advertiserPrice']
-                : (isset($payload['merchantPrice']) ? (int) $payload['merchantPrice'] : null),
+            'cs_merchant_price' => $has_merchant_price_col
+                ? (isset($payload['advertiserPrice'])
+                    ? (int) $payload['advertiserPrice']
+                    : (isset($payload['merchantPrice']) ? (int) $payload['merchantPrice'] : null))
+                : null,
             'cs_min_duration'   => isset($payload['minDuration']) ? (int) $payload['minDuration'] : null,
             'cs_memo'           => isset($payload['memo']) ? (string) $payload['memo'] : null,
         );
@@ -663,10 +669,13 @@ if (!function_exists('lc_call_settings_save')) {
 
         if ($existing) {
             if (!$sets) {
-                return array('ok' => true, 'message' => '변경사항이 없습니다.');
+                return array('ok' => true, 'message' => '변경사항이 없습니다.', 'settings' => $before);
             }
             $sets[] = 'cs_updated_at = NOW()';
-            lc_sql_query(" UPDATE `{$table}` SET " . implode(', ', $sets) . " WHERE cp_id = '{$cp_id}' ", false);
+            $updated = lc_sql_query(" UPDATE `{$table}` SET " . implode(', ', $sets) . " WHERE cp_id = '{$cp_id}' ", false);
+            if ($updated === false) {
+                return array('ok' => false, 'message' => '콜 설정 저장 실패: ' . lc_sql_error());
+            }
         } else {
             $base = lc_call_settings_defaults($cp_id, $mt_id);
             $merged = array();
@@ -679,7 +688,11 @@ if (!function_exists('lc_call_settings_save')) {
                 'cp_id' => $cp_id,
                 'mt_id' => $mt_id,
             );
-            foreach (array('cs_enabled','cs_alias','cs_forward1','cs_forward2','cs_admin_enabled','cs_recording_mode','cs_coloring','cs_call_ment','cs_business_start','cs_business_end','cs_holiday_weeks','cs_holiday_days','cs_price','cs_merchant_price','cs_min_duration','cs_memo') as $col) {
+            $insert_cols = array('cs_enabled','cs_alias','cs_forward1','cs_forward2','cs_admin_enabled','cs_recording_mode','cs_coloring','cs_call_ment','cs_business_start','cs_business_end','cs_holiday_weeks','cs_holiday_days','cs_price','cs_min_duration','cs_memo');
+            if ($has_merchant_price_col) {
+                $insert_cols[] = 'cs_merchant_price';
+            }
+            foreach ($insert_cols as $col) {
                 $insert[$col] = array_key_exists($col, $merged) ? $merged[$col] : $base[$col];
             }
             $cols = array();
@@ -692,10 +705,25 @@ if (!function_exists('lc_call_settings_save')) {
             }
             $cols[] = 'cs_created_at = NOW()';
             $cols[] = 'cs_updated_at = NOW()';
-            lc_sql_query(" INSERT INTO `{$table}` SET " . implode(', ', $cols) . " ", false);
+            $inserted = lc_sql_query(" INSERT INTO `{$table}` SET " . implode(', ', $cols) . " ", false);
+            if ($inserted === false) {
+                // 동시 요청으로 이미 생성된 경우 UPDATE로 재시도
+                if ($sets) {
+                    $sets[] = 'cs_updated_at = NOW()';
+                    $updated = lc_sql_query(" UPDATE `{$table}` SET " . implode(', ', $sets) . " WHERE cp_id = '{$cp_id}' ", false);
+                    if ($updated === false) {
+                        return array('ok' => false, 'message' => '콜 설정 저장 실패: ' . lc_sql_error());
+                    }
+                } else {
+                    return array('ok' => false, 'message' => '콜 설정 저장 실패: ' . lc_sql_error());
+                }
+            }
         }
 
         $after = lc_call_settings_get($cp_id, $mt_id);
+        if (empty($after['cs_id'])) {
+            return array('ok' => false, 'message' => '콜 설정이 저장되지 않았습니다. DB 상태를 확인해 주세요.');
+        }
 
         if ($scope === 'merchant' && function_exists('lc_call_notify_admin_forward_changed')) {
             lc_call_notify_admin_forward_changed($cp_id, $mt_id, $before, $after);
@@ -1144,7 +1172,16 @@ if (!function_exists('lc_call_assign_apply_price')) {
             return $save;
         }
 
-        return array('ok' => true, 'message' => '콜 단가가 적용되었습니다.');
+        $after = is_array($save['settings'] ?? null) ? $save['settings'] : lc_call_settings_get($cp_id);
+        if ((int) ($after['cs_price'] ?? 0) !== $partner_price) {
+            return array('ok' => false, 'message' => '파트너 단가가 저장되지 않았습니다. 다시 시도해 주세요.');
+        }
+        if (lc_db_table_exists(lc_table('call_settings')) && lc_db_column_exists(lc_table('call_settings'), 'cs_merchant_price')
+            && (int) ($after['cs_merchant_price'] ?? 0) !== $advertiser_price) {
+            return array('ok' => false, 'message' => '광고주 단가가 저장되지 않았습니다. 다시 시도해 주세요.');
+        }
+
+        return array('ok' => true, 'message' => '콜 단가가 적용되었습니다.', 'settings' => $after);
     }
 }
 

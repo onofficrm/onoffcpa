@@ -168,14 +168,16 @@ if ($method === 'POST') {
         if ($advertiser_price <= 0) {
             $advertiser_price = $partner_price;
         }
+        if ($advertiser_price < $partner_price) {
+            lc_api_error('광고주 단가는 파트너 단가 이상이어야 합니다.', 'INVALID_PRICE', 400);
+        }
+
+        $price_result = lc_call_assign_apply_price((int) ($request['cp_id'] ?? 0), $partner_price, $advertiser_price);
+        if (!$price_result['ok']) {
+            lc_api_error($price_result['message'], 'PRICE_SAVE_FAILED', 400);
+        }
 
         $result = lc_call_request_assign($car_id, (int) ($body['cnId'] ?? 0), (string) ($body['adminMemo'] ?? ''));
-        if ($result['ok']) {
-            $price_result = lc_call_assign_apply_price((int) ($request['cp_id'] ?? 0), $partner_price, $advertiser_price);
-            if (!$price_result['ok']) {
-                lc_api_error($price_result['message'], 'PRICE_SAVE_FAILED', 400);
-            }
-        }
         if ($result['ok'] && function_exists('lc_admin_log_write')) {
             lc_admin_log_write('call_assign_request', 'call_request', $car_id, (string) ($result['message'] ?? ''), array(
                 'cnId' => (int) ($body['cnId'] ?? 0),
@@ -196,6 +198,15 @@ if ($method === 'POST') {
         if ($advertiser_price <= 0) {
             $advertiser_price = $partner_price;
         }
+        if ($advertiser_price < $partner_price) {
+            lc_api_error('광고주 단가는 파트너 단가 이상이어야 합니다.', 'INVALID_PRICE', 400);
+        }
+
+        // 단가를 먼저 저장 — 동일 번호 재배정·배정 실패와 무관하게 설정 단가가 반영되도록 함
+        $price_result = lc_call_assign_apply_price($cp_id, $partner_price, $advertiser_price);
+        if (!$price_result['ok']) {
+            lc_api_error($price_result['message'], 'PRICE_SAVE_FAILED', 400);
+        }
 
         $result = lc_call_request_assign_direct(
             (int) ($body['ptId'] ?? 0),
@@ -203,12 +214,6 @@ if ($method === 'POST') {
             (int) ($body['cnId'] ?? 0),
             (string) ($body['adminMemo'] ?? '')
         );
-        if ($result['ok']) {
-            $price_result = lc_call_assign_apply_price($cp_id, $partner_price, $advertiser_price);
-            if (!$price_result['ok']) {
-                lc_api_error($price_result['message'], 'PRICE_SAVE_FAILED', 400);
-            }
-        }
         if ($result['ok'] && function_exists('lc_admin_log_write')) {
             lc_admin_log_write('call_assign_direct', 'call_request', (int) ($result['carId'] ?? 0), (string) ($result['message'] ?? ''), array(
                 'ptId' => (int) ($body['ptId'] ?? 0),
@@ -218,7 +223,12 @@ if ($method === 'POST') {
                 'advertiserPrice' => $advertiser_price,
             ));
         }
-        $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'ASSIGN_FAILED', 400);
+        if ($result['ok']) {
+            $result['message'] = trim((string) ($result['message'] ?? '배정되었습니다.') . ' 단가 P'
+                . number_format($partner_price) . ' / A' . number_format($advertiser_price) . '원 적용');
+            lc_api_success($result);
+        }
+        lc_api_error($result['message'], 'ASSIGN_FAILED', 400);
     }
 
     if ($action === 'import_logs') {
