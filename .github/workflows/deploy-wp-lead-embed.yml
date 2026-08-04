@@ -65,6 +65,8 @@ jobs:
           test -f "$ROOT/plugin/linkconnect/assets/js/lead-embed.js"
           test -f "$ROOT/plugin/linkconnect/api/embed.php"
           test -f "$ROOT/plugin/linkconnect/assets/wordpress/linkconnect-lead.zip"
+          bash scripts/assert-onoffcpa-spa-branding.sh \
+            "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html"
           echo "Bundle ready:" && find "$ROOT" -type f | wc -l
 
       - name: FTP upload hotfix

@@ -43,7 +43,7 @@ jobs:
             cp "$file" "$ROOT/$file"
           done
           mkdir -p "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect"
-          rsync -a --exclude '._*' --exclude '.DS_Store' \
+          rsync -a --exclude '._*' --exclude '.DS_Store' --exclude '*.map' \
             plugin/onoff-builder-bridge/imports/linkconnect/ \
             "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/"
           find "$ROOT" -name '._*' -delete 2>/dev/null || true
@@ -52,6 +52,9 @@ jobs:
           JS=$(grep -oE 'index-[A-Za-z0-9_-]+\.js' "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html" | head -1)
           test -n "$JS"
           test -f "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/assets/$JS"
+          # 절대 linkconnect 브랜드 SPA 배포 금지
+          bash scripts/assert-onoffcpa-spa-branding.sh \
+            "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html"
           echo "SPA bundle: $JS"
           echo "Bundle files:" && find "$ROOT" -type f | wc -l
 

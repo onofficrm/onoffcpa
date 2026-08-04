@@ -14,11 +14,15 @@ if [[ ! -d "$SRC" ]]; then
   exit 1
 fi
 
+# 소스 dist 부터 브랜드 검증 (잘못된 빌드 동기화 방지)
+bash "$ROOT/scripts/assert-onoffcpa-spa-branding.sh" "$SRC/index.html"
+
 mkdir -p "$DEST/assets"
 # Built assets (hashed JS/CSS + index.html) — replace
 rsync -a --delete \
   --exclude '._*' \
   --exclude '.DS_Store' \
+  --exclude '*.map' \
   "$SRC/assets/" "$DEST/assets/"
 cp "$SRC/index.html" "$DEST/index.html"
 
@@ -29,6 +33,11 @@ if [[ -d "$PUBLIC" ]]; then
     --exclude '.DS_Store' \
     "$PUBLIC/" "$DEST/"
 fi
+
+find "$DEST" -name '._*' -delete 2>/dev/null || true
+find "$DEST" -name '.DS_Store' -delete 2>/dev/null || true
+
+bash "$ROOT/scripts/assert-onoffcpa-spa-branding.sh" "$DEST/index.html"
 
 echo "Synced: $SRC -> $DEST"
 ls -la "$DEST/assets"

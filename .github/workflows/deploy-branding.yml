@@ -106,6 +106,8 @@ jobs:
           cp plugin/onoff-builder-bridge/data/imports/linkconnect.json "$ROOT/plugin/onoff-builder-bridge/data/imports/"
           find "$ROOT" -name '._*' -delete 2>/dev/null || true
           grep -q 'OnOff CPA' "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html"
+          bash scripts/assert-onoffcpa-spa-branding.sh \
+            "$ROOT/plugin/onoff-builder-bridge/imports/linkconnect/index.html"
           echo "Bundle files: $(find "$ROOT" -type f | wc -l)"
 
       - name: FTP upload branding bundle
