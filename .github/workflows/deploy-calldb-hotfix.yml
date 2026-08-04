@@ -1,6 +1,7 @@
 name: Deploy CallDB hotfix
 
 # 콜디비 PHP + SPA 번들만 빠르게 FTP (전체 배포 적체 회피)
+# redeploy bump: call price fix
 on:
   push:
     branches:
