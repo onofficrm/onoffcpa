@@ -54,11 +54,209 @@ if (!function_exists('lc_campaign_promo_guide_limits')) {
             'promotion_points'     => 3,
             'recommended_keywords' => 10,
             'forbidden_words'      => 10,
-            'precautions'          => 5,
+            // 플랫폼 공통 금지 7항 + 안내문 + 광고주 추가 항목 여유
+            'precautions'          => 15,
             'valid_db_rules'       => 5,
             'invalid_db_rules'     => 5,
             'images'               => 10,
         );
+    }
+}
+
+if (!function_exists('lc_campaign_promo_guide_common_precautions')) {
+    /**
+     * 전 광고상품 홍보가이드에 공통으로 넣는 금지·유의사항.
+     *
+     * @return list<string>
+     */
+    function lc_campaign_promo_guide_common_precautions($brand_name = '')
+    {
+        $brand = trim((string) $brand_name);
+        if ($brand === '') {
+            $brand = '광고주';
+        }
+
+        return array(
+            '1. 본인등록, 지인등록 등 불법적으로 수집 된 불특정 DB 금지 (테스트 DB는 신청자명을 \'테스트\'라고 적어 주세요)',
+            '2. 스팸쪽지, 스팸 메일로 상담신청을 유도하는 행위 금지',
+            '3. 리워드 마케팅 금지 (상담신청, 회원가입 시 금전, 상품, 포인트를 제공하는 행위)',
+            '4. 자사내 자료(홈페이지 내에 게재된 사진 등)를 타업체 홍보에 사용하는 행위 금지',
+            '5. 파워링크로 업체명 "' . $brand . '" 관련 키워드 사용 금지 / 그 외에 다른 키워드 관계없음',
+            '6. 서울 인천 경기 수도권 외 지역은 방문불가로 비유효 예정',
+            '7. 미해결시 비용 0원 / 못뚫으면 비용x 외에 유사문구 금지',
+            '위의 항목들로 수집된 DB는 질이 떨어지고 머천트(광고주)에게 피해나 민원이 발생할 소지가 있으며, 결과적으로 머천트와 파트너에게 해가 될 수 있으니 금지사항을 꼭 지켜주시기 바랍니다.',
+        );
+    }
+}
+
+if (!function_exists('lc_campaign_promo_guide_precaution_dedupe_key')) {
+    /**
+     * @return string
+     */
+    function lc_campaign_promo_guide_precaution_dedupe_key($text)
+    {
+        $text = trim((string) $text);
+        if ($text === '') {
+            return '';
+        }
+        if (
+            mb_strpos($text, '파워링크로 업체명') !== false
+            || (mb_strpos($text, '파워링크') !== false && mb_strpos($text, '업체명') !== false)
+        ) {
+            return 'common:powerlink_brand';
+        }
+        if (mb_strpos($text, '불법적으로 수집') !== false || mb_strpos($text, '불특정 DB 금지') !== false) {
+            return 'common:illegal_db';
+        }
+        if (mb_strpos($text, '스팸쪽지') !== false || mb_strpos($text, '스팸 메일') !== false) {
+            return 'common:spam';
+        }
+        if (mb_strpos($text, '리워드 마케팅 금지') !== false) {
+            return 'common:reward';
+        }
+        if (mb_strpos($text, '자사내 자료') !== false || mb_strpos($text, '타업체 홍보') !== false) {
+            return 'common:assets';
+        }
+        if (mb_strpos($text, '수도권 외') !== false || mb_strpos($text, '방문불가') !== false) {
+            return 'common:region';
+        }
+        if (mb_strpos($text, '미해결시 비용') !== false || mb_strpos($text, '못뚫으면') !== false) {
+            return 'common:free_claim';
+        }
+        if (mb_strpos($text, '머천트와 파트너에게 해가') !== false || mb_strpos($text, '금지사항을 꼭 지켜') !== false) {
+            return 'common:footer';
+        }
+
+        $normalized = preg_replace('/^\s*\d+\.\s*/u', '', $text);
+        $normalized = preg_replace('/\s+/u', ' ', (string) $normalized);
+
+        return 'custom:' . mb_strtolower(trim((string) $normalized));
+    }
+}
+
+if (!function_exists('lc_campaign_promo_guide_merge_precautions')) {
+    /**
+     * 공통 금지사항을 앞에 두고, 캠페인 고유 유의사항을 뒤에 합친다.
+     *
+     * @param list<string>|array $existing
+     * @param list<string>|array $common
+     * @return list<string>
+     */
+    function lc_campaign_promo_guide_merge_precautions($existing, $common)
+    {
+        $out = array();
+        $seen = array();
+        foreach (array_merge((array) $common, (array) $existing) as $item) {
+            $item = trim((string) $item);
+            if ($item === '') {
+                continue;
+            }
+            $key = lc_campaign_promo_guide_precaution_dedupe_key($item);
+            if ($key === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = $item;
+        }
+
+        return $out;
+    }
+}
+
+if (!function_exists('lc_campaign_promo_guide_resolve_brand_name')) {
+    /**
+     * @param array<string,mixed> $guide_row
+     */
+    function lc_campaign_promo_guide_resolve_brand_name(array $guide_row)
+    {
+        $mt_id = (int) ($guide_row['cpg_mt_id'] ?? 0);
+        if ($mt_id > 0 && function_exists('lc_get_merchant_by_id')) {
+            $merchant = lc_get_merchant_by_id($mt_id);
+            if (is_array($merchant)) {
+                $company = trim((string) ($merchant['mt_company'] ?? ''));
+                if ($company !== '') {
+                    return $company;
+                }
+            }
+        }
+
+        $cp_id = (int) ($guide_row['cpg_cp_id'] ?? 0);
+        if ($cp_id > 0 && function_exists('lc_campaign_get_by_id')) {
+            $campaign = lc_campaign_get_by_id($cp_id);
+            if (is_array($campaign)) {
+                $name = trim((string) ($campaign['cp_name'] ?? ''));
+                if ($name !== '') {
+                    return $name;
+                }
+            }
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('lc_campaign_promo_guide_backfill_common_precautions')) {
+    /**
+     * 기존 모든 홍보가이드 DB에 공통 금지사항을 병합 저장한다.
+     *
+     * @return array{ok:bool,updated:int,message:string}
+     */
+    function lc_campaign_promo_guide_backfill_common_precautions()
+    {
+        if (!lc_db_installed() || !lc_db_table_exists(lc_campaign_promo_guide_table())) {
+            return array('ok' => true, 'updated' => 0, 'message' => 'skip');
+        }
+
+        $table = lc_campaign_promo_guide_table();
+        $marker = lc_sql_escape('리워드 마케팅 금지 (상담신청');
+        $pending = lc_sql_fetch(
+            " SELECT COUNT(*) AS cnt FROM `{$table}`
+              WHERE IFNULL(cpg_precautions, '') NOT LIKE '%{$marker}%' ",
+            false
+        );
+        if (is_array($pending) && (int) ($pending['cnt'] ?? 0) === 0) {
+            return array('ok' => true, 'updated' => 0, 'message' => 'already applied');
+        }
+
+        $result = lc_sql_query(" SELECT * FROM `{$table}` ORDER BY cpg_id ASC ", false);
+        if (!$result) {
+            return array('ok' => false, 'updated' => 0, 'message' => '조회 실패');
+        }
+
+        $updated = 0;
+        $limits = lc_campaign_promo_guide_limits();
+        $max = (int) $limits['precautions'];
+
+        while ($row = sql_fetch_array($result)) {
+            if (!is_array($row) || empty($row['cpg_id'])) {
+                continue;
+            }
+            $brand = lc_campaign_promo_guide_resolve_brand_name($row);
+            $common = lc_campaign_promo_guide_common_precautions($brand);
+            $existing = lc_campaign_promo_guide_decode_json_list((string) ($row['cpg_precautions'] ?? ''));
+            $merged = lc_campaign_promo_guide_merge_precautions($existing, $common);
+            if ($max > 0 && count($merged) > $max) {
+                $merged = array_slice($merged, 0, $max);
+            }
+
+            $before = lc_campaign_promo_guide_encode_json_list($existing);
+            $after = lc_campaign_promo_guide_encode_json_list($merged);
+            if ($before === $after) {
+                continue;
+            }
+
+            $cpg_id = (int) $row['cpg_id'];
+            $encoded = lc_sql_escape($after);
+            $ok = lc_sql_query(
+                " UPDATE `{$table}` SET cpg_precautions = '{$encoded}', cpg_updated_at = NOW() WHERE cpg_id = '{$cpg_id}' LIMIT 1 ",
+                false
+            );
+            if ($ok) {
+                $updated++;
+            }
+        }
+
+        return array('ok' => true, 'updated' => $updated, 'message' => 'common precautions backfilled');
     }
 }
 
@@ -238,6 +436,11 @@ if (!function_exists('lc_campaign_promo_guide_db_ensure_schema')) {
             if ($alter === false) {
                 return array('ok' => false, 'message' => 'cpg_revision_reason 컬럼 추가 실패: ' . lc_sql_error());
             }
+        }
+
+        // 전 상품 홍보가이드에 플랫폼 공통 금지사항 병합
+        if (function_exists('lc_campaign_promo_guide_backfill_common_precautions')) {
+            lc_campaign_promo_guide_backfill_common_precautions();
         }
 
         return array('ok' => true, 'message' => 'campaign_promo_guides 스키마 준비 완료');
@@ -1370,6 +1573,22 @@ if (!function_exists('lc_campaign_promo_guide_create')) {
         $approval = lc_sql_escape(LC_CPG_APPROVAL_FREE);
         $status = lc_sql_escape(LC_CPG_STATUS_DRAFT);
         $empty = lc_sql_escape('[]');
+        $brand = '';
+        if (function_exists('lc_get_merchant_by_id')) {
+            $merchant = lc_get_merchant_by_id($mt_id);
+            if (is_array($merchant)) {
+                $brand = trim((string) ($merchant['mt_company'] ?? ''));
+            }
+        }
+        if ($brand === '' && function_exists('lc_campaign_get_by_id')) {
+            $campaign = lc_campaign_get_by_id($cp_id);
+            if (is_array($campaign)) {
+                $brand = trim((string) ($campaign['cp_name'] ?? ''));
+            }
+        }
+        $seed_precautions = lc_sql_escape(
+            lc_campaign_promo_guide_encode_json_list(lc_campaign_promo_guide_common_precautions($brand))
+        );
 
         $ok = lc_sql_query(" INSERT INTO `{$table}` SET
             cpg_cp_id = '{$cp_id}',
@@ -1377,7 +1596,7 @@ if (!function_exists('lc_campaign_promo_guide_create')) {
             cpg_promotion_points = '{$empty}',
             cpg_recommended_keywords = '{$empty}',
             cpg_forbidden_words = '{$empty}',
-            cpg_precautions = '{$empty}',
+            cpg_precautions = '{$seed_precautions}',
             cpg_valid_db_rules = '{$empty}',
             cpg_invalid_db_rules = '{$empty}',
             cpg_approval_type = '{$approval}',

@@ -47,7 +47,7 @@ export const PROMO_GUIDE_LIMITS_DEFAULT: PromoGuideLimits = {
   promotion_points: 3,
   recommended_keywords: 10,
   forbidden_words: 10,
-  precautions: 5,
+  precautions: 15,
   valid_db_rules: 5,
   invalid_db_rules: 5,
   images: 10,

@@ -647,7 +647,7 @@ export function AdvertiserCampaignGuide() {
             <>
               <SectionCard
                 title="홍보 시 유의사항"
-                hint="예: 공식 직원인 것처럼 홍보하지 마세요. · 무조건 승인된다는 표현을 사용할 수 없습니다."
+                hint="플랫폼 공통 금지사항(불법 DB·스팸·리워드·자료 무단사용·파워링크·지역·허위단가 문구 등)이 기본 포함됩니다. 상품별 추가 유의사항만 더 적어 주세요."
                 count={form.precautions.filter((v) => v.trim()).length}
                 max={limits.precautions}
                 error={fieldErrors.precautions}
