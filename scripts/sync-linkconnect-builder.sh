@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# LinkConnect 빌더 dist → onoff-builder-bridge imports 동기화
+# OnOffCPA SPA 빌더 dist → onoff-builder-bridge imports 동기화
+# 주의: linkconnect 저장소의 SPA 번들을 여기로 복사하면 안 됨(브랜드/카피 분리).
+# 반드시 onoffcpa/builder/linkconnect_source 에서 npm run deploy:imports 로만 갱신.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
