@@ -70,7 +70,16 @@ if (!function_exists('lc_call_partner_phone_for_assignment')) {
 if (!function_exists('lc_landing_format_phone_display')) {
     function lc_landing_format_phone_display($phone)
     {
+        if (function_exists('lc_call_number_format')) {
+            $formatted = lc_call_number_format($phone);
+            if ($formatted !== '') {
+                return $formatted;
+            }
+        }
         $digits = preg_replace('/\D+/', '', (string) $phone);
+        if (strlen($digits) === 12 && strpos($digits, '050') === 0) {
+            return substr($digits, 0, 4) . '-' . substr($digits, 4, 4) . '-' . substr($digits, 8, 4);
+        }
         if (strlen($digits) === 11) {
             return substr($digits, 0, 3) . '-' . substr($digits, 3, 4) . '-' . substr($digits, 7);
         }
@@ -180,7 +189,15 @@ if (!function_exists('lc_landing_context_resolve')) {
         }
 
         $partner_phone = lc_call_partner_phone_for_assignment($pt_id, $cp_id);
-        $partner_phone_display = $partner_phone !== '' ? lc_landing_format_phone_display($partner_phone) : '';
+        if ($partner_phone !== '' && function_exists('lc_call_number_normalize')) {
+            $partner_phone = lc_call_number_normalize($partner_phone);
+        }
+        $partner_phone_display = '';
+        if ($partner_phone !== '') {
+            $partner_phone_display = function_exists('lc_call_number_format')
+                ? lc_call_number_format($partner_phone)
+                : lc_landing_format_phone_display($partner_phone);
+        }
 
         return array(
             'lkCode'               => $lk_code,

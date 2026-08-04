@@ -284,7 +284,12 @@ if (!function_exists('linkconnect_tracking_domain_spa_gate')) {
                 }
             }
             if ($landing_rel !== '') {
-                header('Location: ' . $landing_rel, true, 302);
+                $dest = $landing_rel;
+                $query = parse_url($uri, PHP_URL_QUERY);
+                if (is_string($query) && $query !== '') {
+                    $dest .= (strpos($dest, '?') !== false ? '&' : '?') . $query;
+                }
+                header('Location: ' . $dest, true, 302);
                 exit;
             }
         }
