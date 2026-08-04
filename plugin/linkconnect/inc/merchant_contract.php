@@ -767,9 +767,6 @@ if (!function_exists('lc_merchant_contract_save_draft')) {
         }
         if ($step >= 2) {
             $fee_errors = array();
-            if ($entry_fee <= 0) {
-                $fee_errors['entryFee'] = '입점비를 입력해 주세요.';
-            }
             if ($db_unit_price <= 0) {
                 $fee_errors['dbUnitPrice'] = 'DB당 과금(광고 단가)을 입력해 주세요.';
             }
@@ -1282,7 +1279,7 @@ if (!function_exists('lc_merchant_contract_sign')) {
         if (is_array($draft)) {
             $draft_agreement = lc_merchant_contract_decode_snapshot($draft['mc_agreement_snapshot'] ?? '');
             if (is_array($draft_agreement)) {
-                if ($entry_fee <= 0 && !empty($draft_agreement['entryFee'])) {
+                if (!array_key_exists('entryFee', $payload) && array_key_exists('entryFee', $draft_agreement)) {
                     $entry_fee = function_exists('lc_merchant_contract_parse_amount')
                         ? lc_merchant_contract_parse_amount($draft_agreement['entryFee'])
                         : (int) $draft_agreement['entryFee'];
@@ -1299,12 +1296,11 @@ if (!function_exists('lc_merchant_contract_sign')) {
                 }
             }
         }
-        if ($entry_fee <= 0 || $db_unit_price <= 0 || $min_precharge <= 0) {
+        if ($db_unit_price <= 0 || $min_precharge <= 0) {
             return array(
                 'ok' => false,
-                'message' => '광고비 조건(입점비·DB당 과금·최소 선충전금)을 입력해 주세요.',
+                'message' => '광고비 조건(DB당 과금·최소 선충전금)을 입력해 주세요.',
                 'errors' => array(
-                    'entryFee' => $entry_fee <= 0 ? '입점비를 입력해 주세요.' : '',
                     'dbUnitPrice' => $db_unit_price <= 0 ? 'DB당 과금을 입력해 주세요.' : '',
                     'minPrecharge' => $min_precharge <= 0 ? '최소 선충전금을 입력해 주세요.' : '',
                 ),

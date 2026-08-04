@@ -312,11 +312,15 @@ export function AdvertiserContractView() {
             <ReadOnlyField label="담당자 이메일" value={contract.signerEmail} />
             <ReadOnlyField label="PDF 해시 (일부)" value={contract.pdfHashMasked} />
           </div>
-          {(contract.entryFee || contract.dbUnitPrice || contract.minPrecharge) ? (
+          {(contract.entryFee !== undefined && contract.entryFee !== null && contract.entryFee !== '') || contract.dbUnitPrice || contract.minPrecharge ? (
             <div className="grid sm:grid-cols-3 gap-3">
               <ReadOnlyField
                 label="입점비"
-                value={contract.entryFee ? `${Number(contract.entryFee).toLocaleString('ko-KR')}원` : '—'}
+                value={
+                  contract.entryFee !== undefined && contract.entryFee !== null && contract.entryFee !== ''
+                    ? `${Number(contract.entryFee).toLocaleString('ko-KR')}원`
+                    : '—'
+                }
               />
               <ReadOnlyField
                 label="DB당 과금"

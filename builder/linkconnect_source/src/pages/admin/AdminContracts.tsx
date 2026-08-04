@@ -572,11 +572,15 @@ export function AdminContracts() {
                   <Info label="등록일" value={detail.contract.createdAt} />
                 </section>
 
-                {(detail.contract.entryFee || detail.contract.dbUnitPrice || detail.contract.minPrecharge) ? (
+                {(detail.contract.entryFee !== undefined && detail.contract.entryFee !== null && detail.contract.entryFee !== '') || detail.contract.dbUnitPrice || detail.contract.minPrecharge ? (
                   <section className="grid sm:grid-cols-3 gap-3 text-sm">
                     <Info
                       label="입점비"
-                      value={detail.contract.entryFee ? `${Number(detail.contract.entryFee).toLocaleString('ko-KR')}원` : '—'}
+                      value={
+                        detail.contract.entryFee !== undefined && detail.contract.entryFee !== null && detail.contract.entryFee !== ''
+                          ? `${Number(detail.contract.entryFee).toLocaleString('ko-KR')}원`
+                          : '—'
+                      }
                     />
                     <Info
                       label="DB당 과금"

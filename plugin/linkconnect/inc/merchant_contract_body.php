@@ -101,9 +101,7 @@ if (!function_exists('lc_merchant_contract_render_html')) {
         $db_price = (int) $fees['dbUnitPrice'];
         $min_precharge = (int) $fees['minPrecharge'];
 
-        $entry_label = $entry_fee > 0
-            ? number_format($entry_fee) . '원(VAT 별도)'
-            : '[ 입점비 ]원(VAT 별도)';
+        $entry_label = number_format(max(0, $entry_fee)) . '원(VAT 별도)';
         $db_short = $db_price > 0 ? lc_merchant_contract_korean_money_short($db_price) : '';
         $db_label = $db_price > 0
             ? number_format($db_price) . '원(금 ' . $db_short . ', VAT 별도)'

@@ -48,7 +48,10 @@ function mapStateToForm(state: MerchantContractState): ContractFormState {
     signerEmail: state.form.signerEmail ?? '',
     negotiatedTerms: state.form.negotiatedTerms ?? '',
     specialClauses: state.form.specialClauses ?? '',
-    entryFee: state.form.entryFee ? formatWonInput(String(state.form.entryFee)) : '',
+    entryFee:
+      state.form.entryFee === undefined || state.form.entryFee === null || state.form.entryFee === ''
+        ? ''
+        : formatWonInput(String(state.form.entryFee)),
     dbUnitPrice: state.form.dbUnitPrice ? formatWonInput(String(state.form.dbUnitPrice)) : '',
     minPrecharge: state.form.minPrecharge ? formatWonInput(String(state.form.minPrecharge)) : '',
     agreements: {
@@ -468,14 +471,14 @@ export function AdvertiserContract() {
             <div className="grid md:grid-cols-3 gap-4">
               <label className="block space-y-1.5">
                 <span className="text-sm font-semibold text-slate-800">1. 입점비 *</span>
-                <p className="text-xs text-slate-500">랜딩 제작 및 입점비 (VAT 별도)</p>
+                <p className="text-xs text-slate-500">랜딩 제작 및 입점비 (VAT 별도, 0원 가능)</p>
                 <div className="relative">
                   <input
                     type="text"
                     inputMode="numeric"
                     value={form.entryFee}
                     onChange={(e) => updateForm({ entryFee: formatWonInput(e.target.value) })}
-                    placeholder="예: 300,000"
+                    placeholder="예: 0 또는 300,000"
                     className={`w-full px-3.5 py-2.5 pr-10 rounded-xl border text-sm ${
                       errors.entryFee ? 'border-amber-400 bg-amber-50' : 'border-slate-300 bg-white'
                     }`}

@@ -153,11 +153,11 @@ export function validateStep1(form: ContractFormState) {
   return errors;
 }
 
-/** 2단계: 입점비·DB당 과금·최소 선충전금 필수, 별도 협의·특별조항은 선택 */
+/** 2단계: 입점비(0원 가능)·DB당 과금·최소 선충전금 필수, 별도 협의·특별조항은 선택 */
 export function validateStep2(form: ContractFormState) {
   const errors: Record<string, string> = {};
-  if (parseWonInput(form.entryFee) <= 0) {
-    errors.entryFee = '입점비를 입력해 주세요.';
+  if (form.entryFee.trim() === '') {
+    errors.entryFee = '입점비를 입력해 주세요. (0원 가능)';
   }
   if (parseWonInput(form.dbUnitPrice) <= 0) {
     errors.dbUnitPrice = 'DB당 과금(광고 단가)을 입력해 주세요.';
