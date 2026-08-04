@@ -11,6 +11,7 @@ on:
       - 'plugin/onoff-builder-bridge/lib/functions.php'
       - 'plugin/onoff-builder-bridge/lib/renderer.php'
       - 'plugin/onoff-builder-bridge/imports/banktupt/**'
+      - 'plugin/onoff-builder-bridge/imports/.htaccess'
       - '.github/workflows/deploy-banktupt-hotfix.yml'
   workflow_dispatch:
 
@@ -44,10 +45,15 @@ jobs:
           rsync -a --delete --exclude '._*' --exclude '.DS_Store' \
             plugin/onoff-builder-bridge/imports/banktupt/ \
             "$ROOT/plugin/onoff-builder-bridge/imports/banktupt/"
+          if [[ -f plugin/onoff-builder-bridge/imports/.htaccess ]]; then
+            cp plugin/onoff-builder-bridge/imports/.htaccess \
+              "$ROOT/plugin/onoff-builder-bridge/imports/.htaccess"
+          fi
           find "$ROOT" -name '._*' -delete 2>/dev/null || true
           test -f "$ROOT/plugin/linkconnect/api/receive.php"
           test -f "$ROOT/plugin/linkconnect/inc/conversion.php"
           test -f "$ROOT/plugin/onoff-builder-bridge/imports/banktupt/index.html"
+          test -f "$ROOT/plugin/onoff-builder-bridge/imports/.htaccess"
           JS=$(grep -oE 'index-[A-Za-z0-9_-]+\.js' "$ROOT/plugin/onoff-builder-bridge/imports/banktupt/index.html" | head -1)
           test -n "$JS"
           test -f "$ROOT/plugin/onoff-builder-bridge/imports/banktupt/assets/$JS"
