@@ -153,15 +153,13 @@ export function AdminCallDb() {
       });
       return next;
     });
-    setPriceDrafts((prev) => {
-      const next = { ...prev };
+    // 서버 단가를 항상 반영. 빈 draft('')가 남아 있으면 placeholder 0처럼 보이고 실단가를 가린다.
+    setPriceDrafts(() => {
+      const next: Record<number, { partner: string; advertiser: string }> = {};
       numbers.forEach((n) => {
-        if (next[n.cnId] === undefined) {
-          next[n.cnId] = {
-            partner: n.partnerPrice ? String(n.partnerPrice) : '',
-            advertiser: n.advertiserPrice ? String(n.advertiserPrice) : (n.partnerPrice ? String(n.partnerPrice) : ''),
-          };
-        }
+        const partner = n.partnerPrice > 0 ? String(n.partnerPrice) : '';
+        const advertiser = n.advertiserPrice > 0 ? String(n.advertiserPrice) : partner;
+        next[n.cnId] = { partner, advertiser };
       });
       return next;
     });
@@ -176,6 +174,11 @@ export function AdminCallDb() {
   const notify = (msg: string) => {
     setMessage(msg);
     setTimeout(() => setMessage(''), 3000);
+  };
+
+  const parseCallPrice = (value: string | number | undefined | null) => {
+    const n = Number(String(value ?? '').replace(/,/g, '').trim());
+    return Number.isFinite(n) ? n : NaN;
   };
 
   const handleAddNumber = async () => {
@@ -260,13 +263,16 @@ export function AdminCallDb() {
 
   const handleAssign = async () => {
     if (!assignTarget || !assignCn) return;
-    const partnerPrice = Number(assignPartnerPrice);
-    const advertiserPrice = Number(assignAdvertiserPrice || assignPartnerPrice);
+    const partnerPrice = parseCallPrice(assignPartnerPrice);
+    let advertiserPrice = parseCallPrice(assignAdvertiserPrice);
     if (!Number.isFinite(partnerPrice) || partnerPrice <= 0) {
       notify('파트너 단가를 입력하세요.');
       return;
     }
-    if (!Number.isFinite(advertiserPrice) || advertiserPrice < partnerPrice) {
+    if (!Number.isFinite(advertiserPrice) || advertiserPrice <= 0) {
+      advertiserPrice = partnerPrice;
+    }
+    if (advertiserPrice < partnerPrice) {
       notify('광고주 단가는 파트너 단가 이상이어야 합니다.');
       return;
     }
@@ -280,6 +286,7 @@ export function AdminCallDb() {
       });
       notify(res.message);
       setAssignTarget(null);
+      setPriceDrafts({});
       loadAll();
     } catch (e) {
       notify(e instanceof Error ? e.message : '배정 실패');
@@ -300,13 +307,16 @@ export function AdminCallDb() {
 
   const handleDirectAssign = async () => {
     if (!directPt || !directCp || !directCn) return;
-    const partnerPrice = Number(directPartnerPrice);
-    const advertiserPrice = Number(directAdvertiserPrice || directPartnerPrice);
+    const partnerPrice = parseCallPrice(directPartnerPrice);
+    let advertiserPrice = parseCallPrice(directAdvertiserPrice);
     if (!Number.isFinite(partnerPrice) || partnerPrice <= 0) {
       notify('파트너 단가를 입력하세요.');
       return;
     }
-    if (!Number.isFinite(advertiserPrice) || advertiserPrice < partnerPrice) {
+    if (!Number.isFinite(advertiserPrice) || advertiserPrice <= 0) {
+      advertiserPrice = partnerPrice;
+    }
+    if (advertiserPrice < partnerPrice) {
       notify('광고주 단가는 파트너 단가 이상이어야 합니다.');
       return;
     }
@@ -327,6 +337,7 @@ export function AdminCallDb() {
       setDirectMemo('');
       setDirectPartnerPrice('');
       setDirectAdvertiserPrice('');
+      setPriceDrafts({});
       loadAll();
     } catch (e) {
       notify(e instanceof Error ? e.message : '직접 배정 실패');
@@ -351,45 +362,58 @@ export function AdminCallDb() {
     }
   };
 
-  const handlePriceSave = async (n: CallNumber) => {
+  const handlePriceSave = async (
+    n: CallNumber,
+    override?: { partner?: string; advertiser?: string },
+  ) => {
     if (!n.cpId) {
       notify('배정된 번호만 단가를 수정할 수 있습니다.');
       return;
     }
-    const draft = priceDrafts[n.cnId] || {
-      partner: String(n.partnerPrice || ''),
-      advertiser: String(n.advertiserPrice || n.partnerPrice || ''),
+    const draft = {
+      partner: override?.partner ?? priceDrafts[n.cnId]?.partner ?? (n.partnerPrice > 0 ? String(n.partnerPrice) : ''),
+      advertiser:
+        override?.advertiser
+        ?? priceDrafts[n.cnId]?.advertiser
+        ?? (n.advertiserPrice > 0 ? String(n.advertiserPrice) : (n.partnerPrice > 0 ? String(n.partnerPrice) : '')),
     };
-    const partnerPrice = Number(draft.partner);
-    const advertiserPrice = Number(draft.advertiser || draft.partner);
+    const partnerPrice = parseCallPrice(draft.partner);
+    let advertiserPrice = parseCallPrice(draft.advertiser);
+    const prevPartner = Number(n.partnerPrice || 0);
+    const prevAdvertiser = Number(n.advertiserPrice || 0);
+
+    // 포커스만 이동한 blur — 빈 값이면 오류 대신 무시
     if (!Number.isFinite(partnerPrice) || partnerPrice <= 0) {
+      if (prevPartner <= 0) return;
       notify('파트너 단가를 입력하세요.');
       return;
     }
-    if (!Number.isFinite(advertiserPrice) || advertiserPrice < partnerPrice) {
+    if (!Number.isFinite(advertiserPrice) || advertiserPrice <= 0) {
+      advertiserPrice = partnerPrice;
+    }
+    if (advertiserPrice < partnerPrice) {
       notify('광고주 단가는 파트너 단가 이상이어야 합니다.');
       return;
     }
-    if (partnerPrice === Number(n.partnerPrice || 0) && advertiserPrice === Number(n.advertiserPrice || 0)) {
+    if (partnerPrice === prevPartner && advertiserPrice === prevAdvertiser) {
       return;
     }
     setBusy(true);
     try {
       const res = await updateAdminCallNumber({ cnId: n.cnId, partnerPrice, advertiserPrice });
       notify(res.message || '단가를 저장했습니다.');
-      setPriceDrafts((prev) => {
-        const next = { ...prev };
-        delete next[n.cnId];
-        return next;
-      });
+      setPriceDrafts((prev) => ({
+        ...prev,
+        [n.cnId]: { partner: String(partnerPrice), advertiser: String(advertiserPrice) },
+      }));
       loadAll();
     } catch (e) {
       notify(e instanceof Error ? e.message : '단가 저장 실패');
       setPriceDrafts((prev) => ({
         ...prev,
         [n.cnId]: {
-          partner: String(n.partnerPrice || ''),
-          advertiser: String(n.advertiserPrice || n.partnerPrice || ''),
+          partner: prevPartner > 0 ? String(prevPartner) : '',
+          advertiser: prevAdvertiser > 0 ? String(prevAdvertiser) : (prevPartner > 0 ? String(prevPartner) : ''),
         },
       }));
     } finally {
@@ -825,38 +849,53 @@ export function AdminCallDb() {
                               <input
                                 type="number"
                                 min={1}
-                                value={priceDrafts[n.cnId]?.partner ?? (n.partnerPrice ? String(n.partnerPrice) : '')}
+                                value={priceDrafts[n.cnId]?.partner ?? (n.partnerPrice > 0 ? String(n.partnerPrice) : '')}
                                 onChange={(e) => setPriceDrafts((prev) => ({
                                   ...prev,
                                   [n.cnId]: {
                                     partner: e.target.value,
-                                    advertiser: prev[n.cnId]?.advertiser ?? String(n.advertiserPrice || n.partnerPrice || ''),
+                                    advertiser: prev[n.cnId]?.advertiser
+                                      ?? (n.advertiserPrice > 0 ? String(n.advertiserPrice) : (n.partnerPrice > 0 ? String(n.partnerPrice) : '')),
                                   },
                                 }))}
-                                onBlur={() => handlePriceSave(n)}
+                                onBlur={(e) => {
+                                  const partner = e.currentTarget.value;
+                                  const advertiserRaw = priceDrafts[n.cnId]?.advertiser;
+                                  const advertiser = (advertiserRaw && Number(advertiserRaw) > 0)
+                                    ? advertiserRaw
+                                    : (n.advertiserPrice > 0 ? String(n.advertiserPrice) : partner);
+                                  void handlePriceSave(n, { partner, advertiser });
+                                }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') e.currentTarget.blur();
                                 }}
-                                placeholder="0"
+                                placeholder="상품단가"
                                 className="w-full max-w-[108px] box-border px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs tabular-nums"
                               />
                               <label className="block text-[10px] font-bold text-slate-400 leading-none pt-0.5">광고주</label>
                               <input
                                 type="number"
                                 min={1}
-                                value={priceDrafts[n.cnId]?.advertiser ?? (n.advertiserPrice ? String(n.advertiserPrice) : '')}
+                                value={priceDrafts[n.cnId]?.advertiser ?? (n.advertiserPrice > 0 ? String(n.advertiserPrice) : '')}
                                 onChange={(e) => setPriceDrafts((prev) => ({
                                   ...prev,
                                   [n.cnId]: {
-                                    partner: prev[n.cnId]?.partner ?? String(n.partnerPrice || ''),
+                                    partner: prev[n.cnId]?.partner ?? (n.partnerPrice > 0 ? String(n.partnerPrice) : ''),
                                     advertiser: e.target.value,
                                   },
                                 }))}
-                                onBlur={() => handlePriceSave(n)}
+                                onBlur={(e) => {
+                                  const advertiser = e.currentTarget.value;
+                                  const partnerRaw = priceDrafts[n.cnId]?.partner;
+                                  const partner = (partnerRaw && Number(partnerRaw) > 0)
+                                    ? partnerRaw
+                                    : (n.partnerPrice > 0 ? String(n.partnerPrice) : '');
+                                  void handlePriceSave(n, { partner, advertiser });
+                                }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') e.currentTarget.blur();
                                 }}
-                                placeholder="0"
+                                placeholder="상품단가"
                                 className="w-full max-w-[108px] box-border px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500 tabular-nums"
                               />
                             </div>

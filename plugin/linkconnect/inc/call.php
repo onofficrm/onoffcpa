@@ -207,7 +207,13 @@ if (!function_exists('lc_call_numbers_list')) {
         $has_requests = lc_db_table_exists($car);
         $has_settings = lc_db_table_exists($cs);
         $has_merchant_price = $has_settings && lc_db_column_exists($cs, 'cs_merchant_price');
-        $merchant_price_col = $has_merchant_price ? 's.cs_merchant_price' : '0';
+        // 콜설정 단가 우선, 없으면 광고상품 단가로 표시 (미저장 cs_* = 0 인 기존 배정 보정)
+        $partner_price_col = $has_settings
+            ? 'COALESCE(NULLIF(s.cs_price, 0), NULLIF(c.cp_price, 0), 0)'
+            : 'COALESCE(NULLIF(c.cp_price, 0), 0)';
+        $merchant_price_col = $has_merchant_price
+            ? 'COALESCE(NULLIF(s.cs_merchant_price, 0), NULLIF(c.cp_merchant_price, 0), NULLIF(c.cp_price, 0), 0)'
+            : 'COALESCE(NULLIF(c.cp_merchant_price, 0), NULLIF(c.cp_price, 0), 0)';
 
         $rows = array();
         if ($has_requests) {
@@ -215,7 +221,7 @@ if (!function_exists('lc_call_numbers_list')) {
                     r.car_id, r.pt_id AS assigned_pt_id, r.cp_id AS assigned_cp_id,
                     p.pt_code AS assigned_partner_code, p.pt_name AS assigned_partner_name,
                     c.cp_name AS assigned_campaign,
-                    s.cs_price AS assigned_partner_price,
+                    {$partner_price_col} AS assigned_partner_price,
                     {$merchant_price_col} AS assigned_advertiser_price
                 FROM `{$table}` n
                 LEFT JOIN `{$car}` r ON r.cn_id = n.cn_id AND r.car_status = '" . LC_CALL_REQ_ASSIGNED . "'
@@ -231,7 +237,25 @@ if (!function_exists('lc_call_numbers_list')) {
 
         $result = lc_sql_query($sql, false);
         if ($result) {
+            $backfilled = array();
             while ($row = sql_fetch_array($result)) {
+                $cp_id = (int) ($row['assigned_cp_id'] ?? 0);
+                $display_partner = (int) ($row['assigned_partner_price'] ?? 0);
+                $display_advertiser = (int) ($row['assigned_advertiser_price'] ?? 0);
+                // 표시 단가는 상품가 fallback 인데 call_settings 가 비어 있으면 한 번 저장
+                if ($cp_id > 0 && $display_partner > 0 && empty($backfilled[$cp_id])
+                    && function_exists('lc_call_settings_get') && function_exists('lc_call_assign_apply_price')) {
+                    $settings = lc_call_settings_get($cp_id);
+                    if ((int) ($settings['cs_price'] ?? 0) <= 0) {
+                        $adv = $display_advertiser > 0 ? $display_advertiser : $display_partner;
+                        $applied = lc_call_assign_apply_price($cp_id, $display_partner, $adv);
+                        if (!empty($applied['ok'])) {
+                            $row['assigned_partner_price'] = $display_partner;
+                            $row['assigned_advertiser_price'] = $adv;
+                        }
+                    }
+                    $backfilled[$cp_id] = true;
+                }
                 $rows[] = $row;
             }
         }
