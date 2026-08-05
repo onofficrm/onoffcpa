@@ -2,7 +2,7 @@
 if (!defined('_GNUBOARD_')) {
     exit;
 }
-$hero_img = lc_builder_asset_url('hero_dashboard_mockup.png');
+$hero_img = lc_builder_asset_url('hero_dashboard_mockup.webp');
 $cpa_url = lc_url('pages/cpa.php');
 $cps_url = lc_url('pages/cps.php');
 $events_url = lc_url('pages/events.php');
@@ -25,7 +25,7 @@ $merchant_url = lc_url('merchant/dashboard.php');
       </div>
     </div>
     <div class="lc-hero__visual">
-      <img src="<?php echo lc_h($hero_img); ?>" alt="OnOff CPA 대시보드 미리보기" loading="lazy">
+      <img src="<?php echo lc_h($hero_img); ?>" alt="OnOff CPA 대시보드 미리보기" width="1024" height="764" decoding="async" fetchpriority="high">
     </div>
   </div>
 </section>

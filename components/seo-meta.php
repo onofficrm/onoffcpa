@@ -235,9 +235,9 @@ if (!function_exists('g5b_seo_default_og_image')) {
         }
 
         $candidates[] = array(
-            'path'   => '/plugin/onoff-builder-bridge/imports/linkconnect/hero_dashboard_mockup.png',
-            'width'  => 1536,
-            'height' => 1024,
+            'path'   => '/plugin/onoff-builder-bridge/imports/linkconnect/hero_dashboard_mockup.jpg',
+            'width'  => 1024,
+            'height' => 764,
         );
         $candidates[] = array(
             'path'   => '/plugin/linkconnect/install/assets/thumb-dasibom.jpg',
