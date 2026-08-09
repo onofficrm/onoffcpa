@@ -2,8 +2,8 @@
 /**
  * Plugin Name: 온오프CPA 상담폼
  * Plugin URI:  https://onoffcpa.icrm.co.kr/
- * Description: 파트너 홍보코드(lkCode)로 온오프CPA 상담신청 폼을 워드프레스에 삽입합니다.
- * Version:     1.0.0
+ * Description: 파트너 홍보코드·위젯 키로 온오프CPA 상담신청 위젯을 워드프레스에 삽입합니다.
+ * Version:     1.1.1
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author:      온오프CPA
@@ -16,7 +16,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('LC_LEAD_VERSION', '1.0.0');
+define('LC_LEAD_VERSION', '1.1.1');
 define('LC_LEAD_PLUGIN_FILE', __FILE__);
 define('LC_LEAD_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('LC_LEAD_PLUGIN_URL', plugin_dir_url(__FILE__));

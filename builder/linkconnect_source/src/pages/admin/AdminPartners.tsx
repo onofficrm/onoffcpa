@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AdminLayout } from '../../layouts/AdminLayout';
 import { SummaryCard, StatusBadge } from '../../components/admin/AdminShared';
 import { 
   Users, Activity, Database, CreditCard, Receipt, 
-  Search, Calendar, ChevronDown, Download, ShieldAlert, X, Eye
+  Search, Calendar, ChevronDown, Download, ShieldAlert, X, Eye, Globe2
 } from 'lucide-react';
 import { AdminPartner, bulkAdminPartners, fetchAdminPartners, updateAdminPartner, viewAsPartner } from '../../lib/api';
 import { isLcSuperAdmin } from '../../lib/auth';
@@ -376,6 +377,28 @@ export function AdminPartners() {
                     <div className="font-bold text-cyan-400">{selectedPartner.confirmedProfit.toLocaleString()}원</div>
                   </div>
                 </div>
+
+                {selectedPartner.id ? (
+                  <div className="rounded-xl border border-cyan-200 bg-cyan-50/70 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-cyan-100 text-cyan-700 flex items-center justify-center shrink-0">
+                        <Globe2 size={18} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-bold text-cyan-950">외부 상담 위젯</div>
+                        <p className="text-xs text-cyan-900/80 mt-0.5 leading-relaxed">
+                          허용 도메인·위젯 키·설치 코드와 외부위젯 접수 현황을 관리합니다.
+                        </p>
+                        <Link
+                          to={`/admin/embed?ptId=${selectedPartner.id}`}
+                          className="inline-flex mt-3 px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-xs font-bold"
+                        >
+                          위젯 설정 열기
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
               
               {actionError && <p className="px-6 text-sm text-red-600">{actionError}</p>}

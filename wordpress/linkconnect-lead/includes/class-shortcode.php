@@ -19,11 +19,13 @@ class LinkConnect_Lead_Shortcode
         $defaults = LinkConnect_Lead_Settings::get();
         $atts = shortcode_atts(
             array(
-                'lk_code' => $defaults['lk_code'],
-                'origin'  => $defaults['origin'],
-                'channel' => $defaults['channel'],
-                'sub_id'  => $defaults['sub_id'],
-                'id'      => '',
+                'lk_code'     => $defaults['lk_code'],
+                'widget_key'  => isset($defaults['widget_key']) ? $defaults['widget_key'] : '',
+                'origin'      => $defaults['origin'],
+                'channel'     => $defaults['channel'],
+                'sub_id'      => $defaults['sub_id'],
+                'mode'        => isset($defaults['mode']) ? $defaults['mode'] : 'form',
+                'id'          => '',
             ),
             $atts,
             'linkconnect_lead'
@@ -32,7 +34,7 @@ class LinkConnect_Lead_Shortcode
         $lk_code = trim((string) $atts['lk_code']);
         if ($lk_code === '') {
             if (current_user_can('manage_options')) {
-                return '<p style="color:#be123c;font-size:14px;">온오프CPA: 설정에서 홍보코드(lkCode)를 입력해 주세요. <a href="' . esc_url(admin_url('options-general.php?page=linkconnect-lead')) . '">설정 열기</a></p>';
+                return '<p style="color:#be123c;font-size:14px;">LinkConnect: 설정에서 홍보코드(lkCode)를 입력해 주세요. <a href="' . esc_url(admin_url('options-general.php?page=linkconnect-lead')) . '">설정 열기</a></p>';
             }
             return '';
         }
@@ -41,6 +43,9 @@ class LinkConnect_Lead_Shortcode
         if ($origin === '' || !preg_match('#^https?://#i', $origin)) {
             $origin = LC_LEAD_DEFAULT_ORIGIN;
         }
+
+        $mode = LinkConnect_Lead_Settings::normalize_mode($atts['mode']);
+        $widget_key = LinkConnect_Lead_Settings::normalize_widget_key($atts['widget_key']);
 
         $safe = preg_replace('/[^a-zA-Z0-9_-]/', '', $lk_code);
         if ($safe === '') {
@@ -58,17 +63,23 @@ class LinkConnect_Lead_Shortcode
         // 스크립트는 숏코드마다 인라인으로 로드해 페이지 어디에 넣어도 동작
         ob_start();
         ?>
-        <div id="<?php echo esc_attr($mount_id); ?>" class="linkconnect-lead-root" data-lk-code="<?php echo esc_attr($lk_code); ?>"<?php
-            echo $channel !== '' ? ' data-channel="' . esc_attr($channel) . '"' : '';
-            echo $sub_id !== '' ? ' data-sub-id="' . esc_attr($sub_id) . '"' : '';
-        ?>></div>
+        <div id="<?php echo esc_attr($mount_id); ?>" class="linkconnect-lead-root"
+            data-lk-code="<?php echo esc_attr($lk_code); ?>"
+            <?php echo $widget_key !== '' ? ' data-widget-key="' . esc_attr($widget_key) . '"' : ''; ?>
+            <?php echo $channel !== '' ? ' data-channel="' . esc_attr($channel) . '"' : ''; ?>
+            <?php echo $sub_id !== '' ? ' data-sub-id="' . esc_attr($sub_id) . '"' : ''; ?>
+            data-mode="<?php echo esc_attr($mode); ?>"
+        ></div>
         <script
             src="<?php echo esc_url($script_src); ?>"
             data-lk-code="<?php echo esc_attr($lk_code); ?>"
+            <?php echo $widget_key !== '' ? 'data-widget-key="' . esc_attr($widget_key) . '" ' : ''; ?>
             data-target="#<?php echo esc_attr($mount_id); ?>"
             <?php echo $channel !== '' ? 'data-channel="' . esc_attr($channel) . '" ' : ''; ?>
             <?php echo $sub_id !== '' ? 'data-sub-id="' . esc_attr($sub_id) . '" ' : ''; ?>
+            data-mode="<?php echo esc_attr($mode); ?>"
             data-config-url="<?php echo esc_url($origin . '/plugin/linkconnect/api/embed.php'); ?>"
+            data-frame-url="<?php echo esc_url($origin . '/plugin/linkconnect/api/embed_frame.php'); ?>"
             async
         ></script>
         <?php

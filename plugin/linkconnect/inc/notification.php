@@ -202,13 +202,35 @@ if (!function_exists('lc_notification_emit_conversion')) {
         $cv_id = (int) ($conversion['cv_id'] ?? 0);
 
         if ($event === 'received') {
+            $source = strtolower(trim((string) ($conversion['cv_source'] ?? $conversion['source'] ?? '')));
+            $channel = strtolower(trim((string) ($conversion['cv_channel'] ?? $conversion['channel'] ?? '')));
+            $is_embed = ($source === 'embed' || $source === 'external')
+                || in_array($channel, array('embed', 'wordpress', 'widget', 'external'), true);
+            $title_recv = $is_embed ? '외부위젯 DB 접수' : '신규 DB 접수';
+            $title_partner = $is_embed ? '외부위젯 DB 발생' : '신규 DB 발생';
+            $host = '';
+            if ($is_embed) {
+                $page_url = trim((string) ($conversion['cv_page_url'] ?? $conversion['pageUrl'] ?? $conversion['page_url'] ?? ''));
+                if ($page_url !== '' && function_exists('lc_conversion_page_host')) {
+                    $host = lc_conversion_page_host($page_url);
+                } elseif ($page_url !== '' && function_exists('lc_embed_host_from_url')) {
+                    $host = lc_embed_host_from_url($page_url);
+                }
+            }
+            $body = $cp_name . ' · ' . $cv_code;
+            if ($host !== '') {
+                $body .= ' · ' . $host;
+            } elseif ($is_embed) {
+                $body .= ' · 외부위젯';
+            }
+
             if ($mt_id > 0) {
                 lc_notification_create(array(
                     'center'  => 'merchant',
                     'userId'  => $mt_id,
                     'type'    => 'conversion',
-                    'title'   => '신규 DB 접수',
-                    'body'    => $cp_name . ' · ' . $cv_code,
+                    'title'   => $title_recv,
+                    'body'    => $body,
                     'link'    => '/advertiser/db',
                     'refType' => 'conversion',
                     'refId'   => $cv_id,
@@ -219,8 +241,8 @@ if (!function_exists('lc_notification_emit_conversion')) {
                     'center'  => 'partner',
                     'userId'  => $pt_id,
                     'type'    => 'conversion',
-                    'title'   => '신규 DB 발생',
-                    'body'    => $cp_name . ' · ' . $cv_code,
+                    'title'   => $title_partner,
+                    'body'    => $body,
                     'link'    => '/partner/db-status',
                     'refType' => 'conversion',
                     'refId'   => $cv_id,
@@ -230,9 +252,9 @@ if (!function_exists('lc_notification_emit_conversion')) {
                 'center'  => 'admin',
                 'userId'  => 0,
                 'type'    => 'conversion',
-                'title'   => '신규 DB 접수',
-                'body'    => $cp_name . ' · ' . $cv_code,
-                'link'    => '/admin/conversions',
+                'title'   => $title_recv,
+                'body'    => $body,
+                'link'    => $is_embed ? '/admin/conversions?source=embed' : '/admin/conversions',
                 'refType' => 'conversion',
                 'refId'   => $cv_id,
             ));

@@ -1,28 +1,59 @@
 import { Search, Filter, AlertCircle, MessageSquare, Info, XCircle, FileWarning, PieChart, ShieldAlert, X } from 'lucide-react';
 import { SummaryCard } from '../../components/partner/PartnerShared';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PartnerLayout } from '../../layouts/PartnerLayout';
 import { fetchPartnerCanceledDbs, PartnerConversion, submitPartnerAppeal } from '../../lib/api';
+import { HelpTipButton } from '../../components/HelpTipButton';
+import { EMBED_HELP } from '../../lib/embedHelpTips';
+
+type SourceFilter = '' | 'embed' | 'call' | 'form';
 
 const emptySummary = { total: 0, week: 0, monthRate: 0, topReason: '-', reasons: [] as Array<{ reason: string; count: number; percentage: number }> };
 
+function parseSourceFilter(value: string | null): SourceFilter {
+  if (value === 'embed' || value === 'call' || value === 'form') {
+    return value;
+  }
+  return '';
+}
+
+function isEmbedRow(db: PartnerConversion) {
+  return db.source === 'embed' || ['embed', 'wordpress', 'widget', 'external'].includes((db.channel || '').toLowerCase());
+}
+
 export function PartnerDbCancel() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<PartnerConversion[]>([]);
   const [summary, setSummary] = useState(emptySummary);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [q, setQ] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>(() => parseSourceFilter(searchParams.get('source')));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDb, setSelectedDb] = useState<PartnerConversion | null>(null);
   const [appealText, setAppealText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const load = async (query = q) => {
+  useEffect(() => {
+    const next = parseSourceFilter(searchParams.get('source'));
+    setSourceFilter((prev) => (prev === next ? prev : next));
+  }, [searchParams]);
+
+  const updateSourceFilter = (value: SourceFilter) => {
+    setSourceFilter(value);
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set('source', value);
+    else next.delete('source');
+    setSearchParams(next, { replace: true });
+  };
+
+  const load = async (query = q, source = sourceFilter) => {
     setLoading(true);
     setError('');
     try {
-      const data = await fetchPartnerCanceledDbs({ q: query });
+      const data = await fetchPartnerCanceledDbs({ q: query, source });
       setItems(data.items);
       setSummary(data.cancelSummary ?? emptySummary);
     } catch (err) {
@@ -33,8 +64,9 @@ export function PartnerDbCancel() {
   };
 
   useEffect(() => {
-    load('');
-  }, []);
+    void load(q, sourceFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceFilter]);
 
   const openAppealModal = (db: PartnerConversion) => {
     setSelectedDb(db);
@@ -80,6 +112,19 @@ export function PartnerDbCancel() {
       <div className="grid lg:grid-cols-4 gap-8 mb-8">
         <div className="lg:col-span-3 space-y-6">
           <div className="bg-white p-4 rounded-2xl border border-slate-200 flex flex-wrap gap-4 items-center shadow-sm">
+            <div className="flex items-center gap-1.5">
+              <select
+                value={sourceFilter}
+                onChange={(e) => updateSourceFilter(e.target.value as SourceFilter)}
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-emerald-500 min-w-[120px]"
+              >
+                <option value="">출처 전체</option>
+                <option value="embed">외부위젯</option>
+                <option value="call">콜디비</option>
+                <option value="form">폼/링크</option>
+              </select>
+              <HelpTipButton title={EMBED_HELP.sourceFilter.title}>{EMBED_HELP.sourceFilter.body}</HelpTipButton>
+            </div>
             <div className="relative flex-1 min-w-[150px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -92,7 +137,7 @@ export function PartnerDbCancel() {
             </div>
             <button
               type="button"
-              onClick={() => load(q)}
+              onClick={() => void load(q, sourceFilter)}
               className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-sm"
             >
               <Filter size={16} /> 조회
@@ -122,9 +167,21 @@ export function PartnerDbCancel() {
                     <tr key={db.id} className="hover:bg-slate-50 transition-colors bg-red-50/10">
                       <td className="px-4 py-4 text-slate-500 whitespace-nowrap">{db.date}</td>
                       <td className="px-4 py-4">
-                        <div className="flex flex-col min-w-[140px]">
+                        <div className="flex flex-col min-w-[140px] gap-0.5">
                           <span className="font-bold text-slate-900">{db.campaign}</span>
-                          <span className="text-xs text-slate-500 mt-1">{db.channel}</span>
+                          <span className="text-xs text-slate-500 inline-flex flex-wrap items-center gap-1">
+                            <span>{db.channel || '-'}</span>
+                            {isEmbedRow(db) ? (
+                              <span className="inline-flex px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-bold">
+                                외부위젯{db.pageHost ? ` · ${db.pageHost}` : ''}
+                              </span>
+                            ) : null}
+                          </span>
+                          {(db.utmSource || db.utmMedium || db.utmCampaign) ? (
+                            <span className="text-[10px] text-slate-400">
+                              UTM {[db.utmSource, db.utmMedium, db.utmCampaign].filter(Boolean).join(' · ')}
+                            </span>
+                          ) : null}
                         </div>
                       </td>
                       <td className="px-4 py-4">
@@ -195,6 +252,10 @@ export function PartnerDbCancel() {
               </li>
               <li className="flex items-start gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-1.5 shrink-0"></div>
+                <p>외부위젯은 설치 도메인·UTM을 확인해 허용되지 않은 사이트 유입을 걸러주세요.</p>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 mt-1.5 shrink-0"></div>
                 <p>허위·과장 홍보 문구로 유입된 고객은 대부분 조건불일치나 취소로 이어집니다.</p>
               </li>
             </ul>
@@ -215,18 +276,45 @@ export function PartnerDbCancel() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm">
-                <div className="flex justify-between mb-1">
-                  <span className="text-slate-500">고객명</span>
-                  <span className="font-bold text-slate-900">{selectedDb.name} ({selectedDb.phone})</span>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm space-y-1.5">
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-500 shrink-0">고객명</span>
+                  <span className="font-bold text-slate-900 text-right">{selectedDb.name} ({selectedDb.phone})</span>
                 </div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-slate-500">캠페인</span>
-                  <span className="font-medium text-slate-900">{selectedDb.campaign}</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-500 shrink-0">캠페인</span>
+                  <span className="font-medium text-slate-900 text-right">{selectedDb.campaign}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">광고주 코멘트</span>
-                  <span className="font-medium text-red-500">{selectedDb.comment || '-'}</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-500 shrink-0">출처</span>
+                  <span className="font-medium text-slate-900 text-right">
+                    {isEmbedRow(selectedDb) ? `외부위젯${selectedDb.pageHost ? ` · ${selectedDb.pageHost}` : ''}` : (selectedDb.channel || selectedDb.source || '-')}
+                  </span>
+                </div>
+                {(selectedDb.pageUrl || selectedDb.pageHost) ? (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500 shrink-0">설치 페이지</span>
+                    <a
+                      href={selectedDb.pageUrl || undefined}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-cyan-700 text-right text-xs break-all hover:underline"
+                    >
+                      {selectedDb.pageUrl || selectedDb.pageHost}
+                    </a>
+                  </div>
+                ) : null}
+                {(selectedDb.utmSource || selectedDb.utmMedium || selectedDb.utmCampaign) ? (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500 shrink-0">UTM</span>
+                    <span className="font-medium text-slate-700 text-right text-xs">
+                      {[selectedDb.utmSource, selectedDb.utmMedium, selectedDb.utmCampaign].filter(Boolean).join(' · ')}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-500 shrink-0">광고주 코멘트</span>
+                  <span className="font-medium text-red-500 text-right">{selectedDb.comment || '-'}</span>
                 </div>
               </div>
               <div>

@@ -1,12 +1,29 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AdvertiserLayout } from '../../layouts/AdvertiserLayout';
 import { SummaryCard, StatusBadge } from '../../components/advertiser/AdvertiserShared';
-import { fetchMerchantConversions, MerchantConversion, reportMerchantChannel, updateMerchantConversion } from '../../lib/api';
+import { downloadMerchantConversionsCsv, fetchMerchantConversions, MerchantConversion, reportMerchantChannel, updateMerchantConversion } from '../../lib/api';
+import { HelpTipButton } from '../../components/HelpTipButton';
+import { EMBED_HELP } from '../../lib/embedHelpTips';
+
+type SourceFilter = '' | 'embed' | 'call' | 'form';
 import { Database, CheckCircle2, Clock, XCircle, Search, Filter, Download, AlertCircle, ChevronRight, MessageSquare, Check, X, FileText, AlertTriangle, User, Link2, MonitorPlay, LogIn, Calendar, Hash, ArrowRight, Bot, Loader2 } from 'lucide-react';
 
 const fallbackDbData: MerchantConversion[] = [];
 
+function formatPrice(value: number | null | undefined) {
+  return Number(value ?? 0).toLocaleString();
+}
+
+function parseSourceFilter(value: string | null): SourceFilter {
+  if (value === 'embed' || value === 'call' || value === 'form') {
+    return value;
+  }
+  return '';
+}
+
 export function AdvertiserDb() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<MerchantConversion[]>(fallbackDbData);
   const [summary, setSummary] = useState({ pending: 9, needsAction: 9, todaySpend: 300000 });
   const [loading, setLoading] = useState(true);
@@ -28,6 +45,25 @@ export function AdvertiserDb() {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportChannel, setReportChannel] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>(() => parseSourceFilter(searchParams.get('source')));
+  const [q, setQ] = useState('');
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    const next = parseSourceFilter(searchParams.get('source'));
+    setSourceFilter((prev) => (prev === next ? prev : next));
+  }, [searchParams]);
+
+  const updateSourceFilter = (value: SourceFilter) => {
+    setSourceFilter(value);
+    const next = new URLSearchParams(searchParams);
+    if (value) {
+      next.set('source', value);
+    } else {
+      next.delete('source');
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   const closeDetail = () => {
     setIsDetailOpen(false);
@@ -37,7 +73,7 @@ export function AdvertiserDb() {
   const loadRows = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchMerchantConversions();
+      const data = await fetchMerchantConversions({ source: sourceFilter, q });
       setRows(data.items);
       setSummary(data.summary);
     } catch {
@@ -45,11 +81,22 @@ export function AdvertiserDb() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sourceFilter, q]);
 
   useEffect(() => {
     loadRows();
   }, [loadRows]);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      await downloadMerchantConversionsCsv({ source: sourceFilter, q });
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '다운로드에 실패했습니다.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const handleApproveConfirm = async () => {
     if (!selectedDb?.cvId) {
@@ -148,9 +195,15 @@ export function AdvertiserDb() {
 
   return (
     <AdvertiserLayout activeMenu="db" title="디비 확인" pendingBadge={summary.needsAction}>
-      <div className="flex flex-col mb-8 -mt-2">
+      <div className="flex flex-col mb-8 -mt-2 gap-1">
         <p className="text-slate-500">
           접수된 디비를 확인하고 승인 또는 취소/무효 처리를 진행하세요.
+        </p>
+        <p className="text-xs text-slate-400 flex flex-wrap items-center gap-1.5">
+          출처 필터로 외부위젯·콜디비·폼/링크를 구분할 수 있습니다.
+          <HelpTipButton title={EMBED_HELP.sourceFilter.title} label="자세히">
+            {EMBED_HELP.sourceFilter.body}
+          </HelpTipButton>
         </p>
       </div>
 
@@ -208,6 +261,23 @@ export function AdvertiserDb() {
           <option>중복 DB</option>
           <option>조건 불일치</option>
         </select>
+        <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/80 pl-3 pr-1.5 py-1">
+          <span className="text-xs font-bold text-slate-600 shrink-0">출처</span>
+          <select
+            value={sourceFilter}
+            onChange={(e) => updateSourceFilter(e.target.value as SourceFilter)}
+            className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-cyan-500 min-w-[118px]"
+            aria-label="DB 출처 필터"
+          >
+            <option value="">전체</option>
+            <option value="embed">외부위젯</option>
+            <option value="call">콜디비</option>
+            <option value="form">폼/링크</option>
+          </select>
+          <HelpTipButton title={EMBED_HELP.sourceFilter.title} label="출처 설명">
+            {EMBED_HELP.sourceFilter.body}
+          </HelpTipButton>
+        </div>
         
         <div className="flex items-center gap-2">
           <input type="checkbox" id="needsAction" className="w-4 h-4 text-cyan-600 rounded border-slate-300 focus:ring-cyan-500" />
@@ -219,9 +289,19 @@ export function AdvertiserDb() {
 
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input type="text" placeholder="고객명, 연락처 검색" className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-cyan-500" />
+          <input
+            type="text"
+            placeholder="고객명, 연락처 검색"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-cyan-500"
+          />
         </div>
-        <button className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-sm ml-auto">
+        <button
+          type="button"
+          onClick={() => void loadRows()}
+          className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-sm ml-auto"
+        >
           <Filter size={16} /> 조회
         </button>
       </div>
@@ -230,8 +310,13 @@ export function AdvertiserDb() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col mb-8">
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <div className="text-sm text-slate-600 font-medium">총 <span className="text-cyan-600 font-bold">{rows.length}</span>건의 디비가 조회되었습니다.</div>
-          <button className="text-sm font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm">
-            <Download size={14} /> 엑셀 다운로드
+          <button
+            type="button"
+            disabled={downloading}
+            onClick={() => void handleDownload()}
+            className="text-sm font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
+          >
+            <Download size={14} /> {downloading ? '다운로드 중...' : 'CSV 다운로드'}
           </button>
         </div>
         
@@ -266,8 +351,8 @@ export function AdvertiserDb() {
                   <td className="px-4 py-4 text-center whitespace-nowrap">
                     <StatusBadge status={db.status} />
                   </td>
-                  <td className={`px-4 py-4 text-right font-medium whitespace-nowrap ${db.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
-                    {db.price.toLocaleString()}원
+                  <td className={`px-4 py-4 text-right font-medium whitespace-nowrap ${(db.price ?? 0) > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {formatPrice(db.price)}원
                   </td>
                   <td className="px-4 py-4 text-center whitespace-nowrap">
                     <button className={`p-1.5 rounded-lg transition-colors ${db.comment ? 'text-cyan-600 bg-cyan-50 hover:bg-cyan-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`} title={db.comment || '코멘트 작성'} onClick={(e) => { e.stopPropagation(); handleOpenDetail(db); }}>
@@ -329,7 +414,7 @@ export function AdvertiserDb() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">차감액</span>
-                  <span className="font-bold text-slate-900">{db.price.toLocaleString()}원</span>
+                  <span className="font-bold text-slate-900">{formatPrice(db.price)}원</span>
                 </div>
               </div>
 
@@ -408,8 +493,8 @@ export function AdvertiserDb() {
                 </div>
                 <div className="md:text-right">
                   <div className="text-sm text-slate-500 mb-1">광고비 차감액</div>
-                  <div className={`text-2xl font-bold ${selectedDb.price > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
-                    {selectedDb.price.toLocaleString()}원
+                  <div className={`text-2xl font-bold ${(selectedDb.price ?? 0) > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {formatPrice(selectedDb.price)}원
                   </div>
                 </div>
               </div>
@@ -457,18 +542,39 @@ export function AdvertiserDb() {
                   </div>
                   <div>
                     <div className="text-slate-400 mb-1">홍보 채널</div>
-                    <div className="font-medium text-slate-900">{selectedDb.channel}</div>
+                    <div className="font-medium text-slate-900 flex flex-wrap items-center gap-1.5">
+                      <span>{selectedDb.channel || '-'}</span>
+                      {selectedDb.source === 'embed' || ['embed', 'wordpress', 'widget', 'external'].includes((selectedDb.channel || '').toLowerCase()) ? (
+                        <span className="inline-flex px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-bold">외부위젯</span>
+                      ) : selectedDb.source === 'call' ? (
+                        <span className="inline-flex px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 text-[10px] font-bold">콜디비</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <div className="text-slate-400 mb-1">설치 페이지 (외부위젯)</div>
+                    {selectedDb.pageUrl ? (
+                      <a href={selectedDb.pageUrl} target="_blank" rel="noreferrer" className="text-cyan-700 hover:underline break-all">
+                        {selectedDb.pageHost ? `${selectedDb.pageHost} · ` : ''}{selectedDb.pageUrl}
+                      </a>
+                    ) : (
+                      <span className="text-slate-500">-</span>
+                    )}
                   </div>
                   <div className="md:col-span-2">
                     <div className="text-slate-400 mb-1">랜딩 URL</div>
-                    <a href={selectedDb.landingUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
-                      {selectedDb.landingUrl}
-                    </a>
+                    {selectedDb.landingUrl ? (
+                      <a href={selectedDb.landingUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
+                        {selectedDb.landingUrl}
+                      </a>
+                    ) : (
+                      <span className="text-slate-500">-</span>
+                    )}
                   </div>
                   <div className="md:col-span-2">
                     <div className="text-slate-400 mb-1">유입경로 (Referer)</div>
-                    <div className="text-slate-600 text-xs break-all truncate" title={selectedDb.referer}>
-                      {selectedDb.referer}
+                    <div className="text-slate-600 text-xs break-all" title={selectedDb.referer || ''}>
+                      {selectedDb.referer || '-'}
                     </div>
                   </div>
                   <div className="md:col-span-2 bg-slate-50 p-3 rounded-lg grid grid-cols-3 gap-3">
@@ -504,15 +610,15 @@ export function AdvertiserDb() {
                   </div>
                   <div className="flex justify-between items-center">
                     <div className="text-slate-400">디비당 차감 단가</div>
-                    <div className="font-bold text-slate-900">{selectedDb.price.toLocaleString()}원</div>
+                    <div className="font-bold text-slate-900">{formatPrice(selectedDb.price)}원</div>
                   </div>
                   <div className="pt-3 border-t border-slate-100">
                     <div className="text-slate-400 mb-1 text-xs">승인 기준</div>
-                    <div className="font-medium text-cyan-700 bg-cyan-50 p-2 rounded text-xs">{selectedDb.approvalCriteria}</div>
+                    <div className="font-medium text-cyan-700 bg-cyan-50 p-2 rounded text-xs">{selectedDb.approvalCriteria || '상담 가능 고객은 승인 처리해 주세요.'}</div>
                   </div>
                   <div>
                     <div className="text-slate-400 mb-1 text-xs">취소 기준</div>
-                    <div className="font-medium text-red-700 bg-red-50 p-2 rounded text-xs">{selectedDb.cancelCriteria}</div>
+                    <div className="font-medium text-red-700 bg-red-50 p-2 rounded text-xs">{selectedDb.cancelCriteria || '연락불가, 중복, 조건불일치 등은 취소/무효 처리할 수 있습니다.'}</div>
                   </div>
                 </div>
               </div>
@@ -524,7 +630,7 @@ export function AdvertiserDb() {
                 </div>
                 <div className="p-5">
                   <div className="relative border-l border-slate-200 ml-3 space-y-6">
-                    {selectedDb.history.map((h: any, i: number) => (
+                    {(selectedDb.history ?? []).map((h, i) => (
                       <div key={i} className="relative pl-6">
                         <div className="absolute w-3 h-3 bg-white border-2 border-slate-300 rounded-full -left-[6.5px] top-1"></div>
                         <div className="text-xs text-slate-400 font-mono mb-0.5">{h.time}</div>
@@ -544,7 +650,7 @@ export function AdvertiserDb() {
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-slate-500 font-medium text-xs">광고주 코멘트</span>
-                      {selectedDb.partnerPublic && <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">파트너 공개됨</span>}
+                      {selectedDb.partnerPublic ? <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold">파트너 공개됨</span> : null}
                     </div>
                     <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg text-slate-700">
                       {selectedDb.comment || <span className="text-slate-400 italic">등록된 코멘트가 없습니다.</span>}
@@ -611,7 +717,7 @@ export function AdvertiserDb() {
                 </div>
                 <div className="flex justify-between items-center pt-3 border-t border-slate-200">
                   <span className="text-slate-500">광고비 차감액</span>
-                  <span className="font-bold text-lg text-slate-900">{selectedDb.price.toLocaleString()}원</span>
+                  <span className="font-bold text-lg text-slate-900">{formatPrice(selectedDb.price)}원</span>
                 </div>
               </div>
 

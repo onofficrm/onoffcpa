@@ -7,7 +7,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     $status = isset($_GET['status']) ? trim((string) $_GET['status']) : '';
     $q = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
+    $source = isset($_GET['source']) ? trim((string) $_GET['source']) : '';
     $rejected = isset($_GET['rejected']) && $_GET['rejected'] === '1';
+    $format = isset($_GET['format']) ? strtolower(trim((string) $_GET['format'])) : '';
 
     $filters = array();
     if ($status !== '') {
@@ -16,8 +18,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($q !== '') {
         $filters['q'] = $q;
     }
+    if ($source !== '') {
+        $filters['source'] = $source;
+    }
     if ($rejected) {
         $filters['rejected_only'] = true;
+    }
+
+    if ($format === 'csv') {
+        $filters['limit'] = 5000;
+        $csv = function_exists('lc_conversion_partner_export_csv')
+            ? lc_conversion_partner_export_csv($pt_id, $filters)
+            : '';
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="partner_conversions_' . date('Ymd_His') . '.csv"');
+        header('Cache-Control: no-store');
+        echo "\xEF\xBB\xBF";
+        echo $csv;
+        exit;
     }
 
     $response = array(

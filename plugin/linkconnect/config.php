@@ -102,6 +102,7 @@ if (!defined('LC_MYSQL_PASSWORD')) {
 /** 전환 유입 유형 */
 define('LC_SOURCE_FORM', 'form');
 define('LC_SOURCE_CALL', 'call');
+define('LC_SOURCE_EMBED', 'embed');
 /** 가상번호 상태 */
 define('LC_CALL_NUMBER_AVAILABLE', 'available');
 define('LC_CALL_NUMBER_ASSIGNED', 'assigned');

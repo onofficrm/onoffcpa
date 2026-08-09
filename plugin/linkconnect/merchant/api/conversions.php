@@ -14,7 +14,9 @@ if ($method === 'GET') {
     $mt_id = is_array($merchant) ? (int) $merchant['mt_id'] : 0;
     $status = isset($_GET['status']) ? trim((string) $_GET['status']) : '';
     $q = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
+    $source = isset($_GET['source']) ? trim((string) $_GET['source']) : '';
     $needs_action = isset($_GET['needs_action']) && $_GET['needs_action'] === '1';
+    $format = isset($_GET['format']) ? strtolower(trim((string) $_GET['format'])) : '';
 
     $filters = array();
     if ($status !== '') {
@@ -23,8 +25,27 @@ if ($method === 'GET') {
     if ($q !== '') {
         $filters['q'] = $q;
     }
+    if ($source !== '') {
+        $filters['source'] = $source;
+    }
     if ($needs_action) {
         $filters['needs_action'] = true;
+    }
+
+    if ($format === 'csv') {
+        if ($mt_id <= 0) {
+            lc_api_error('광고주 정보가 필요합니다.', 'FORBIDDEN', 403);
+        }
+        $filters['limit'] = 5000;
+        $csv = function_exists('lc_conversion_merchant_export_csv')
+            ? lc_conversion_merchant_export_csv($mt_id, $filters)
+            : '';
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="merchant_conversions_' . date('Ymd_His') . '.csv"');
+        header('Cache-Control: no-store');
+        echo "\xEF\xBB\xBF";
+        echo $csv;
+        exit;
     }
 
     $items = lc_conversion_list_for_api($mt_id, $filters);

@@ -1,6 +1,8 @@
 import React, { Fragment, useEffect, useState } from "react";
 import { 
   ChevronRight, 
+  Code2,
+  Globe2,
   MousePointerClick, 
   Target, 
   XCircle 
@@ -10,6 +12,7 @@ import { Link } from 'react-router-dom';
 import { PartnerLayout } from '../../layouts/PartnerLayout';
 import { SummaryCard, StatusBadge } from '../../components/partner/PartnerShared';
 import { fetchPartnerDashboard, PartnerConversion, PartnerDashboardResponse } from '../../lib/api';
+import { InsightBanner, SkeletonCardGrid, DataTableEmpty, tableRowClass } from '../../components/center-ui';
 
 const fallbackChartData = [
   { date: '—', click: 0, db: 0, approval: 0 },
@@ -27,6 +30,7 @@ export function PartnerDashboard() {
   }, []);
 
   const summary = data?.summary;
+  const embed = data?.embed;
   const chartData = data?.chart7d?.length ? data.chart7d : fallbackChartData;
   const channels = data?.channels ?? [];
   const recent = data?.recent ?? [];
@@ -34,15 +38,78 @@ export function PartnerDashboard() {
 
   return (
     <PartnerLayout activeMenu="dashboard" title="파트너센터">
-      {loading && <p className="text-slate-500 mb-4">대시보드를 불러오는 중...</p>}
+      <InsightBanner
+        accent="emerald"
+        message={<>오늘 클릭 <strong>{summary?.todayClicks ?? 0}회</strong>, 접수 DB <strong>{summary?.todayReceived ?? 0}건</strong>, 예상수입 <strong>{(summary?.todayEstRevenue ?? 0).toLocaleString()}원</strong></>}
+        subMessage={
+          (embed?.embedToday ?? 0) > 0
+            ? `외부위젯 오늘 ${embed?.embedToday ?? 0}건 · 누적 ${embed?.embedTotal ?? 0}건`
+            : '성과가 좋은 상품을 먼저 홍보하면 수익 상승 속도가 빨라집니다.'
+        }
+        actions={[
+          { label: '실시간 수익', to: '/partner/live-earnings' },
+          { label: '유입 분석', to: '/partner/analytics', variant: 'secondary' },
+        ]}
+      />
 
+      {loading ? (
+        <SkeletonCardGrid count={6} />
+      ) : (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        <SummaryCard title="오늘 클릭 수" value={String(summary?.todayClicks ?? 0)} icon={<MousePointerClick className="text-blue-500" />} />
+        <SummaryCard title="오늘 클릭 수" value={String(summary?.todayClicks ?? 0)} icon={<MousePointerClick className="text-blue-500" />} caption="실시간 유입" />
         <SummaryCard title="오늘 접수 DB" value={String(summary?.todayReceived ?? 0)} icon={<Target className="text-cyan-500" />} />
-        <SummaryCard title="승인완료 DB" value={String(summary?.approved ?? 0)} icon={<Target className="text-emerald-500" />} />
+        <SummaryCard title="승인완료 DB" value={String(summary?.approved ?? 0)} icon={<Target className="text-emerald-500" />} color="emerald" highlight />
         <SummaryCard title="취소/무효 DB" value={String(summary?.rejected ?? 0)} icon={<XCircle className="text-red-500" />} />
-        <SummaryCard title="오늘 예상수입" value={(summary?.todayEstRevenue ?? 0).toLocaleString()} suffix="원" highlight />
+        <SummaryCard title="오늘 예상수입" value={(summary?.todayEstRevenue ?? 0).toLocaleString()} suffix="원" highlight color="emerald" caption="오늘 기준" />
         <SummaryCard title="확정수익" value={(summary?.confRevenue ?? 0).toLocaleString()} suffix="원" highlight dark />
+      </div>
+      )}
+
+      <div className="mb-8 rounded-2xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-white p-5 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-100 text-cyan-700 flex items-center justify-center shrink-0">
+              <Globe2 size={20} />
+            </div>
+            <div>
+              <div className="text-sm font-bold text-slate-900">외부 홈페이지 상담 위젯</div>
+              <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                오늘 <strong className="text-cyan-800">{embed?.embedToday ?? 0}건</strong>
+                {' · '}누적 <strong>{embed?.embedTotal ?? 0}건</strong>
+                {' · '}승인 <strong>{embed?.embedApproved ?? 0}건</strong>
+                {embed?.domainLock
+                  ? ` · 허용 도메인 ${embed.domainCount}곳`
+                  : ' · 허용 도메인 미설정(전체 허용)'}
+              </p>
+              {(embed?.topDomains?.length ?? 0) > 0 ? (
+                <p className="text-xs text-slate-500 mt-1">
+                  TOP 도메인:{' '}
+                  {embed!.topDomains.map((d) => `${d.host}(${d.total})`).join(' · ')}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500 mt-1">
+                  홈페이지·워드프레스에 HTML 위젯을 넣으면 접수 DB가 여기에 쌓입니다.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Link
+              to="/partner/links"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-bold"
+            >
+              <Code2 size={16} />
+              위젯 설치 코드
+            </Link>
+            <Link
+              to="/partner/analytics?source=embed"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-cyan-200 bg-white text-cyan-800 text-sm font-bold hover:bg-cyan-50"
+            >
+              위젯 분석
+              <ChevronRight size={16} />
+            </Link>
+          </div>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8 mb-8">
@@ -80,7 +147,7 @@ export function PartnerDashboard() {
                   <InflowItem label={item.channel} percentage={item.percentage} color="bg-emerald-500" />
                 </div>
               )) : (
-                <p className="text-sm text-slate-500">아직 유입 데이터가 없습니다.</p>
+                <p className="text-sm text-slate-500">아직 유입 데이터가 없습니다. 홍보 링크를 생성해 트래픽을 모아보세요.</p>
               )}
             </div>
           </div>
@@ -109,14 +176,12 @@ export function PartnerDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {recent.length > 0 ? recent.map((row) => (
+                {recent.length > 0 ? recent.map((row, index) => (
                   <Fragment key={row.id}>
-                    <TableRow row={row} />
+                    <TableRow row={row} rank={index + 1} />
                   </Fragment>
                 )) : (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500">접수된 디비가 없습니다.</td>
-                  </tr>
+                  <DataTableEmpty colSpan={6} title="접수된 디비가 없습니다" description="홍보 링크를 통해 유입이 시작되면 최근 접수 내역이 표시됩니다." actionLabel="내 홍보 링크" actionTo="/partner/links" />
                 )}
               </tbody>
             </table>
@@ -167,14 +232,26 @@ function InflowItem({ label, percentage, color }: { label: string, percentage: n
   );
 }
 
-function TableRow({ row }: { row: PartnerConversion }) {
+function TableRow({ row, rank }: { row: PartnerConversion; rank?: number }) {
   const isStrike = row.statusCode === 'rejected';
   const revenue = row.estRevenue;
+  const isEmbed =
+    row.source === 'embed' ||
+    ['embed', 'wordpress', 'widget', 'external'].includes((row.channel || '').toLowerCase());
 
   return (
-    <tr className="hover:bg-slate-50 transition-colors">
+    <tr className={tableRowClass(rank)}>
       <td className="px-4 py-3 text-slate-500">{row.date}</td>
-      <td className={`px-4 py-3 font-medium ${isStrike ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{row.campaign}</td>
+      <td className={`px-4 py-3 font-medium ${isStrike ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+        <div className="flex flex-col gap-0.5">
+          <span>{row.campaign}</span>
+          {isEmbed ? (
+            <span className="inline-flex w-fit px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-bold">
+              외부위젯{row.pageHost ? ` · ${row.pageHost}` : ''}
+            </span>
+          ) : null}
+        </div>
+      </td>
       <td className="px-4 py-3 text-slate-600">{row.name}</td>
       <td className="px-4 py-3 text-slate-600 font-mono text-xs">{row.phone}</td>
       <td className="px-4 py-3 text-center">

@@ -2,27 +2,44 @@ import { Search, Filter, Download, CheckCircle2, Clock, XCircle, MessageSquare, 
 import { SummaryCard, StatusBadge } from '../../components/partner/PartnerShared';
 import { PartnerLayout } from '../../layouts/PartnerLayout';
 import { useEffect, useState } from 'react';
-import { fetchPartnerConversions, PartnerConversion } from '../../lib/api';
+import { downloadPartnerConversionsCsv, fetchPartnerConversions, PartnerConversion } from '../../lib/api';
+import { HelpTipButton } from '../../components/HelpTipButton';
+import { EMBED_HELP } from '../../lib/embedHelpTips';
+
+type SourceFilter = '' | 'embed' | 'call' | 'form';
 
 export function PartnerDbStatus() {
   const [items, setItems] = useState<PartnerConversion[]>([]);
   const [summary, setSummary] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, estRevenue: 0, confRevenue: 0 });
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [q, setQ] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('');
 
   useEffect(() => {
     setLoading(true);
-    fetchPartnerConversions({ q })
+    fetchPartnerConversions({ q, source: sourceFilter })
       .then((data) => {
         setItems(data.items);
         setSummary(data.summary);
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [q]);
+  }, [q, sourceFilter]);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      await downloadPartnerConversionsCsv({ q, source: sourceFilter });
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '다운로드에 실패했습니다.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
-    <PartnerLayout activeMenu="db-status" title="디비 현황">
+    <PartnerLayout activeMenu="db-status" title="CPA 실적">
       <div className="flex flex-col mb-8 -mt-2">
         <p className="text-slate-500">
           접수된 디비의 상태와 수익 반영 여부를 확인할 수 있습니다.
@@ -60,12 +77,19 @@ export function PartnerDbStatus() {
           <option>확정완료</option>
           <option>정산완료</option>
         </select>
-        <select className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-emerald-500 min-w-[120px] flex-1 md:flex-none">
-          <option>전체 채널</option>
-          <option>네이버 블로그</option>
-          <option>인스타그램</option>
-          <option>유튜브</option>
-        </select>
+        <div className="flex items-center gap-1.5">
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value as SourceFilter)}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-emerald-500 min-w-[120px]"
+          >
+            <option value="">출처 전체</option>
+            <option value="embed">외부위젯</option>
+            <option value="call">콜디비</option>
+            <option value="form">폼/링크</option>
+          </select>
+          <HelpTipButton title={EMBED_HELP.sourceFilter.title}>{EMBED_HELP.sourceFilter.body}</HelpTipButton>
+        </div>
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input 
@@ -76,7 +100,11 @@ export function PartnerDbStatus() {
             className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
-        <button className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setQ((prev) => prev.trim())}
+          className="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-sm"
+        >
           <Filter size={16} /> 조회
         </button>
       </div>
@@ -85,8 +113,13 @@ export function PartnerDbStatus() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col mb-8">
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
           <div className="text-sm text-slate-600 font-medium">총 <span className="text-emerald-600 font-bold">{items.length}</span>건의 디비가 조회되었습니다.</div>
-          <button className="text-sm font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
-            <Download size={14} /> 엑셀 다운로드
+          <button
+            type="button"
+            disabled={downloading}
+            onClick={() => void handleDownload()}
+            className="text-sm font-medium text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50"
+          >
+            <Download size={14} /> {downloading ? '다운로드 중...' : 'CSV 다운로드'}
           </button>
         </div>
         
@@ -115,7 +148,33 @@ export function PartnerDbStatus() {
                   <td className="px-4 py-4 font-medium text-slate-900 min-w-[140px]">{db.campaign}</td>
                   <td className="px-4 py-4 text-slate-700 whitespace-nowrap">{db.name}</td>
                   <td className="px-4 py-4 font-mono text-slate-600 whitespace-nowrap">{db.phone}</td>
-                  <td className="px-4 py-4 text-slate-600 whitespace-nowrap">{db.channel}</td>
+                  <td className="px-4 py-4 text-slate-600 whitespace-nowrap">
+                    <div className="flex flex-col gap-0.5">
+                      <span>{db.channel || '-'}</span>
+                      {db.source === 'embed' || ['embed', 'wordpress', 'widget', 'external'].includes((db.channel || '').toLowerCase()) ? (
+                        <span className="inline-flex w-fit px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-bold">외부위젯</span>
+                      ) : null}
+                      {(db.pageHost || db.pageUrl) ? (
+                        <a
+                          href={db.pageUrl || undefined}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] text-cyan-700/80 hover:underline max-w-[140px] truncate"
+                          title={db.pageUrl || db.pageHost}
+                        >
+                          {db.pageHost || db.pageUrl}
+                        </a>
+                      ) : null}
+                      {(db.utmSource || db.utmMedium || db.utmCampaign) ? (
+                        <span
+                          className="text-[10px] text-slate-400 max-w-[140px] truncate"
+                          title={[db.utmSource, db.utmMedium, db.utmCampaign].filter(Boolean).join(' / ')}
+                        >
+                          {[db.utmSource, db.utmMedium, db.utmCampaign].filter(Boolean).join(' · ')}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
                   <td className="px-4 py-4 text-center whitespace-nowrap">
                     <StatusBadge status={db.status} />
                   </td>

@@ -4,7 +4,7 @@ import { SummaryCard, StatusBadge } from '../../components/admin/AdminShared';
 import {
   ShieldAlert, Clock, CheckCircle2, XCircle, AlertTriangle, Percent,
   Search, Calendar, ChevronDown, Download, X, User, MessageSquare,
-  Building2, Users, Check, X as XIcon, Bot,
+  Building2, Users, Check, X as XIcon, Bot, FileText, AlertCircle,
 } from 'lucide-react';
 import {
   AdminInspection,
@@ -93,7 +93,7 @@ export function AdminInspections() {
         <SummaryCard title="오늘 취소 요청" value={summary.todayCancel.toLocaleString()} suffix="건" icon={<ShieldAlert size={18} />} />
         <SummaryCard title="취소 승인" value={summary.confirmed.toLocaleString()} suffix="건" color="emerald" highlight icon={<CheckCircle2 size={18} />} />
         <SummaryCard title="취소 반려" value={summary.restored.toLocaleString()} suffix="건" color="red" highlight icon={<XCircle size={18} />} />
-        <SummaryCard title="이의신청" value={summary.appeals.toLocaleString()} suffix="건" color="orange" highlight icon={<AlertTriangle size={18} />} />
+        <SummaryCard title="이의신청" value={summary.appeals.toLocaleString()} suffix="건" color="amber" highlight icon={<AlertTriangle size={18} />} />
         <SummaryCard title="평균 취소율" value={String(summary.cancelRate)} suffix="%" dark icon={<Percent size={18} />} />
       </div>
 
@@ -192,6 +192,11 @@ export function AdminInspections() {
                       <td className="px-4 py-3">
                         <div className="font-bold text-slate-900 mb-0.5 truncate max-w-[200px]">{item.campaign}</div>
                         <div className="text-xs text-slate-500">{item.advertiser}</div>
+                        {item.source === 'embed' || item.sourceLabel === '외부위젯' || ['embed', 'wordpress', 'widget', 'external'].includes((item.channel || '').toLowerCase()) ? (
+                          <span className="inline-flex mt-1 px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-bold">
+                            외부위젯{item.pageHost ? ` · ${item.pageHost}` : ''}
+                          </span>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="font-medium text-slate-700 mb-0.5">{item.partner}</div>
@@ -259,19 +264,43 @@ export function AdminInspections() {
                     </div>
                     <div>
                       <span className="block text-xs text-slate-500 mb-1">접수일시</span>
-                      <span className="font-medium text-slate-900">2026.07.06 09:00:15</span>
+                      <span className="font-medium text-slate-900">{selectedItem.createdAt || selectedItem.date}</span>
+                    </div>
+                    <div>
+                      <span className="block text-xs text-slate-500 mb-1">출처</span>
+                      <span className="font-medium text-slate-900">
+                        {selectedItem.sourceLabel || selectedItem.source || selectedItem.channel || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-xs text-slate-500 mb-1">단가</span>
+                      <span className="font-medium text-slate-900">{selectedItem.price.toLocaleString()}원</span>
                     </div>
                     <div className="col-span-2">
                       <span className="block text-xs text-slate-500 mb-1">문의내용</span>
-                      <p className="font-medium text-slate-900 bg-white p-3 rounded-lg border border-slate-200">
-                        대출 한도 조회 부탁드립니다. 직장인이고 연봉 4천입니다.
+                      <p className="font-medium text-slate-900 bg-white p-3 rounded-lg border border-slate-200 whitespace-pre-wrap">
+                        {selectedItem.inquiry || selectedItem.comment || '-'}
                       </p>
                     </div>
                     <div className="col-span-2">
-                      <span className="block text-xs text-slate-500 mb-1">유입경로</span>
-                      <span className="font-medium text-blue-600 break-all text-xs">
-                        https://blog.naver.com/test_blog/223412341234
-                      </span>
+                      <span className="block text-xs text-slate-500 mb-1">설치 페이지 / 유입</span>
+                      {selectedItem.pageUrl || selectedItem.pageHost ? (
+                        <a
+                          href={selectedItem.pageUrl || undefined}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-medium text-cyan-700 break-all text-xs hover:underline"
+                        >
+                          {selectedItem.pageUrl || selectedItem.pageHost}
+                        </a>
+                      ) : (
+                        <span className="font-medium text-slate-500 text-xs">미기록</span>
+                      )}
+                      {(selectedItem.utmSource || selectedItem.utmMedium || selectedItem.utmCampaign) ? (
+                        <div className="text-[11px] text-slate-500 mt-1">
+                          UTM {[selectedItem.utmSource, selectedItem.utmMedium, selectedItem.utmCampaign].filter(Boolean).join(' · ')}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </section>

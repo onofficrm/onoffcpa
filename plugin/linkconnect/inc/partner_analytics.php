@@ -87,11 +87,7 @@ if (!function_exists('lc_partner_analytics_parse_filters')) {
         }
 
         $source = isset($input['source']) ? strtolower(trim((string) $input['source'])) : 'cpa';
-        if (!in_array($source, array('cpa', 'cps'), true)) {
-            $source = 'cpa';
-        }
-        // CPS 미취급(LC_CPS_ENABLED=false) — 성과분석은 CPA만
-        if ($source === 'cps' && (!function_exists('lc_cps_enabled') || !lc_cps_enabled())) {
+        if (!in_array($source, array('cpa', 'cps', 'embed'), true)) {
             $source = 'cpa';
         }
 
@@ -1075,12 +1071,303 @@ if (!function_exists('lc_partner_analytics_cps_for_api')) {
     }
 }
 
+if (!function_exists('lc_partner_analytics_embed_for_api')) {
+    /**
+     * 외부 상담 위젯(embed) 유입 분석.
+     *
+     * @return array<string,mixed>
+     */
+    function lc_partner_analytics_embed_for_api($pt_id, array $filters = array())
+    {
+        $filters = lc_partner_analytics_parse_filters($filters);
+        list($dateFrom, $dateTo) = lc_partner_analytics_resolve_range($filters);
+        $pt_id = (int) $pt_id;
+
+        $empty_summary = array(
+            'totalClicks'     => 0,
+            'uniqueVisitors'  => 0,
+            'totalDb'         => 0,
+            'approvedDb'      => 0,
+            'rejectedDb'      => 0,
+            'confRevenue'     => 0,
+            'avgConvRate'     => 0,
+            'avgApprovalRate' => 0,
+            'epc'             => 0,
+        );
+
+        if ($pt_id <= 0 || !lc_db_installed() || !function_exists('lc_admin_embed_source_sql')) {
+            return array(
+                'source'        => 'embed',
+                'summary'       => $empty_summary,
+                'range'         => array(
+                    'dateFrom' => $dateFrom,
+                    'dateTo'   => $dateTo,
+                    'period'   => (int) $filters['period'],
+                ),
+                'funnel'        => array('clicks' => 0, 'received' => 0, 'approved' => 0, 'confirmed' => 0),
+                'chart'         => array(),
+                'chart7d'       => array(),
+                'channels'      => array(),
+                'linkNames'     => array(),
+                'links'         => array(),
+                'compareLinks'  => array(),
+                'referrers'     => array(),
+                'devices'       => array(),
+                'campaigns'     => array(),
+                'filterOptions' => array('links' => array(), 'channels' => array(), 'linkNames' => array(), 'cpsLinks' => array()),
+                'dbReady'       => true,
+            );
+        }
+
+        $cv_table = lc_table('conversions');
+        $lk_table = lc_table('links');
+        $cp_table = lc_table('campaigns');
+        $embed_sql = lc_admin_embed_source_sql('cv');
+        $approved = defined('LC_STATUS_APPROVED') ? LC_STATUS_APPROVED : 'approved';
+        $rejected = defined('LC_STATUS_REJECTED') ? LC_STATUS_REJECTED : 'rejected';
+        $has_page = function_exists('lc_db_column_exists') && lc_db_column_exists($cv_table, 'cv_page_url');
+        $page_select = $has_page ? 'cv.cv_page_url' : "'' AS cv_page_url";
+
+        $cv_row = lc_sql_fetch(" SELECT
+            COUNT(*) AS total_cnt,
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape($approved) . "' THEN 1 ELSE 0 END) AS approved_cnt,
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape($rejected) . "' THEN 1 ELSE 0 END) AS rejected_cnt,
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape($approved) . "' THEN IF(cv.cv_partner_price > 0, cv.cv_partner_price, cv.cv_price) ELSE 0 END) AS conf_revenue
+            FROM `{$cv_table}` cv
+            WHERE cv.pt_id = '{$pt_id}'
+              AND {$embed_sql}
+              AND DATE(cv.cv_created_at) BETWEEN '" . lc_sql_escape($dateFrom) . "' AND '" . lc_sql_escape($dateTo) . "' ");
+
+        $total_db = (int) ($cv_row['total_cnt'] ?? 0);
+        $approved_cnt = (int) ($cv_row['approved_cnt'] ?? 0);
+        $rejected_cnt = (int) ($cv_row['rejected_cnt'] ?? 0);
+        $conf_revenue = (int) ($cv_row['conf_revenue'] ?? 0);
+        $summary = array(
+            'totalClicks'     => $total_db,
+            'uniqueVisitors'  => 0,
+            'totalDb'         => $total_db,
+            'approvedDb'      => $approved_cnt,
+            'rejectedDb'      => $rejected_cnt,
+            'confRevenue'     => $conf_revenue,
+            'avgConvRate'     => 100,
+            'avgApprovalRate' => $total_db > 0 ? round(($approved_cnt / $total_db) * 100, 1) : 0,
+            'epc'             => $total_db > 0 ? (int) round($conf_revenue / $total_db) : 0,
+        );
+
+        $chart = array();
+        $start = strtotime($dateFrom);
+        $end = strtotime($dateTo);
+        for ($ts = $start; $ts <= $end; $ts += 86400) {
+            $day = date('Y-m-d', $ts);
+            $label = date('m.d', $ts);
+            $day_row = lc_sql_fetch(" SELECT
+                COUNT(*) AS db_cnt,
+                SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape($approved) . "' THEN 1 ELSE 0 END) AS approval_cnt
+                FROM `{$cv_table}` cv
+                WHERE cv.pt_id = '{$pt_id}'
+                  AND {$embed_sql}
+                  AND DATE(cv.cv_created_at) = '{$day}' ");
+            $db_cnt = (int) ($day_row['db_cnt'] ?? 0);
+            $approval_cnt = (int) ($day_row['approval_cnt'] ?? 0);
+            $chart[] = array(
+                'date'     => $label,
+                'click'    => $db_cnt,
+                'db'       => $db_cnt,
+                'approval' => $approval_cnt,
+            );
+        }
+
+        $domain_map = array();
+        $domain_result = lc_sql_query(" SELECT {$page_select}, cv.cv_inquiry
+            FROM `{$cv_table}` cv
+            WHERE cv.pt_id = '{$pt_id}'
+              AND {$embed_sql}
+              AND DATE(cv.cv_created_at) BETWEEN '" . lc_sql_escape($dateFrom) . "' AND '" . lc_sql_escape($dateTo) . "'
+            ORDER BY cv.cv_id DESC
+            LIMIT 5000 ", false);
+        if ($domain_result) {
+            while ($row = sql_fetch_array($domain_result)) {
+                $url = function_exists('lc_conversion_page_url')
+                    ? lc_conversion_page_url($row)
+                    : trim((string) ($row['cv_page_url'] ?? ''));
+                $host = function_exists('lc_conversion_page_host')
+                    ? lc_conversion_page_host($url)
+                    : (function_exists('lc_embed_host_from_url') ? lc_embed_host_from_url($url) : '');
+                if ($host === '') {
+                    $host = '(미기록)';
+                }
+                if (!isset($domain_map[$host])) {
+                    $domain_map[$host] = 0;
+                }
+                $domain_map[$host]++;
+            }
+        }
+        arsort($domain_map);
+        $referrers = array();
+        $domain_total = array_sum($domain_map);
+        $i = 0;
+        foreach ($domain_map as $host => $cnt) {
+            if ($i >= 12) {
+                break;
+            }
+            $referrers[] = array(
+                'domain'     => (string) $host,
+                'clicks'     => (int) $cnt,
+                'percentage' => $domain_total > 0 ? round(($cnt / $domain_total) * 100, 1) : 0,
+            );
+            $i++;
+        }
+
+        $campaign_rows = array();
+        $camp_result = lc_sql_query(" SELECT
+            COALESCE(NULLIF(cp.cp_name, ''), '(캠페인 미지정)') AS campaign,
+            COUNT(*) AS received,
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape($approved) . "' THEN 1 ELSE 0 END) AS approved,
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape($approved) . "' THEN IF(cv.cv_partner_price > 0, cv.cv_partner_price, cv.cv_price) ELSE 0 END) AS conf_rev
+            FROM `{$cv_table}` cv
+            LEFT JOIN `{$lk_table}` lk ON lk.lk_id = cv.lk_id
+            LEFT JOIN `{$cp_table}` cp ON cp.cp_id = lk.cp_id
+            WHERE cv.pt_id = '{$pt_id}'
+              AND {$embed_sql}
+              AND DATE(cv.cv_created_at) BETWEEN '" . lc_sql_escape($dateFrom) . "' AND '" . lc_sql_escape($dateTo) . "'
+            GROUP BY campaign
+            ORDER BY received DESC
+            LIMIT 30 ", false);
+        if ($camp_result) {
+            while ($row = sql_fetch_array($camp_result)) {
+                $received = (int) ($row['received'] ?? 0);
+                $approved_n = (int) ($row['approved'] ?? 0);
+                $campaign_rows[] = array(
+                    'campaign' => (string) ($row['campaign'] ?? ''),
+                    'clicks'   => $received,
+                    'received' => $received,
+                    'approved' => $approved_n,
+                    'appRate'  => $received > 0 ? round(($approved_n / $received) * 100, 1) . '%' : '0%',
+                    'confRev'  => (int) ($row['conf_rev'] ?? 0),
+                );
+            }
+        }
+
+        $link_rows = array();
+        $link_result = lc_sql_query(" SELECT
+            lk.lk_id,
+            lk.lk_code,
+            COALESCE(NULLIF(cp.cp_name, ''), '(캠페인 미지정)') AS campaign,
+            COALESCE(NULLIF(lk.lk_channel, ''), 'embed') AS channel,
+            COALESCE(lk.lk_sub_id, '') AS link_name,
+            COUNT(*) AS received,
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape($approved) . "' THEN 1 ELSE 0 END) AS approved,
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape($rejected) . "' THEN 1 ELSE 0 END) AS canceled,
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape($approved) . "' THEN IF(cv.cv_partner_price > 0, cv.cv_partner_price, cv.cv_price) ELSE 0 END) AS conf_rev
+            FROM `{$cv_table}` cv
+            LEFT JOIN `{$lk_table}` lk ON lk.lk_id = cv.lk_id
+            LEFT JOIN `{$cp_table}` cp ON cp.cp_id = lk.cp_id
+            WHERE cv.pt_id = '{$pt_id}'
+              AND {$embed_sql}
+              AND DATE(cv.cv_created_at) BETWEEN '" . lc_sql_escape($dateFrom) . "' AND '" . lc_sql_escape($dateTo) . "'
+            GROUP BY lk.lk_id, lk.lk_code, campaign, channel, link_name
+            ORDER BY received DESC
+            LIMIT 50 ", false);
+        if ($link_result) {
+            while ($row = sql_fetch_array($link_result)) {
+                $received = (int) ($row['received'] ?? 0);
+                $approved_n = (int) ($row['approved'] ?? 0);
+                $conf_rev = (int) ($row['conf_rev'] ?? 0);
+                $link_rows[] = array(
+                    'id'       => (int) ($row['lk_id'] ?? 0),
+                    'code'     => (string) ($row['lk_code'] ?? ''),
+                    'campaign' => (string) ($row['campaign'] ?? ''),
+                    'channel'  => (string) ($row['channel'] ?? 'embed'),
+                    'linkName' => (string) ($row['link_name'] ?? ''),
+                    'clicks'   => $received,
+                    'received' => $received,
+                    'approved' => $approved_n,
+                    'canceled' => (int) ($row['canceled'] ?? 0),
+                    'convRate' => 100,
+                    'appRate'  => $received > 0 ? round(($approved_n / $received) * 100, 1) : 0,
+                    'epc'      => $received > 0 ? (int) round($conf_rev / $received) : 0,
+                    'confRev'  => $conf_rev,
+                );
+            }
+        }
+
+        $channel_map = array();
+        foreach ($link_rows as $row) {
+            $ch = (string) ($row['channel'] ?? 'embed');
+            if ($ch === '') {
+                $ch = 'embed';
+            }
+            if (!isset($channel_map[$ch])) {
+                $channel_map[$ch] = array('channel' => $ch, 'clicks' => 0, 'dbs' => 0, 'approved' => 0);
+            }
+            $channel_map[$ch]['clicks'] += (int) $row['clicks'];
+            $channel_map[$ch]['dbs'] += (int) $row['received'];
+            $channel_map[$ch]['approved'] += (int) $row['approved'];
+        }
+        $channels = array();
+        $ch_total = 0;
+        foreach ($channel_map as $row) {
+            $ch_total += (int) $row['dbs'];
+        }
+        foreach ($channel_map as $row) {
+            $dbs = (int) $row['dbs'];
+            $channels[] = array(
+                'channel'    => $row['channel'],
+                'clicks'     => (int) $row['clicks'],
+                'dbs'        => $dbs,
+                'approved'   => (int) $row['approved'],
+                'percentage' => $ch_total > 0 ? round(($dbs / $ch_total) * 100, 1) : 0,
+            );
+        }
+        usort($channels, static function ($a, $b) {
+            return (int) ($b['dbs'] ?? 0) - (int) ($a['dbs'] ?? 0);
+        });
+
+        return array(
+            'source'        => 'embed',
+            'summary'       => $summary,
+            'range'         => array(
+                'dateFrom' => $dateFrom,
+                'dateTo'   => $dateTo,
+                'period'   => (int) $filters['period'],
+            ),
+            'funnel'        => array(
+                'clicks'    => $total_db,
+                'received'  => $total_db,
+                'approved'  => $approved_cnt,
+                'confirmed' => $approved_cnt,
+            ),
+            'chart'         => $chart,
+            'chart7d'       => $chart,
+            'channels'      => $channels,
+            'linkNames'     => array(),
+            'links'         => $link_rows,
+            'compareLinks'  => array(),
+            'referrers'     => $referrers,
+            'devices'       => array(),
+            'campaigns'     => $campaign_rows,
+            'filterOptions' => array(
+                'links'     => array(),
+                'channels'  => array_values(array_map(static function ($row) {
+                    return (string) ($row['channel'] ?? '');
+                }, $channels)),
+                'linkNames' => array(),
+                'cpsLinks'  => array(),
+            ),
+            'dbReady'       => true,
+        );
+    }
+}
+
 if (!function_exists('lc_partner_analytics_for_api')) {
     function lc_partner_analytics_for_api($pt_id, array $filters = array())
     {
         $filters = lc_partner_analytics_parse_filters($filters);
         if (($filters['source'] ?? 'cpa') === 'cps') {
             return lc_partner_analytics_cps_for_api($pt_id, $filters);
+        }
+        if (($filters['source'] ?? 'cpa') === 'embed') {
+            return lc_partner_analytics_embed_for_api($pt_id, $filters);
         }
 
         list($dateFrom, $dateTo) = lc_partner_analytics_resolve_range($filters);
@@ -1091,6 +1378,7 @@ if (!function_exists('lc_partner_analytics_for_api')) {
 
         return array(
             'source'        => 'cpa',
+            'summary'       => $summary,
             'range'         => array(
                 'dateFrom' => $dateFrom,
                 'dateTo'   => $dateTo,

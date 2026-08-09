@@ -186,14 +186,14 @@ export function PartnerLinks() {
                                 void copyUrl(
                                   buildLeadEmbedSnippet(link.code),
                                   link.id,
-                                  '워드프레스 설치 코드가 복사되었습니다.',
+                                  '외부 홈페이지 설치 코드가 복사되었습니다.',
                                 );
                               }}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-bold"
-                              title="워드프레스 상담폼 설치 코드 복사"
+                              title="외부 홈페이지 상담 위젯 설치 코드 복사"
                             >
                               <Code2 size={14} />
-                              WP 폼
+                              HTML 위젯
                             </button>
                             <button
                               type="button"
@@ -202,7 +202,7 @@ export function PartnerLinks() {
                                 setWpGuideOpen(true);
                               }}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50"
-                              title="워드프레스 상담폼 사용방법"
+                              title="외부 홈페이지 상담 위젯 사용방법"
                             >
                               <CircleHelp size={14} />
                               안내
@@ -253,7 +253,8 @@ export function PartnerLinks() {
             <div className="space-y-4 text-sm text-slate-300">
               <p><strong className="text-emerald-400 font-semibold">sub_id</strong>를 구분해서 생성하면 채널별 성과를 쉽게 비교할 수 있습니다.</p>
               <p className="text-slate-400 text-xs leading-relaxed">
-                <strong className="text-emerald-400 font-semibold">WP 플러그인</strong> zip을 설치하거나, <strong className="text-emerald-400 font-semibold">WP 폼</strong> HTML 코드로 홈페이지에 상담폼을 넣을 수 있습니다.
+                <strong className="text-emerald-400 font-semibold">HTML 위젯</strong> 코드로 외부 홈페이지에 상담폼·전화를 넣고,
+                접수는 플랫폼 실적으로 확인할 수 있습니다.
               </p>
               <button
                 type="button"
@@ -278,7 +279,7 @@ export function PartnerLinks() {
         onCopySnippet={
           wpGuideLkCode
             ? (snippet) => {
-                void copyUrl(snippet, 0, '워드프레스 설치 코드가 복사되었습니다.');
+                void copyUrl(snippet, 0, '외부 홈페이지 설치 코드가 복사되었습니다.');
               }
             : undefined
         }

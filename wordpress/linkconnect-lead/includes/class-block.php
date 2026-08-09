@@ -28,17 +28,19 @@ class LinkConnect_Lead_Block
             'linkconnect/lead-form',
             array(
                 'api_version'     => 2,
-                'title'           => __('온오프CPA 상담폼', 'linkconnect-lead'),
-                'description'     => __('파트너 홍보코드가 연결된 상담신청 폼을 삽입합니다.', 'linkconnect-lead'),
+                'title'           => __('LinkConnect 상담폼', 'linkconnect-lead'),
+                'description'     => __('파트너 홍보코드가 연결된 상담신청 위젯을 삽입합니다.', 'linkconnect-lead'),
                 'category'        => 'widgets',
                 'icon'            => 'feedback',
-                'keywords'        => array('linkconnect', '상담', 'lead', 'cpa'),
+                'keywords'        => array('linkconnect', '상담', 'lead', 'cpa', 'widget'),
                 'editor_script'   => 'linkconnect-lead-block',
                 'render_callback' => array(__CLASS__, 'render'),
                 'attributes'      => array(
-                    'lkCode'  => array('type' => 'string', 'default' => ''),
-                    'channel' => array('type' => 'string', 'default' => ''),
-                    'subId'   => array('type' => 'string', 'default' => ''),
+                    'lkCode'     => array('type' => 'string', 'default' => ''),
+                    'widgetKey'  => array('type' => 'string', 'default' => ''),
+                    'mode'       => array('type' => 'string', 'default' => ''),
+                    'channel'    => array('type' => 'string', 'default' => ''),
+                    'subId'      => array('type' => 'string', 'default' => ''),
                 ),
             )
         );
@@ -52,6 +54,12 @@ class LinkConnect_Lead_Block
         $atts = array();
         if (!empty($attributes['lkCode'])) {
             $atts['lk_code'] = (string) $attributes['lkCode'];
+        }
+        if (!empty($attributes['widgetKey'])) {
+            $atts['widget_key'] = (string) $attributes['widgetKey'];
+        }
+        if (!empty($attributes['mode'])) {
+            $atts['mode'] = (string) $attributes['mode'];
         }
         if (!empty($attributes['channel'])) {
             $atts['channel'] = (string) $attributes['channel'];

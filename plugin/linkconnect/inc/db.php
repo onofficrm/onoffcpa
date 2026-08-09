@@ -47,7 +47,7 @@ if (!function_exists('lc_mysql_credentials')) {
         return array(
             'host' => (defined('LC_MYSQL_HOST') && (string) LC_MYSQL_HOST !== '') ? (string) LC_MYSQL_HOST : G5_MYSQL_HOST,
             'user' => (defined('LC_MYSQL_USER') && (string) LC_MYSQL_USER !== '') ? (string) LC_MYSQL_USER : G5_MYSQL_USER,
-            'pass' => (defined('LC_MYSQL_PASSWORD') && (string) LC_MYSQL_PASSWORD !== '') ? (string) LC_MYSQL_PASSWORD : G5_MYSQL_PASSWORD,
+            'pass' => defined('LC_MYSQL_PASSWORD') ? (string) LC_MYSQL_PASSWORD : G5_MYSQL_PASSWORD,
             'db'   => lc_mysql_db_name(),
         );
     }
@@ -542,7 +542,7 @@ if (!function_exists('lc_db_run_schema')) {
 
         return array(
             'ok'      => true,
-            'message' => 'OnOff CPA DB 스키마가 설치되었습니다.',
+            'message' => 'LinkConnect DB 스키마가 설치되었습니다.',
             'tables'  => $tables,
         );
     }
@@ -661,6 +661,11 @@ if (!function_exists('lc_db_run_migrations')) {
             'cv_abuse_score' => "tinyint unsigned NOT NULL DEFAULT 0 AFTER `cv_ip`",
             'cv_is_duplicate' => "tinyint(1) NOT NULL DEFAULT 0 AFTER `cv_abuse_score`",
             'cv_source' => "varchar(20) NOT NULL DEFAULT 'form' AFTER `cv_is_duplicate`",
+            'cv_page_url' => "varchar(500) NOT NULL DEFAULT '' AFTER `cv_source`",
+            'cv_referer' => "varchar(500) NOT NULL DEFAULT '' AFTER `cv_page_url`",
+            'cv_utm_source' => "varchar(100) NOT NULL DEFAULT '' AFTER `cv_referer`",
+            'cv_utm_medium' => "varchar(100) NOT NULL DEFAULT '' AFTER `cv_utm_source`",
+            'cv_utm_campaign' => "varchar(100) NOT NULL DEFAULT '' AFTER `cv_utm_medium`",
             'cv_call_id' => "bigint unsigned NOT NULL DEFAULT 0 AFTER `cv_source`",
             'cv_call_duration' => "int unsigned NOT NULL DEFAULT 0 AFTER `cv_call_id`",
             'cv_call_result' => "varchar(20) NOT NULL DEFAULT '' AFTER `cv_call_duration`",
@@ -679,6 +684,9 @@ if (!function_exists('lc_db_run_migrations')) {
             'pt_assigned_mb_id' => "varchar(20) NOT NULL DEFAULT '' AFTER `pt_admin_tags`",
             'pt_abuse_score' => "tinyint unsigned NOT NULL DEFAULT 0 AFTER `pt_assigned_mb_id`",
             'pt_tier' => "varchar(20) NOT NULL DEFAULT 'bronze' AFTER `pt_abuse_score`",
+            'pt_embed_domains' => "text NULL AFTER `pt_tier`",
+            'pt_embed_key' => "varchar(40) NULL DEFAULT NULL AFTER `pt_embed_domains`",
+            'pt_embed_options' => "text NULL AFTER `pt_embed_key`",
         ) as $col => $definition) {
             if (lc_db_table_exists($partners) && !lc_db_column_exists($partners, $col)) {
                 $alters[] = "ALTER TABLE `{$partners}` ADD COLUMN `{$col}` {$definition}";
@@ -1090,14 +1098,6 @@ if (!function_exists('lc_db_run_migrations')) {
             $lp = lc_lp_db_ensure_schema();
             if (empty($lp['ok'])) {
                 return $lp;
-            }
-        }
-
-        // ── 다중 플랫폼 (플래그 OFF 시 내부에서 schema skipped) ──
-        if (function_exists('lc_mp_db_ensure_schema')) {
-            $mp = lc_mp_db_ensure_schema();
-            if (empty($mp['ok'])) {
-                return $mp;
             }
         }
 

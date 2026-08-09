@@ -233,7 +233,27 @@ if (!function_exists('lc_admin_list_conversions')) {
             $where .= " AND cv.cv_status = '" . lc_sql_escape($filters['status']) . "' ";
         }
 
-        $limit = max(1, min(200, (int) $limit));
+        $source = strtolower(trim((string) ($filters['source'] ?? '')));
+        if ($source === 'embed' || $source === 'external') {
+            $embed = defined('LC_SOURCE_EMBED') ? LC_SOURCE_EMBED : 'embed';
+            $where .= " AND (
+                cv.cv_source = '" . lc_sql_escape($embed) . "'
+                OR LOWER(cv.cv_channel) IN ('embed','wordpress','widget','external')
+            ) ";
+        } elseif ($source === 'call') {
+            $call = defined('LC_SOURCE_CALL') ? LC_SOURCE_CALL : 'call';
+            $where .= " AND cv.cv_source = '" . lc_sql_escape($call) . "' ";
+        } elseif ($source === 'form') {
+            $form = defined('LC_SOURCE_FORM') ? LC_SOURCE_FORM : 'form';
+            $where .= " AND (
+                cv.cv_source = '" . lc_sql_escape($form) . "'
+                OR cv.cv_source = ''
+                OR cv.cv_source IS NULL
+            )
+            AND LOWER(IFNULL(cv.cv_channel,'')) NOT IN ('embed','wordpress','widget','external') ";
+        }
+
+        $limit = max(1, min(5000, (int) $limit));
 
         $sql = " SELECT cv.*, c.cp_name, p.pt_code, m.mt_company
             FROM `{$cv_table}` cv
@@ -259,18 +279,102 @@ if (!function_exists('lc_admin_list_conversions')) {
 if (!function_exists('lc_admin_conversion_to_api')) {
     function lc_admin_conversion_to_api(array $row)
     {
+        $page_url = function_exists('lc_conversion_page_url') ? lc_conversion_page_url($row) : trim((string) ($row['cv_page_url'] ?? ''));
+        $page_host = function_exists('lc_conversion_page_host') ? lc_conversion_page_host($page_url) : '';
+
         return array(
-            'id'         => (string) $row['cv_code'],
-            'cvId'       => (int) $row['cv_id'],
-            'date'       => date('m.d H:i', strtotime($row['cv_created_at'])),
-            'campaign'   => (string) ($row['cp_name'] ?? ''),
-            'partner'    => (string) ($row['pt_code'] ?? '-'),
-            'advertiser' => (string) ($row['mt_company'] ?? '-'),
-            'customer'   => (string) $row['cv_name'],
-            'status'     => lc_conversion_status_label($row['cv_status']),
-            'statusCode' => (string) $row['cv_status'],
-            'price'      => (int) $row['cv_price'],
+            'id'          => (string) $row['cv_code'],
+            'cvId'        => (int) $row['cv_id'],
+            'date'        => date('m.d H:i', strtotime($row['cv_created_at'])),
+            'campaign'    => (string) ($row['cp_name'] ?? ''),
+            'partner'     => (string) ($row['pt_code'] ?? '-'),
+            'advertiser'  => (string) ($row['mt_company'] ?? '-'),
+            'customer'    => (string) $row['cv_name'],
+            'channel'     => (string) ($row['cv_channel'] ?? ''),
+            'source'      => (string) ($row['cv_source'] ?? 'form'),
+            'pageUrl'     => $page_url,
+            'pageHost'    => $page_host,
+            'referer'     => (string) ($row['cv_referer'] ?? ''),
+            'utmSource'   => (string) ($row['cv_utm_source'] ?? ''),
+            'utmMedium'   => (string) ($row['cv_utm_medium'] ?? ''),
+            'utmCampaign' => (string) ($row['cv_utm_campaign'] ?? ''),
+            'status'      => lc_conversion_status_label($row['cv_status']),
+            'statusCode'  => (string) $row['cv_status'],
+            'price'       => (int) $row['cv_price'],
         );
+    }
+}
+
+if (!function_exists('lc_csv_safe')) {
+    /** CSV 수식 삽입 방지 */
+    function lc_csv_safe($value)
+    {
+        $v = (string) $value;
+        if ($v !== '' && preg_match('/^[=+\-@\t\r]/', $v)) {
+            return "'" . $v;
+        }
+        return $v;
+    }
+}
+
+if (!function_exists('lc_csv_row')) {
+    function lc_csv_row(array $cols)
+    {
+        $out = array();
+        foreach ($cols as $c) {
+            $v = lc_csv_safe($c);
+            $v = str_replace('"', '""', $v);
+            $out[] = '"' . $v . '"';
+        }
+        return implode(',', $out);
+    }
+}
+
+if (!function_exists('lc_admin_conversions_export_csv')) {
+    function lc_admin_conversions_export_csv(array $filters = array(), $limit = 5000)
+    {
+        $rows = lc_admin_list_conversions($filters, $limit);
+        $lines = array();
+        $lines[] = lc_csv_row(array(
+            'DB ID', '접수일시', '고객명', '연락처', '파트너', '광고주', '상품',
+            '출처', '채널', '설치URL', '설치호스트', 'Referer',
+            'UTM Source', 'UTM Medium', 'UTM Campaign', '상태', '단가',
+        ));
+        foreach ($rows as $row) {
+            $page_url = function_exists('lc_conversion_page_url')
+                ? lc_conversion_page_url($row)
+                : trim((string) ($row['cv_page_url'] ?? ''));
+            $page_host = function_exists('lc_conversion_page_host')
+                ? lc_conversion_page_host($page_url)
+                : '';
+            $source = (string) ($row['cv_source'] ?? 'form');
+            $channel = (string) ($row['cv_channel'] ?? '');
+            $source_label = function_exists('lc_embed_source_label')
+                ? lc_embed_source_label($source, $channel)
+                : $source;
+            $lines[] = lc_csv_row(array(
+                (string) ($row['cv_code'] ?? ''),
+                (string) ($row['cv_created_at'] ?? ''),
+                (string) ($row['cv_name'] ?? ''),
+                (string) ($row['cv_phone'] ?? ''),
+                (string) ($row['pt_code'] ?? ''),
+                (string) ($row['mt_company'] ?? ''),
+                (string) ($row['cp_name'] ?? ''),
+                $source_label,
+                $channel,
+                $page_url,
+                $page_host,
+                (string) ($row['cv_referer'] ?? ''),
+                (string) ($row['cv_utm_source'] ?? ''),
+                (string) ($row['cv_utm_medium'] ?? ''),
+                (string) ($row['cv_utm_campaign'] ?? ''),
+                function_exists('lc_conversion_status_label')
+                    ? lc_conversion_status_label($row['cv_status'] ?? '')
+                    : (string) ($row['cv_status'] ?? ''),
+                (string) (int) ($row['cv_price'] ?? 0),
+            ));
+        }
+        return implode("\n", $lines) . "\n";
     }
 }
 
@@ -319,6 +423,15 @@ if (!function_exists('lc_admin_dashboard_data')) {
         $received = (int) ($today_row['received'] ?? 0);
         $approved = (int) ($today_row['approved'] ?? 0);
 
+        $today_embed = 0;
+        if (function_exists('lc_admin_embed_source_sql')) {
+            $embed_sql = lc_admin_embed_source_sql('cv');
+            $embed_row = lc_sql_fetch(" SELECT COUNT(*) AS cnt
+                FROM `{$cv_table}` cv
+                WHERE DATE(cv.cv_created_at) = '{$today}' AND {$embed_sql} ", false);
+            $today_embed = (int) ($embed_row['cnt'] ?? 0);
+        }
+
         $settlement_summary = function_exists('lc_settlement_admin_summary') ? lc_settlement_admin_summary() : array('pending' => 0);
         $inspection_summary = function_exists('lc_conversion_inspection_summary') ? lc_conversion_inspection_summary() : array('pending' => 0);
 
@@ -355,6 +468,7 @@ if (!function_exists('lc_admin_dashboard_data')) {
                 'todayRejected'  => (int) ($today_row['rejected'] ?? 0),
                 'todayRate'      => $received > 0 ? round(($approved / $received) * 100, 1) : 0,
                 'todayRevenue'   => (int) ($today_row['revenue'] ?? 0),
+                'todayEmbed'     => $today_embed,
                 'pendingDb'      => (int) ($pending_cv['cnt'] ?? 0),
                 'pendingCharge'  => $pending_charge,
                 'pendingPartners'=> (int) (lc_admin_partner_summary()['pending'] ?? 0),

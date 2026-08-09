@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../../layouts/AdminLayout';
 import { SummaryCard, StatusBadge } from '../../components/admin/AdminShared';
+import { InsightBanner, RankBadge, ProgressBar, tableRowClass } from '../../components/center-ui';
 import { 
   Building2, Database, ShieldAlert, CreditCard, 
-  ServerCrash, RefreshCw, AlertCircle, FileText
+  ServerCrash, RefreshCw, AlertCircle, PhoneCall, Headphones, FileText, Globe2
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, ComposedChart, Line, CartesianGrid } from 'recharts';
 import { fetchAdminDashboard, fetchAdminAiSummary } from '../../lib/api';
@@ -69,10 +70,13 @@ export function AdminDashboard() {
     todayRejected: 42,
     todayRate: 69.7,
     todayRevenue: 8650000,
+    todayEmbed: 0,
     pendingDb: 18,
     pendingCharge: 2,
     pendingPartners: 1,
     pendingMerchants: 1,
+    pendingCallRequests: 0,
+    pendingRecordingRequests: 0,
     pendingContracts: 0,
   });
   const [chartData, setChartData] = useState(fallbackChartData);
@@ -170,42 +174,39 @@ export function AdminDashboard() {
   }, []);
 
   return (
-    <AdminLayout activeMenu="dashboard" title="관리자 통합 대시보드" description="온오프CPA 운영 현황과 주요 이슈를 한눈에 확인하세요.">
+    <AdminLayout activeMenu="dashboard" title="관리자 통합 대시보드" description="링크커넥트 CPA 운영 현황과 주요 이슈를 한눈에 확인하세요.">
+      <InsightBanner
+        accent="slate"
+        message={<>오늘 접수 <strong>{summary.todayReceived}건</strong> · 승인 <strong>{summary.todayApproved}건</strong> · 승인율 <strong>{summary.todayRate}%</strong></>}
+        subMessage={`외부위젯 ${summary.todayEmbed ?? 0}건 · 처리 대기 DB ${summary.pendingDb}건 · 계약 승인 대기 ${summary.pendingContracts ?? 0}건 · 충전 대기 ${summary.pendingCharge}건`}
+        actions={[
+          { label: '승인 대기 DB', to: '/admin/conversions' },
+          {
+            label: `계약 승인 대기${(summary.pendingContracts ?? 0) > 0 ? ` ${summary.pendingContracts}` : ''}`,
+            to: '/admin/contracts?status=review_pending',
+            variant: (summary.pendingContracts ?? 0) > 0 ? undefined : 'secondary',
+          },
+          { label: '외부 위젯', to: '/admin/embed', variant: 'secondary' },
+        ]}
+      />
       <AiReportInsight title="AI 운영 브리핑" fetchSummary={fetchAdminAiSummary} />
 
-      {(summary.pendingContracts ?? 0) > 0 ? (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <FileText className="text-amber-600 shrink-0 mt-0.5" size={20} />
-            <div>
-              <p className="font-bold text-amber-900">광고주 계약 승인 대기 {summary.pendingContracts}건</p>
-              <p className="text-sm text-amber-800/80 mt-0.5">서명 완료된 계약서를 검토한 뒤 승인 또는 반려해 주세요.</p>
-            </div>
-          </div>
-          <Link
-            to="/admin/contracts?status=review_pending"
-            className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold shrink-0"
-          >
-            계약 승인하러 가기
-          </Link>
-        </div>
-      ) : null}
-
-      {/* 8 Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <SummaryCard title="오늘 접수 DB" value={String(summary.todayReceived)} suffix="건" />
-        <SummaryCard title="오늘 승인 DB" value={String(summary.todayApproved)} suffix="건" color="emerald" highlight />
+        <SummaryCard title="오늘 접수 DB" value={String(summary.todayReceived)} suffix="건" caption="금일 유입" />
+        <SummaryCard title="오늘 외부위젯" value={String(summary.todayEmbed ?? 0)} suffix="건" color="cyan" highlight caption="홈페이지·WP" />
+        <SummaryCard title="오늘 승인 DB" value={String(summary.todayApproved)} suffix="건" color="emerald" highlight caption="처리 완료" />
         <SummaryCard title="오늘 취소/무효 DB" value={String(summary.todayRejected)} suffix="건" color="red" highlight />
-        <SummaryCard title="오늘 승인율" value={String(summary.todayRate)} suffix="%" />
+        <SummaryCard title="오늘 승인율" value={String(summary.todayRate)} suffix="%" trend={summary.todayRate >= 70 ? 2.4 : -1.2} trendLabel="전일 대비" />
         
-        <SummaryCard title="오늘 매출" value={summary.todayRevenue.toLocaleString()} suffix="원" color="cyan" highlight />
-        <SummaryCard title="승인 대기 DB" value={String(summary.pendingDb)} suffix="건" />
+        <SummaryCard title="오늘 매출" value={summary.todayRevenue.toLocaleString()} suffix="원" color="cyan" highlight caption="확정 기준" />
+        <SummaryCard title="승인 대기 DB" value={String(summary.pendingDb)} suffix="건" subtitle="즉시 검토 필요" />
         <SummaryCard
           title="계약 승인 대기"
           value={String(summary.pendingContracts ?? 0)}
           suffix="건"
           color="yellow"
           highlight={(summary.pendingContracts ?? 0) > 0}
+          subtitle="광고주 서명 완료"
         />
         <SummaryCard title="충전 대기" value={String(summary.pendingCharge)} suffix="건" color="blue" highlight />
         <SummaryCard title="승인 대기 파트너" value={String(summary.pendingPartners)} suffix="명" dark />
@@ -251,6 +252,25 @@ export function AdminDashboard() {
             <h2 className="text-lg font-bold text-slate-900">오늘 처리 필요 알림</h2>
           </div>
           <div className="flex flex-col gap-3 flex-1 overflow-y-auto pr-2">
+            {(summary.pendingContracts ?? 0) > 0 && (
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 group">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <FileText size={18} />
+                  </div>
+                  <span className="text-indigo-900 font-medium text-sm">
+                    광고주 계약 승인 대기 <strong className="text-indigo-700 ml-1">{summary.pendingContracts}건</strong>
+                  </span>
+                </div>
+                <Link
+                  to="/admin/contracts?status=review_pending"
+                  className="text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-white px-3 py-1.5 rounded-lg border border-indigo-200 transition-colors shadow-sm"
+                >
+                  바로가기
+                </Link>
+              </div>
+            )}
+
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-orange-50 border border-orange-100 group">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
@@ -258,7 +278,7 @@ export function AdminDashboard() {
                 </div>
                 <span className="text-orange-900 font-medium text-sm">취소/무효 검수 대기 <strong className="text-orange-700 ml-1">{pendingInspections}건</strong></span>
               </div>
-              <button className="text-xs font-bold text-orange-700 hover:text-orange-800 bg-white px-3 py-1.5 rounded-lg border border-orange-200 transition-colors shadow-sm">바로가기</button>
+              <Link to="/admin/inspections" className="text-xs font-bold text-orange-700 hover:text-orange-800 bg-white px-3 py-1.5 rounded-lg border border-orange-200 transition-colors shadow-sm">바로가기</Link>
             </div>
             
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-50 border border-emerald-100 group">
@@ -268,7 +288,7 @@ export function AdminDashboard() {
                 </div>
                 <span className="text-emerald-900 font-medium text-sm">충전 승인 대기 <strong className="text-emerald-700 ml-1">{summary.pendingCharge}건</strong></span>
               </div>
-              <button className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-white px-3 py-1.5 rounded-lg border border-emerald-200 transition-colors shadow-sm">바로가기</button>
+              <Link to="/admin/billing" className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-white px-3 py-1.5 rounded-lg border border-emerald-200 transition-colors shadow-sm">바로가기</Link>
             </div>
             
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-red-50 border border-red-100 group">
@@ -278,7 +298,7 @@ export function AdminDashboard() {
                 </div>
                 <span className="text-red-900 font-medium text-sm">광고비 부족 광고주 <strong className="text-red-700 ml-1">{lowBalanceMerchants}곳</strong></span>
               </div>
-              <button className="text-xs font-bold text-red-700 hover:text-red-800 bg-white px-3 py-1.5 rounded-lg border border-red-200 transition-colors shadow-sm">바로가기</button>
+              <Link to="/admin/advertisers" className="text-xs font-bold text-red-700 hover:text-red-800 bg-white px-3 py-1.5 rounded-lg border border-red-200 transition-colors shadow-sm">바로가기</Link>
             </div>
             
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-rose-50 border border-rose-100 group">
@@ -288,7 +308,7 @@ export function AdminDashboard() {
                 </div>
                 <span className="text-rose-900 font-medium text-sm">API 오류 <strong className="text-rose-700 ml-1">{apiErrorRows.length}건</strong></span>
               </div>
-              <button className="text-xs font-bold text-rose-700 hover:text-rose-800 bg-white px-3 py-1.5 rounded-lg border border-rose-200 transition-colors shadow-sm">바로가기</button>
+              <Link to="/admin/api" className="text-xs font-bold text-rose-700 hover:text-rose-800 bg-white px-3 py-1.5 rounded-lg border border-rose-200 transition-colors shadow-sm">바로가기</Link>
             </div>
 
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-yellow-50 border border-yellow-100 group">
@@ -298,8 +318,44 @@ export function AdminDashboard() {
                 </div>
                 <span className="text-yellow-900 font-medium text-sm">승인 대기 파트너/광고주 <strong className="text-yellow-700 ml-1">{summary.pendingPartners + summary.pendingMerchants}곳</strong></span>
               </div>
-              <button className="text-xs font-bold text-yellow-700 hover:text-yellow-800 bg-white px-3 py-1.5 rounded-lg border border-yellow-200 transition-colors shadow-sm">바로가기</button>
+              <Link to="/admin/partners" className="text-xs font-bold text-yellow-700 hover:text-yellow-800 bg-white px-3 py-1.5 rounded-lg border border-yellow-200 transition-colors shadow-sm">바로가기</Link>
             </div>
+
+            {(summary.todayEmbed ?? 0) > 0 && (
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-cyan-50 border border-cyan-100 group">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-600">
+                    <Globe2 size={18} />
+                  </div>
+                  <span className="text-cyan-900 font-medium text-sm">오늘 외부위젯 접수 <strong className="text-cyan-700 ml-1">{summary.todayEmbed}건</strong></span>
+                </div>
+                <Link to="/admin/conversions?source=embed" className="text-xs font-bold text-cyan-700 hover:text-cyan-800 bg-white px-3 py-1.5 rounded-lg border border-cyan-200 transition-colors shadow-sm">바로가기</Link>
+              </div>
+            )}
+
+            {(summary.pendingCallRequests ?? 0) > 0 && (
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-violet-50 border border-violet-100 group">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center text-violet-600">
+                    <PhoneCall size={18} />
+                  </div>
+                  <span className="text-violet-900 font-medium text-sm">콜DB 번호 신청 대기 <strong className="text-violet-700 ml-1">{summary.pendingCallRequests}건</strong></span>
+                </div>
+                <Link to="/admin/call" className="text-xs font-bold text-violet-700 hover:text-violet-800 bg-white px-3 py-1.5 rounded-lg border border-violet-200 transition-colors shadow-sm">바로가기</Link>
+              </div>
+            )}
+
+            {(summary.pendingRecordingRequests ?? 0) > 0 && (
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-cyan-50 border border-cyan-100 group">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-600">
+                    <Headphones size={18} />
+                  </div>
+                  <span className="text-cyan-900 font-medium text-sm">녹음 파일 요청 대기 <strong className="text-cyan-700 ml-1">{summary.pendingRecordingRequests}건</strong></span>
+                </div>
+                <Link to="/admin/call" className="text-xs font-bold text-cyan-700 hover:text-cyan-800 bg-white px-3 py-1.5 rounded-lg border border-cyan-200 transition-colors shadow-sm">바로가기</Link>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -327,14 +383,24 @@ export function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {campaignRows.map((item, i) => (
-                <tr key={i} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 text-slate-900 font-bold whitespace-nowrap">{item.name}</td>
+              {campaignRows.map((item, i) => {
+                const rateNum = parseFloat(String(item.rate).replace('%', '')) || 0;
+                return (
+                <tr key={i} className={tableRowClass(i < 3 ? i + 1 : undefined)}>
+                  <td className="px-6 py-4 text-slate-900 font-bold whitespace-nowrap">
+                    <RankBadge rank={i + 1} />
+                    {item.name}
+                  </td>
                   <td className="px-6 py-4 text-slate-600 whitespace-nowrap">{item.advertiser}</td>
                   <td className="px-6 py-4 text-slate-900 text-right font-medium whitespace-nowrap">{item.total.toLocaleString()}</td>
                   <td className="px-6 py-4 text-emerald-600 text-right font-bold whitespace-nowrap">{item.approved.toLocaleString()}</td>
                   <td className="px-6 py-4 text-red-600 text-right font-medium whitespace-nowrap">{item.canceled.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-slate-900 text-right font-bold whitespace-nowrap">{item.rate}</td>
+                  <td className="px-6 py-4 text-right whitespace-nowrap">
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-slate-900 font-bold">{item.rate}</span>
+                      <ProgressBar value={rateNum} accent="cyan" showLabel={false} size="sm" />
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-slate-900 text-right font-bold whitespace-nowrap">{item.revenue.toLocaleString()}원</td>
                   <td className="px-6 py-4 text-slate-600 text-right font-medium whitespace-nowrap">{item.partnerProfit.toLocaleString()}원</td>
                   <td className="px-6 py-4 text-cyan-600 text-right font-bold whitespace-nowrap">{item.margin.toLocaleString()}원</td>
@@ -342,7 +408,7 @@ export function AdminDashboard() {
                     <StatusBadge status={item.status} />
                   </td>
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         </div>
@@ -369,12 +435,10 @@ export function AdminDashboard() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {partnerRows.map((item, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                  <tr key={i} className={tableRowClass(i + 1)}>
                     <td className="px-6 py-4 text-slate-900 font-bold whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${i < 3 ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
-                        {item.code}
-                      </div>
+                      <RankBadge rank={i + 1} />
+                      {item.code}
                     </td>
                     <td className="px-6 py-4 text-slate-600 text-right font-medium whitespace-nowrap">{item.total.toLocaleString()}</td>
                     <td className="px-6 py-4 text-emerald-600 text-right font-bold whitespace-nowrap">{item.approved.toLocaleString()}</td>
@@ -406,12 +470,10 @@ export function AdminDashboard() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {advertiserRows.map((item, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                  <tr key={i} className={tableRowClass(i + 1)}>
                     <td className="px-6 py-4 text-slate-900 font-bold whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold ${i < 3 ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
-                        {item.name}
-                      </div>
+                      <RankBadge rank={i + 1} />
+                      {item.name}
                     </td>
                     <td className="px-6 py-4 text-slate-600 text-right font-medium whitespace-nowrap">{item.total.toLocaleString()}</td>
                     <td className="px-6 py-4 text-emerald-600 text-right font-bold whitespace-nowrap">{item.approved.toLocaleString()}</td>

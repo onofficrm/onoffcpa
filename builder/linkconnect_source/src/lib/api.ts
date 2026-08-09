@@ -230,7 +230,13 @@ export type PartnerConversion = {
   name: string;
   phone: string;
   channel: string;
+  source?: string;
   subId: string;
+  pageUrl?: string;
+  pageHost?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
   status: string;
   statusCode: string;
   price: number;
@@ -240,6 +246,16 @@ export type PartnerConversion = {
   reason?: string;
   appeal?: string;
   hasAppeal?: boolean;
+};
+
+export type PartnerDashboardEmbed = {
+  embedToday: number;
+  embedTotal: number;
+  embedApproved: number;
+  domainLock: boolean;
+  domainCount: number;
+  hasWidgetKey: boolean;
+  topDomains: Array<{ host: string; total: number; today: number }>;
 };
 
 export type PartnerDashboardResponse = {
@@ -256,6 +272,7 @@ export type PartnerDashboardResponse = {
     confRevenue: number;
     todayEstRevenue: number;
   };
+  embed?: PartnerDashboardEmbed;
   chart7d: Array<{ date: string; click: number; db: number; approval: number }>;
   channels: Array<{ channel: string; clicks: number; dbs: number; approved: number; percentage: number }>;
   recent: PartnerConversion[];
@@ -289,15 +306,56 @@ export function buildPartnerCpaShortlink(
   });
 }
 
-export function fetchPartnerConversions(filters?: { status?: string; q?: string; rejected?: boolean }) {
+export function fetchPartnerConversions(filters?: { status?: string; q?: string; rejected?: boolean; source?: string }) {
   return partnerApiGet<{ items: PartnerConversion[]; summary: PartnerDashboardResponse['summary']; total: number }>(
     'conversions.php',
     {
       status: filters?.status ?? '',
       q: filters?.q ?? '',
       rejected: filters?.rejected ? '1' : '',
+      source: filters?.source ?? '',
     },
   );
+}
+
+async function downloadCsvBlob(url: string, fallbackName: string) {
+  const response = await fetch(url, {
+    method: 'GET',
+    credentials: 'include',
+    headers: { Accept: 'text/csv' },
+  });
+  if (!response.ok) {
+    let message = '다운로드에 실패했습니다.';
+    try {
+      const body = (await response.json()) as ApiErrorBody;
+      if (body?.error) message = body.error;
+    } catch {
+      // ignore non-json error body
+    }
+    throw new PartnerApiError(message, 'DOWNLOAD_FAILED', response.status);
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^";]+)"?/i);
+  const filename = match?.[1] || fallbackName;
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+export function downloadPartnerConversionsCsv(filters?: { status?: string; q?: string; rejected?: boolean; source?: string }) {
+  const url = new URL(`${PARTNER_API_BASE}/conversions.php`, window.location.origin);
+  url.searchParams.set('format', 'csv');
+  if (filters?.status) url.searchParams.set('status', filters.status);
+  if (filters?.q) url.searchParams.set('q', filters.q);
+  if (filters?.source) url.searchParams.set('source', filters.source);
+  if (filters?.rejected) url.searchParams.set('rejected', '1');
+  return downloadCsvBlob(url.toString(), `partner_conversions_${Date.now()}.csv`);
 }
 
 export function applyPartner() {
@@ -411,7 +469,10 @@ export type MerchantConversion = {
   comment: string;
   needsAction: boolean;
   channel: string;
+  source?: string;
   subId: string;
+  pageUrl?: string;
+  pageHost?: string;
   qualityScore?: number;
   qualityTags?: string[];
   partnerVisible?: boolean;
@@ -427,6 +488,8 @@ export type MerchantDashboardResponse = {
     needsAction: number;
     todayReceived: number;
     todaySpend: number;
+    todayEmbed?: number;
+    embedTotal?: number;
   };
   chart7d: Array<{ date: string; db: number; approval: number; cancel: number }>;
   recent: MerchantConversion[];
@@ -441,15 +504,26 @@ export function fetchMerchantDashboard() {
   return merchantApiGet<MerchantDashboardResponse>('dashboard.php');
 }
 
-export function fetchMerchantConversions(filters?: { status?: string; q?: string; needsAction?: boolean }) {
+export function fetchMerchantConversions(filters?: { status?: string; q?: string; needsAction?: boolean; source?: string }) {
   return merchantApiGet<{ items: MerchantConversion[]; summary: MerchantDashboardResponse['summary']; total: number }>(
     'conversions.php',
     {
       status: filters?.status ?? '',
       q: filters?.q ?? '',
       needs_action: filters?.needsAction ? '1' : '',
+      source: filters?.source ?? '',
     },
   );
+}
+
+export function downloadMerchantConversionsCsv(filters?: { status?: string; q?: string; needsAction?: boolean; source?: string }) {
+  const url = new URL(`${MERCHANT_API_BASE}/conversions.php`, window.location.origin);
+  url.searchParams.set('format', 'csv');
+  if (filters?.status) url.searchParams.set('status', filters.status);
+  if (filters?.q) url.searchParams.set('q', filters.q);
+  if (filters?.source) url.searchParams.set('source', filters.source);
+  if (filters?.needsAction) url.searchParams.set('needs_action', '1');
+  return downloadCsvBlob(url.toString(), `merchant_conversions_${Date.now()}.csv`);
 }
 
 export function updateMerchantConversion(payload: {
@@ -586,6 +660,7 @@ export type AdminDashboardResponse = {
     todayRejected: number;
     todayRate: number;
     todayRevenue: number;
+    todayEmbed?: number;
     pendingDb: number;
     pendingCharge: number;
     pendingPartners: number;
@@ -624,6 +699,14 @@ export type AdminConversion = {
   partner: string;
   advertiser: string;
   customer: string;
+  channel?: string;
+  source?: string;
+  pageUrl?: string;
+  pageHost?: string;
+  referer?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
   status: string;
   statusCode: string;
   price: number;
@@ -812,7 +895,7 @@ export function updateAdminCharge(payload: { action: 'approve' | 'reject'; wtId:
   return adminApiPost<{ message: string }>('wallet.php', payload);
 }
 
-export function fetchAdminConversions(filters?: { status?: string }) {
+export function fetchAdminConversions(filters?: { status?: string; source?: string }) {
   return adminApiGet<{
     items: AdminConversion[];
     summary: { todayReceived: number; approved: number; rejected: number; pending: number };
@@ -820,8 +903,18 @@ export function fetchAdminConversions(filters?: { status?: string }) {
     dbReady: boolean;
   }>('conversions.php', {
     status: filters?.status ?? '',
+    source: filters?.source ?? '',
   });
 }
+
+export function downloadAdminConversionsCsv(filters?: { status?: string; source?: string }) {
+  const url = new URL(`${ADMIN_API_BASE}/conversions.php`, window.location.origin);
+  url.searchParams.set('format', 'csv');
+  if (filters?.status) url.searchParams.set('status', filters.status);
+  if (filters?.source) url.searchParams.set('source', filters.source);
+  return downloadCsvBlob(url.toString(), `conversions_${Date.now()}.csv`);
+}
+
 
 export type AdminCampaignPromoGuideSummary = {
   exists: boolean;
@@ -915,6 +1008,134 @@ export type AdminPromoGuideLog = {
   revisionReason: string;
   createdAt: string;
 };
+
+
+export type AdminEmbedPartnerItem = {
+  ptId: number;
+  code: string;
+  name: string;
+  status: string;
+  domains: string[];
+  domainLock: boolean;
+  hasWidgetKey?: boolean;
+  embedTotal: number;
+  embedToday: number;
+  activeLinks: number;
+};
+
+export type EmbedStatsDomainRow = {
+  host: string;
+  total: number;
+  today: number;
+};
+
+export type EmbedStatsDailyRow = {
+  date: string;
+  label: string;
+  count: number;
+};
+
+export type AdminEmbedPartnerOptions = {
+  accent?: string;
+  title?: string;
+  submitLabel?: string;
+  buttonLabel?: string;
+  callLabel?: string;
+  successMessage?: string;
+  successRedirectUrl?: string;
+  trackConversion?: boolean;
+  conversionEventName?: string;
+  showRegion?: boolean;
+  showInquiry?: boolean;
+  privacyText?: string;
+  requireWidgetKey?: boolean;
+};
+
+export type AdminEmbedPartnerDetail = AdminEmbedPartnerItem & {
+  scriptUrl?: string;
+  brandName?: string;
+  widgetKey?: string;
+  options?: AdminEmbedPartnerOptions;
+  embedApproved?: number;
+  statsDays?: number;
+  byDomain?: EmbedStatsDomainRow[];
+  daily?: EmbedStatsDailyRow[];
+  links: Array<{
+    id: number;
+    code: string;
+    campaign: string;
+    channel: string;
+    subId: string;
+    snippets: { form: string; button: string; phone: string };
+  }>;
+};
+
+export function fetchAdminEmbedPartners(filters?: { q?: string; scope?: string }) {
+  return adminApiGet<{
+    items: AdminEmbedPartnerItem[];
+    summary: {
+      partners: number;
+      domainLocked: number;
+      embedTotal: number;
+      embedToday: number;
+      activeLinks: number;
+    };
+    dbReady: boolean;
+  }>('embed.php', {
+    q: filters?.q ?? '',
+    scope: filters?.scope ?? '',
+  });
+}
+
+export function fetchAdminEmbedPartnerDetail(ptId: number) {
+  return adminApiGet<AdminEmbedPartnerDetail>('embed.php', { ptId: String(ptId) });
+}
+
+export function saveAdminEmbedDomains(payload: { ptId: number; domains: string[] }) {
+  return adminApiPost<{
+    message: string;
+    domains: string[];
+    domainLock: boolean;
+    partner: AdminEmbedPartnerDetail | null;
+  }>('embed.php', {
+    action: 'save_domains',
+    ...payload,
+  });
+}
+
+export function saveAdminEmbedOptions(payload: { ptId: number; options: AdminEmbedPartnerOptions }) {
+  return adminApiPost<{
+    message: string;
+    options: AdminEmbedPartnerOptions;
+    partner: AdminEmbedPartnerDetail | null;
+  }>('embed.php', {
+    action: 'save_options',
+    ptId: payload.ptId,
+    options: payload.options,
+  });
+}
+
+export function issueAdminEmbedWidgetKey(ptId: number) {
+  return adminApiPost<{
+    message: string;
+    widgetKey: string;
+    partner: AdminEmbedPartnerDetail | null;
+  }>('embed.php', {
+    action: 'issue_widget_key',
+    ptId,
+  });
+}
+
+export function rotateAdminEmbedWidgetKey(ptId: number) {
+  return adminApiPost<{
+    message: string;
+    widgetKey: string;
+    partner: AdminEmbedPartnerDetail | null;
+  }>('embed.php', {
+    action: 'rotate_widget_key',
+    ptId,
+  });
+}
 
 export function fetchAdminPromoGuide(cpId: number) {
   return adminApiGet<AdminPromoGuideDetail>('campaign-guide.php', { cpId: String(cpId) });
@@ -1285,24 +1506,95 @@ export function requestPartnerSettlement(payload: { amount: number; memo?: strin
   return partnerApiPost<{ message: string; settlement: PartnerSettlementItem | null; summary: PartnerSettlementSummary }>('settlements.php', payload);
 }
 
+export type PartnerAnalyticsSource = 'cpa' | 'cps' | 'embed';
+
+export type PartnerAnalyticsFilters = {
+  period?: 7 | 30 | 90;
+  dateFrom?: string;
+  dateTo?: string;
+  source?: PartnerAnalyticsSource;
+  linkId?: number;
+  lpmId?: number;
+  channel?: string;
+  linkName?: string;
+  compareIds?: number[];
+  compareLpmIds?: number[];
+};
+
+export type PartnerAnalyticsLinkRow = {
+  id: number;
+  code: string;
+  campaign: string;
+  channel: string;
+  linkName: string;
+  clicks: number;
+  received: number;
+  approved: number;
+  canceled: number;
+  convRate: number;
+  appRate: number;
+  epc: number;
+  confRev: number;
+};
+
 export type PartnerAnalyticsResponse = {
+  source?: PartnerAnalyticsSource;
   summary: {
     totalClicks: number;
+    uniqueVisitors: number;
     totalDb: number;
     approvedDb: number;
     rejectedDb: number;
+    confRevenue: number;
     avgConvRate: number;
     avgApprovalRate: number;
+    epc: number;
   };
+  range: {
+    dateFrom: string;
+    dateTo: string;
+    period: number;
+  };
+  funnel: {
+    clicks: number;
+    received: number;
+    approved: number;
+    confirmed: number;
+  };
+  chart: Array<{ date: string; click: number; db: number; approval: number }>;
   chart7d: Array<{ date: string; click: number; db: number; approval: number }>;
   channels: Array<{ channel: string; clicks: number; dbs: number; approved: number; percentage: number }>;
+  linkNames: Array<{ linkName: string; channel: string; clicks: number; dbs: number; approved: number }>;
+  links: PartnerAnalyticsLinkRow[];
+  cpsLinks?: PartnerAnalyticsLinkRow[];
+  compareLinks: PartnerAnalyticsLinkRow[];
+  referrers: Array<{ domain: string; clicks: number; percentage: number }>;
+  devices: Array<{ device: string; deviceCode: string; clicks: number; percentage: number }>;
   campaigns: Array<{ campaign: string; clicks: number; received: number; approved: number; appRate: string; confRev: number }>;
+  filterOptions: {
+    links: Array<{ id: number; code: string; campaign: string; channel: string; linkName: string }>;
+    channels: string[];
+    linkNames: string[];
+    cpsLinks?: Array<{ id: number; merchantCode: string; merchantName: string; promoUrl?: string }>;
+  };
   dbReady: boolean;
 };
 
-export function fetchPartnerAnalytics() {
-  return partnerApiGet<PartnerAnalyticsResponse>('analytics.php');
+export function fetchPartnerAnalytics(filters?: PartnerAnalyticsFilters) {
+  const query: Record<string, string> = {};
+  if (filters?.period) query.period = String(filters.period);
+  if (filters?.dateFrom) query.dateFrom = filters.dateFrom;
+  if (filters?.dateTo) query.dateTo = filters.dateTo;
+  if (filters?.source) query.source = filters.source;
+  if (filters?.linkId) query.linkId = String(filters.linkId);
+  if (filters?.lpmId) query.lpmId = String(filters.lpmId);
+  if (filters?.channel) query.channel = filters.channel;
+  if (filters?.linkName) query.linkName = filters.linkName;
+  if (filters?.compareIds?.length) query.compareIds = filters.compareIds.join(',');
+  if (filters?.compareLpmIds?.length) query.compareLpmIds = filters.compareLpmIds.join(',');
+  return partnerApiGet<PartnerAnalyticsResponse>('analytics.php', query);
 }
+
 
 export type PartnerReportResponse = {
   summary: {
@@ -1361,11 +1653,13 @@ export type AdminInspection = {
   id: string;
   cvId: number;
   date: string;
+  createdAt?: string;
   campaign: string;
   advertiser: string;
   partner: string;
   customer: string;
   phone: string;
+  inquiry?: string;
   reason: string;
   comment: string;
   objection: boolean;
@@ -1373,6 +1667,14 @@ export type AdminInspection = {
   status: string;
   statusCode: string;
   price: number;
+  channel?: string;
+  source?: string;
+  sourceLabel?: string;
+  pageUrl?: string;
+  pageHost?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 };
 
 export type AdminInspectionSummary = {
@@ -1570,10 +1872,10 @@ export type PartnerCancelSummary = {
   reasons: Array<{ reason: string; count: number; percentage: number }>;
 };
 
-export function fetchPartnerCanceledDbs(filters?: { q?: string }) {
+export function fetchPartnerCanceledDbs(filters?: { q?: string; source?: string }) {
   return partnerApiGet<{ items: PartnerConversion[]; summary: PartnerDashboardResponse['summary']; cancelSummary: PartnerCancelSummary; total: number }>(
     'conversions.php',
-    { rejected: '1', q: filters?.q ?? '' },
+    { rejected: '1', q: filters?.q ?? '', source: filters?.source ?? '' },
   );
 }
 
