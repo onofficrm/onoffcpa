@@ -794,7 +794,10 @@
     var badges = buildTrustBadges(config);
     if (badges) intro.appendChild(badges);
 
-    var call = buildCallLink(config, false);
+    var call = null;
+    if (optFlag(config, 'showFormCall', true)) {
+      call = buildCallLink(config, false);
+    }
     if (call) intro.appendChild(call);
 
     var form = el('form', 'lc-embed__form', { novalidate: 'novalidate' });

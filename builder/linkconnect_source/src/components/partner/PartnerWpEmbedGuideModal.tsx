@@ -1,5 +1,6 @@
-import { Copy, Download, Monitor, Smartphone, X } from 'lucide-react';
+import { Copy, Download, Monitor, Phone, Smartphone, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { HelpTipButton, HelpTipHeading } from '../HelpTipButton';
 import { EmbedDesignGallery } from './EmbedDesignGallery';
 import { EmbedDevicePreviewFrame } from './EmbedDevicePreviewFrame';
@@ -19,6 +20,12 @@ import {
   EMBED_CTA_PRESETS,
   type EmbedCtaPresetId,
 } from '../../lib/embedConversion';
+import {
+  claimPartnerCallNumber,
+  fetchPartnerAvailableCallNumbers,
+  formatCallPhone,
+  type PartnerAvailableCallNumber,
+} from '../../lib/api';
 import {
   buildLeadEmbedPreviewUrl,
   buildLeadEmbedShortcode,
@@ -60,6 +67,7 @@ const DEFAULT_OPTIONS: PartnerEmbedOptions = {
   liveCountText: '지금 상담 신청이 활발합니다',
   stickyMobileCta: true,
   successShowCall: true,
+  showFormCall: true,
   successNextStep: '담당자가 확인 후 곧 연락드립니다.',
 };
 
@@ -127,14 +135,16 @@ export function PartnerWpEmbedGuideModal({
   const [options, setOptions] = useState<PartnerEmbedOptions>(DEFAULT_OPTIONS);
   const [savingOptions, setSavingOptions] = useState(false);
   const [previewTick, setPreviewTick] = useState(0);
+  const [callCampaignId, setCallCampaignId] = useState(0);
+  const [callCampaignTitle, setCallCampaignTitle] = useState('');
+  const [callPhoneDisplay, setCallPhoneDisplay] = useState('');
+  const [hasCallPhone, setHasCallPhone] = useState(false);
+  const [availableNumbers, setAvailableNumbers] = useState<PartnerAvailableCallNumber[]>([]);
+  const [claimCnId, setClaimCnId] = useState('');
+  const [claimBusy, setClaimBusy] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    setSaveMsg('');
-    setTab(initialTab);
-    setDevice(productContext?.campaignTitle ? 'mobile' : 'pc');
-    setPreviewStage('form');
-    fetchPartnerEmbedSettings(lkCode || undefined)
+  const loadEmbedSettings = (code?: string) => {
+    fetchPartnerEmbedSettings(code || undefined)
       .then((data) => {
         setDomainsText((data.domains || []).join('\n'));
         setEmbedToday(data.embedToday ?? 0);
@@ -149,12 +159,33 @@ export function PartnerWpEmbedGuideModal({
           preset: normalizeEmbedPreset(data.options?.preset),
           pcLayout: normalizeEmbedPcLayout(data.options?.pcLayout),
         });
-        const phone = data.config?.partnerPhoneDisplay || '';
+        const phone = (data.config?.partnerPhoneDisplay || '').trim();
+        const hasPhone = Boolean(data.config?.hasPartnerPhone && phone);
+        const cpId = Number(data.config?.campaignId || 0);
+        const cpTitle = (data.config?.campaignTitle || '').trim();
+        setHasCallPhone(hasPhone);
+        setCallPhoneDisplay(phone);
+        setCallCampaignId(cpId);
+        setCallCampaignTitle(cpTitle);
         setPhoneHint(
-          data.config?.hasPartnerPhone && phone
-            ? `위젯에 안심번호 ${phone} 이 함께 표시됩니다.`
-            : '현재 배정된 안심번호가 없으면 상담폼만 표시됩니다. (전화형은 번호 배정 필요)',
+          hasPhone
+            ? `위젯에 콜디비 안심번호 ${phone} 이 함께 표시됩니다.`
+            : code
+              ? '이 상품에 배정된 콜디비 안심번호가 없습니다. 아래에서 번호를 적용하세요.'
+              : '홍보링크를 선택한 뒤 콜디비 안심번호를 적용할 수 있습니다.',
         );
+        if (!hasPhone && cpId > 0) {
+          fetchPartnerAvailableCallNumbers()
+            .then((res) => {
+              setAvailableNumbers(res.items || []);
+              if (res.items?.length && !claimCnId) {
+                setClaimCnId(String(res.items[0].cnId));
+              }
+            })
+            .catch(() => setAvailableNumbers([]));
+        } else {
+          setAvailableNumbers([]);
+        }
       })
       .catch(() => {
         setDomainsText('');
@@ -163,10 +194,42 @@ export function PartnerWpEmbedGuideModal({
         setByDomain([]);
         setWidgetKey('');
         setOptions(DEFAULT_OPTIONS);
+        setHasCallPhone(false);
+        setCallPhoneDisplay('');
+        setCallCampaignId(0);
+        setCallCampaignTitle('');
+        setAvailableNumbers([]);
         setPhoneHint('허용 도메인을 등록하면 등록된 사이트에서만 위젯이 동작합니다.');
       });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    setSaveMsg('');
+    setTab(initialTab);
+    setDevice(productContext?.campaignTitle ? 'mobile' : 'pc');
+    setPreviewStage('form');
+    loadEmbedSettings(lkCode || undefined);
   }, [open, lkCode, initialTab, productContext?.campaignTitle]);
 
+  const handleClaimCallNumber = async () => {
+    if (!callCampaignId || !claimCnId) return;
+    setClaimBusy(true);
+    setSaveMsg('');
+    try {
+      const res = await claimPartnerCallNumber({
+        cpId: callCampaignId,
+        cnId: Number(claimCnId),
+        memo: '상담 위젯용 콜디비',
+      });
+      setSaveMsg(res.message || '콜디비 안심번호를 적용했습니다.');
+      loadEmbedSettings(lkCode || undefined);
+    } catch (e) {
+      setSaveMsg(e instanceof Error ? e.message : '콜디비 번호 적용에 실패했습니다.');
+    } finally {
+      setClaimBusy(false);
+    }
+  };
   const sampleCode = (lkCode || 'YOUR_LK_CODE').trim();
   const snippet = useMemo(
     () => buildLeadEmbedSnippet(sampleCode, { mode, widgetKey }),
@@ -340,6 +403,88 @@ export function PartnerWpEmbedGuideModal({
               <p className="text-xs text-cyan-900/80">{phoneHint}</p>
             </section>
 
+            <section className="rounded-2xl border border-violet-200 bg-violet-50/60 p-3.5 space-y-2.5">
+              <div className="flex items-center gap-1.5">
+                <Phone size={14} className="text-violet-700" />
+                <div className="text-sm font-bold text-violet-950">콜디비 안심번호</div>
+              </div>
+              {!lkCode ? (
+                <p className="text-[11px] text-violet-900/80 leading-relaxed">
+                  홍보링크 행에서 「HTML 위젯」을 열면 해당 상품의 콜디비 번호를 폼에 적용할 수 있습니다.
+                </p>
+              ) : hasCallPhone ? (
+                <div className="space-y-2">
+                  <div className="rounded-xl border border-violet-200 bg-white px-3 py-2.5">
+                    <div className="text-[10px] font-bold text-violet-700">적용된 안심번호</div>
+                    <div className="mt-0.5 text-base font-extrabold tabular-nums text-slate-900">
+                      {callPhoneDisplay}
+                    </div>
+                    {callCampaignTitle ? (
+                      <div className="mt-1 text-[10px] text-slate-500">{callCampaignTitle}</div>
+                    ) : null}
+                  </div>
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 rounded border-slate-300 text-violet-600"
+                      checked={options.showFormCall !== false}
+                      onChange={(e) => setOptions((prev) => ({ ...prev, showFormCall: e.target.checked }))}
+                    />
+                    <span className="text-xs text-violet-950 leading-relaxed">
+                      <span className="font-bold">상담폼·버튼형에 콜디비 번호 표시</span>
+                      <span className="block text-violet-800/70">끄면 폼만 보이고 전화 버튼은 숨깁니다. 전화형은 항상 번호를 사용합니다.</span>
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-violet-900/85 leading-relaxed">
+                    {callCampaignTitle ? (
+                      <>
+                        <span className="font-bold">「{callCampaignTitle}」</span> 에 배정된 안심번호가 없습니다.
+                        아래에서 번호를 적용하면 상담폼에 전화 상담 버튼이 표시됩니다.
+                      </>
+                    ) : (
+                      '이 링크 상품에 배정된 콜디비 안심번호가 없습니다.'
+                    )}
+                  </p>
+                  {callCampaignId > 0 && availableNumbers.length > 0 ? (
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <select
+                        value={claimCnId}
+                        onChange={(e) => setClaimCnId(e.target.value)}
+                        className="flex-1 rounded-xl border border-violet-200 bg-white px-3 py-2 text-xs font-bold text-slate-800"
+                      >
+                        {availableNumbers.map((n) => (
+                          <option key={n.cnId} value={n.cnId}>
+                            {formatCallPhone(n.number) || n.number}
+                            {n.memo ? ` · ${n.memo}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={claimBusy || !claimCnId}
+                        onClick={() => void handleClaimCallNumber()}
+                        className="shrink-0 rounded-xl bg-violet-700 hover:bg-violet-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-60"
+                      >
+                        {claimBusy ? '적용 중…' : '폼에 번호 적용'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <Link
+                        to="/partner/call"
+                        className="inline-flex items-center rounded-xl border border-violet-300 bg-white px-3 py-2 text-xs font-bold text-violet-900 hover:bg-violet-50"
+                      >
+                        콜디비에서 번호 신청
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+
             <div className="flex gap-1 p-1 rounded-xl bg-slate-100">
               {TABS.map((item) => (
                 <button
@@ -367,7 +512,13 @@ export function PartnerWpEmbedGuideModal({
                   selectedId={presetId}
                   options={options}
                   brandName={brandName}
-                  phoneHint={phoneHint}
+                  phoneHint={
+                  hasCallPhone && callPhoneDisplay
+                    ? `안심번호 ${callPhoneDisplay}`
+                    : options.showFormCall === false
+                      ? ''
+                      : phoneHint
+                }
                   onSelect={selectPreset}
                 />
                 <div className="space-y-2 pt-1">
@@ -434,6 +585,7 @@ export function PartnerWpEmbedGuideModal({
                     { key: 'showTrustBadges', label: '신뢰 배지', desc: '무료 / 3분콜백 / 비밀보장' },
                     { key: 'showLiveCount', label: '시급성 문구', desc: '상담 활발 안내' },
                     { key: 'stickyMobileCta', label: '모바일 sticky CTA', desc: '제출 버튼을 하단 고정' },
+                    { key: 'showFormCall', label: '폼에 콜디비 번호', desc: '상담폼·버튼형에 안심번호 전화 버튼' },
                     { key: 'successShowCall', label: '완료 화면 전화 CTA', desc: '접수 후 전화 버튼 노출' },
                   ].map((item) => (
                     <label key={item.key} className="flex items-start gap-2 cursor-pointer">
@@ -891,7 +1043,13 @@ export function PartnerWpEmbedGuideModal({
                 options={options}
                 device={device}
                 stage={previewStage}
-                phoneHint={phoneHint}
+                phoneHint={
+                  hasCallPhone && callPhoneDisplay
+                    ? `안심번호 ${callPhoneDisplay}`
+                    : options.showFormCall === false
+                      ? ''
+                      : phoneHint
+                }
                 brandName={brandName}
                 inDeviceFrame
                 productLabel={productLabel}

@@ -150,6 +150,8 @@ export type PartnerEmbedOptions = {
   stickyMobileCta?: boolean;
   /** 완료 화면에 전화 CTA */
   successShowCall?: boolean;
+  /** 상담폼·버튼형에 콜디비 안심번호 표시 */
+  showFormCall?: boolean;
   /** 완료 후 다음 안내 */
   successNextStep?: string;
 };
@@ -175,6 +177,7 @@ export type PartnerEmbedSettings = {
     hasPartnerPhone?: boolean;
     partnerPhoneDisplay?: string;
     campaignTitle?: string;
+    campaignId?: number;
   };
 };
 

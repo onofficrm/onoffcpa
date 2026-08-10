@@ -380,6 +380,7 @@ if (!function_exists('lc_embed_default_options')) {
             'liveCountText'        => '지금 상담 신청이 활발합니다',
             'stickyMobileCta'      => true,
             'successShowCall'      => true,
+            'showFormCall'         => true,
             'successNextStep'      => '담당자가 확인 후 곧 연락드립니다.',
         );
     }
@@ -604,6 +605,7 @@ if (!function_exists('lc_embed_partner_options')) {
             'showLiveCount',
             'stickyMobileCta',
             'successShowCall',
+            'showFormCall',
         ) as $boolKey) {
             if (array_key_exists($boolKey, $decoded)) {
                 $defaults[$boolKey] = !empty($decoded[$boolKey]);
@@ -737,6 +739,7 @@ if (!function_exists('lc_embed_set_partner_options')) {
             'showLiveCount',
             'stickyMobileCta',
             'successShowCall',
+            'showFormCall',
         ) as $boolKey) {
             if (array_key_exists($boolKey, $options)) {
                 $next[$boolKey] = !empty($options[$boolKey]);
@@ -1139,6 +1142,7 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
             'liveCountText' => (string) ($options['liveCountText'] ?? ''),
             'stickyMobileCta' => !array_key_exists('stickyMobileCta', $options) || !empty($options['stickyMobileCta']),
             'successShowCall' => !array_key_exists('successShowCall', $options) || !empty($options['successShowCall']),
+            'showFormCall' => !array_key_exists('showFormCall', $options) || !empty($options['showFormCall']),
             'successNextStep' => (string) ($options['successNextStep'] ?? ''),
             'options'       => $options,
             'fields'        => (static function () use ($options) {

@@ -52,7 +52,9 @@ export function EmbedWidgetLivePreview({
   const ctaHint = (options.ctaHint || '').trim();
   const liveCountText = (options.liveCountText || '지금 상담 신청이 활발합니다').trim();
   const successNextStep = (options.successNextStep || '담당자가 확인 후 곧 연락드립니다.').trim();
-  const hasPhone = Boolean(phoneHint && /[0-9]/.test(phoneHint));
+  const hasPhoneRaw = Boolean(phoneHint && /[0-9]/.test(phoneHint));
+  const showFormCall = options.showFormCall !== false;
+  const hasPhone = mode === 'phone' ? hasPhoneRaw : hasPhoneRaw && showFormCall;
   const stickyMobile = options.stickyMobileCta !== false && device === 'mobile';
   const shellWidth = inDeviceFrame ? undefined : device === 'mobile' ? 320 : 420;
   const footerLabel = productLabel || brandName;
@@ -139,7 +141,7 @@ export function EmbedWidgetLivePreview({
       successMessage={successMessage}
       successNextStep={successNextStep}
       redirectUrl={redirectUrl}
-      showCall={options.successShowCall !== false && hasPhone}
+      showCall={options.successShowCall !== false && hasPhoneRaw}
       callLabel={callLabel}
       brandName={footerLabel}
       benefitText={benefitText}
