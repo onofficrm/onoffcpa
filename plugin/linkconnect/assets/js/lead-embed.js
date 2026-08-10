@@ -153,9 +153,8 @@
 
   /** CRO 마이크로 전환: badge_click / extra_fields_open / sticky_submit / success_call_tap */
   function trackEmbedInteraction(config, eventName, extra) {
-    if (!config || config.trackConversion === false) return;
     var name = String(eventName || '').trim();
-    if (!name) return;
+    if (!name || !config) return;
     var traffic = collectTrafficMeta({});
     var payload = {
       event: name,
@@ -173,6 +172,11 @@
         payload[key] = extra[key];
       });
     }
+    // 플랫폼 유입분석에는 항상 전송 (파트너 센터 숫자)
+    sendEmbedEventBeacon(config, name, payload);
+
+    // GTM/dataLayer 는 전환 추적 옵션이 켜진 경우만
+    if (config.trackConversion === false) return;
     try {
       window.dataLayer = window.dataLayer || [];
       window.dataLayer.push(payload);
@@ -190,6 +194,50 @@
         window.parent.postMessage({ type: 'lc-embed-event', event: name, detail: payload }, '*');
       }
     } catch (e4) {}
+  }
+
+  function sendEmbedEventBeacon(config, eventName, detail) {
+    var url = (config && (config.eventUrl || config.event_url)) || '';
+    if (!url && config && config.submitUrl) {
+      try {
+        url = String(config.submitUrl).replace(/receive\.php(\?.*)?$/, 'embed_event.php');
+      } catch (e0) {
+        url = '';
+      }
+    }
+    if (!url || !config || !config.lkCode) return;
+    var body = {
+      event: eventName,
+      lkCode: config.lkCode || '',
+      widgetKey: config.widgetKey || '',
+      page_url: (detail && detail.lc_page_url) || window.location.href,
+      label: (detail && (detail.lc_badge || detail.lc_call_label || detail.lc_submit_label)) || '',
+      lc_badge: detail && detail.lc_badge ? detail.lc_badge : '',
+      lc_call_label: detail && detail.lc_call_label ? detail.lc_call_label : '',
+      lc_submit_label: detail && detail.lc_submit_label ? detail.lc_submit_label : '',
+      lc_extra_count: detail && detail.lc_extra_count != null ? detail.lc_extra_count : undefined,
+    };
+    var json = '';
+    try {
+      json = JSON.stringify(body);
+    } catch (e1) {
+      return;
+    }
+    try {
+      if (navigator.sendBeacon) {
+        var blob = new Blob([json], { type: 'application/json' });
+        if (navigator.sendBeacon(url, blob)) return;
+      }
+    } catch (e2) {}
+    try {
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: json,
+        keepalive: true,
+        mode: 'cors',
+      }).catch(function () {});
+    } catch (e3) {}
   }
 
   function isStickySubmitContext(config) {

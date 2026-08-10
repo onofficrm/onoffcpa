@@ -1115,6 +1115,9 @@ if (!function_exists('lc_partner_analytics_embed_for_api')) {
                 'devices'       => array(),
                 'campaigns'     => array(),
                 'filterOptions' => array('links' => array(), 'channels' => array(), 'linkNames' => array(), 'cpsLinks' => array()),
+                'cro'           => function_exists('lc_embed_events_stats_for_partner')
+                    ? lc_embed_events_stats_for_partner(0, $dateFrom, $dateTo, 0, 0)
+                    : array('ready' => false),
                 'dbReady'       => true,
             );
         }
@@ -1354,6 +1357,9 @@ if (!function_exists('lc_partner_analytics_embed_for_api')) {
                 'linkNames' => array(),
                 'cpsLinks'  => array(),
             ),
+            'cro'           => function_exists('lc_embed_events_stats_for_partner')
+                ? lc_embed_events_stats_for_partner($pt_id, $dateFrom, $dateTo, $total_db, $approved_cnt)
+                : array('ready' => false),
             'dbReady'       => true,
         );
     }

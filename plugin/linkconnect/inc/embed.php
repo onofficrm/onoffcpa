@@ -1042,6 +1042,7 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
 
         $brand = lc_embed_brand_name();
         $submit_url = lc_site_absolute_url('/plugin/linkconnect/api/receive.php');
+        $event_url = lc_site_absolute_url('/plugin/linkconnect/api/embed_event.php');
         $config_url = lc_site_absolute_url('/plugin/linkconnect/api/embed.php');
         $privacy_url = lc_site_absolute_url('/privacy');
         $allowed_domains = lc_embed_partner_allowed_domains($pt_id);
@@ -1080,6 +1081,7 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
             'allowedDomains'=> $allowed_domains,
             'domainLock'    => count($allowed_domains) > 0,
             'submitUrl'     => $submit_url,
+            'eventUrl'      => $event_url,
             'configUrl'     => $config_url,
             'frameUrl'      => lc_embed_frame_url(),
             'privacyUrl'    => $privacy_url,

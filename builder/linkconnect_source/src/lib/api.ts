@@ -1537,6 +1537,51 @@ export type PartnerAnalyticsLinkRow = {
   confRev: number;
 };
 
+
+export type PartnerEmbedCroAnalytics = {
+  ready?: boolean;
+  counts?: {
+    badge_click?: number;
+    extra_fields_open?: number;
+    sticky_submit?: number;
+    success_call_tap?: number;
+    db_received?: number;
+    db_approved?: number;
+  };
+  steps?: Array<{
+    id: string;
+    label: string;
+    desc: string;
+    count: number;
+  }>;
+  rates?: {
+    extraFromBadge?: number;
+    stickyFromExtra?: number;
+    dbFromSticky?: number;
+    dbFromBadge?: number;
+    callFromDb?: number;
+  };
+  insight?: {
+    tone?: 'info' | 'good' | 'warn' | 'tip' | string;
+    title?: string;
+    body?: string;
+  };
+  byHost?: Array<{
+    host: string;
+    total: number;
+    badgeClick: number;
+    stickySubmit: number;
+    successCallTap: number;
+  }>;
+  daily?: Array<{
+    date: string;
+    badge: number;
+    extra: number;
+    sticky: number;
+    call: number;
+  }>;
+};
+
 export type PartnerAnalyticsResponse = {
   source?: PartnerAnalyticsSource;
   summary: {
@@ -1577,6 +1622,7 @@ export type PartnerAnalyticsResponse = {
     linkNames: string[];
     cpsLinks?: Array<{ id: number; merchantCode: string; merchantName: string; promoUrl?: string }>;
   };
+  cro?: PartnerEmbedCroAnalytics;
   dbReady: boolean;
 };
 

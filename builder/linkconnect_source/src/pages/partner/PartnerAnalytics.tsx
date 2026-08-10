@@ -28,6 +28,7 @@ import {
   PartnerAnalyticsResponse,
   PartnerAnalyticsSource,
 } from '../../lib/api';
+import { EmbedCroAnalyticsPanel } from '../../components/partner/EmbedCroAnalyticsPanel';
 import {
   InsightBanner,
   SkeletonCardGrid,
@@ -64,6 +65,7 @@ const emptyData: PartnerAnalyticsResponse = {
   devices: [],
   campaigns: [],
   filterOptions: { links: [], channels: [], linkNames: [], cpsLinks: [] },
+  cro: undefined,
   dbReady: false,
 };
 
@@ -76,7 +78,7 @@ const PERIOD_OPTIONS: Array<{ value: 7 | 30 | 90; label: string }> = [
 const SOURCE_OPTIONS: Array<{ value: PartnerAnalyticsSource; label: string; desc: string }> = [
   { value: 'cpa', label: 'CPA 홍보링크', desc: '캠페인 DB 유입' },
   { value: 'cps', label: 'CPS 쇼핑링크', desc: '쇼핑몰 클릭·주문' },
-  { value: 'embed', label: '외부 상담위젯', desc: '홈페이지·WP 폼' },
+  { value: 'embed', label: '외부 상담위젯', desc: '전환 퍼널·홈페이지 폼' },
 ];
 
 function funnelRate(current: number, previous: number) {
@@ -417,6 +419,7 @@ export function PartnerAnalytics() {
         </>
       ) : (
       <>
+      {isEmbed ? <EmbedCroAnalyticsPanel cro={data.cro} period={period} /> : null}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
         <SummaryCard
           title={labels.clickTitle}
