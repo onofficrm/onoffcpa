@@ -389,6 +389,32 @@
       '.lc-embed--dark .lc-embed__intro .lc-embed__title{font-size:1.45rem;color:#f8fafc;}',
       '.lc-embed--dark .lc-embed__main{background:#1e293b;border-radius:0 12px 12px 0;padding:24px;border:1px solid #334155;border-left:0;}',
       '.lc-embed--dark .lc-embed__intro .lc-embed__call{background:rgba(34,211,238,.1);border-color:rgba(34,211,238,.35);}',
+      /* Forced PC layout modes (override preset structure) */
+      '.lc-embed--layout-split{max-width:800px!important;padding:24px!important;}',
+      '.lc-embed--layout-split .lc-embed__split{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)!important;gap:28px!important;align-items:stretch!important;flex-direction:unset!important;}',
+      '.lc-embed--layout-split .lc-embed__intro{display:flex!important;flex-direction:column!important;justify-content:center!important;align-items:stretch!important;text-align:left!important;padding:4px 20px 4px 0!important;border-right:1px solid ' + (border === 'transparent' ? '#e2e8f0' : border) + '!important;border-bottom:0!important;background:transparent!important;border-radius:0!important;}',
+      '.lc-embed--layout-split .lc-embed__intro .lc-embed__title{font-size:1.35rem!important;text-align:left!important;margin:0 0 8px!important;}',
+      '.lc-embed--layout-split .lc-embed__intro .lc-embed__sub{text-align:left!important;margin:0 0 18px!important;flex:none!important;}',
+      '.lc-embed--layout-split .lc-embed__intro .lc-embed__badges{justify-content:flex-start!important;width:auto!important;padding:0!important;background:transparent!important;border:0!important;}',
+      '.lc-embed--layout-split .lc-embed__intro .lc-embed__call{justify-content:flex-start!important;width:auto!important;max-width:none!important;margin:0!important;}',
+      '.lc-embed--layout-split .lc-embed__main{background:transparent!important;padding:0!important;border:0!important;box-shadow:none!important;border-radius:0!important;}',
+      '.lc-embed--layout-wide{max-width:720px!important;padding:22px 26px!important;}',
+      '.lc-embed--layout-wide .lc-embed__split{display:flex!important;flex-direction:column!important;gap:18px!important;}',
+      '.lc-embed--layout-wide .lc-embed__intro{border-right:0!important;padding:0 0 14px!important;border-bottom:1px solid ' + (border === 'transparent' ? '#e2e8f0' : border) + '!important;flex-direction:row!important;flex-wrap:wrap!important;align-items:center!important;text-align:left!important;background:transparent!important;border-radius:0!important;}',
+      '.lc-embed--layout-wide .lc-embed__intro .lc-embed__title{font-size:1.2rem!important;margin:0 12px 0 0!important;text-align:left!important;}',
+      '.lc-embed--layout-wide .lc-embed__intro .lc-embed__sub{margin:0!important;flex:1 1 100%!important;}',
+      '.lc-embed--layout-wide .lc-embed__intro .lc-embed__badges{justify-content:flex-start!important;width:auto!important;padding:0!important;background:transparent!important;border:0!important;margin:0!important;}',
+      '.lc-embed--layout-wide .lc-embed__intro .lc-embed__call{margin:0!important;padding:8px 12px!important;font-size:.85rem!important;justify-content:flex-start!important;width:auto!important;max-width:none!important;}',
+      '.lc-embed--layout-wide .lc-embed__main{background:transparent!important;padding:0!important;border:0!important;box-shadow:none!important;border-radius:0!important;}',
+      '.lc-embed--layout-hero{max-width:820px!important;padding:28px!important;}',
+      '.lc-embed--layout-hero .lc-embed__split{display:grid!important;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)!important;gap:24px!important;flex-direction:unset!important;}',
+      '.lc-embed--layout-hero .lc-embed__intro{border-right:0!important;border-bottom:0!important;padding:8px 12px 8px 4px!important;text-align:left!important;align-items:stretch!important;background:transparent!important;border-radius:0!important;flex-direction:column!important;}',
+      '.lc-embed--layout-hero .lc-embed__intro .lc-embed__title{font-size:1.55rem!important;line-height:1.3!important;letter-spacing:-.03em!important;text-align:left!important;margin:0 0 8px!important;}',
+      '.lc-embed--layout-hero .lc-embed__intro .lc-embed__sub{font-size:.95rem!important;margin:0 0 20px!important;flex:none!important;text-align:left!important;}',
+      '.lc-embed--layout-hero .lc-embed__intro .lc-embed__badges{justify-content:flex-start!important;width:auto!important;padding:0!important;background:transparent!important;border:0!important;}',
+      '.lc-embed--layout-hero .lc-embed__intro .lc-embed__call{justify-content:flex-start!important;width:auto!important;max-width:none!important;margin:0!important;}',
+      '.lc-embed--layout-hero .lc-embed__main{background:#fff!important;border-radius:16px!important;padding:22px!important;box-shadow:0 10px 28px rgba(15,23,42,.08)!important;border:1px solid rgba(15,23,42,.06)!important;}',
+      '.lc-embed--dark.lc-embed--layout-hero .lc-embed__main{background:#1e293b!important;border-color:#334155!important;}',
       '}',
     ].join('');
     var style = qs('#' + STYLE_ID);
@@ -410,6 +436,19 @@
       return preset;
     }
     return 'default';
+  }
+
+  function resolvePcLayout(config) {
+    var layout = '';
+    if (config && config.pcLayout) layout = String(config.pcLayout);
+    if (!layout && config && config.options && config.options.pcLayout) {
+      layout = String(config.options.pcLayout);
+    }
+    layout = layout.toLowerCase();
+    if (layout === 'split' || layout === 'wide' || layout === 'hero' || layout === 'auto') {
+      return layout;
+    }
+    return 'auto';
   }
 
   function el(tag, className, attrs) {
@@ -713,8 +752,15 @@
 
   function buildFormCard(config, opts) {
     var preset = resolvePreset(config);
+    var pcLayout = resolvePcLayout(config);
     var sticky = optFlag(config, 'stickyMobileCta', true);
-    var root = el('div', 'lc-embed lc-embed--' + preset + (sticky ? ' lc-embed--sticky' : ''));
+    var root = el(
+      'div',
+      'lc-embed lc-embed--' +
+        preset +
+        (sticky ? ' lc-embed--sticky' : '') +
+        (pcLayout !== 'auto' ? ' lc-embed--layout-' + pcLayout : ''),
+    );
     var split = el('div', 'lc-embed__split');
     var intro = el('div', 'lc-embed__intro');
     var main = el('div', 'lc-embed__main');

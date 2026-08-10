@@ -6,8 +6,11 @@ import { EmbedDevicePreviewFrame } from './EmbedDevicePreviewFrame';
 import { EmbedWidgetLivePreview, type EmbedPreviewStage } from './EmbedWidgetLivePreview';
 import { EMBED_HELP } from '../../lib/embedHelpTips';
 import {
+  EMBED_PC_LAYOUTS,
   normalizeEmbedPreset,
+  normalizeEmbedPcLayout,
   withEmbedPreset,
+  type EmbedPcLayoutId,
   type EmbedPresetId,
 } from '../../lib/embedPresets';
 import {
@@ -32,6 +35,7 @@ import {
 
 const DEFAULT_OPTIONS: PartnerEmbedOptions = {
   preset: 'default',
+  pcLayout: 'auto',
   accent: '#0d9488',
   title: '무료 상담 신청',
   submitLabel: '지금 무료 상담 받기',
@@ -143,6 +147,7 @@ export function PartnerWpEmbedGuideModal({
           ...DEFAULT_OPTIONS,
           ...(data.options || {}),
           preset: normalizeEmbedPreset(data.options?.preset),
+          pcLayout: normalizeEmbedPcLayout(data.options?.pcLayout),
         });
         const phone = data.config?.partnerPhoneDisplay || '';
         setPhoneHint(
@@ -365,6 +370,37 @@ export function PartnerWpEmbedGuideModal({
                   phoneHint={phoneHint}
                   onSelect={selectPreset}
                 />
+                <div className="space-y-2 pt-1">
+                  <div className="text-sm font-bold text-slate-900">PC 레이아웃</div>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    디자인 템플릿과 별개로 PC에서 위젯 배치만 고릅니다. 모바일은 항상 1열입니다.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {EMBED_PC_LAYOUTS.map((layout) => {
+                      const active = normalizeEmbedPcLayout(options.pcLayout) === layout.id;
+                      return (
+                        <button
+                          key={layout.id}
+                          type="button"
+                          onClick={() =>
+                            setOptions((prev) => ({
+                              ...prev,
+                              pcLayout: layout.id as EmbedPcLayoutId,
+                            }))
+                          }
+                          className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                            active
+                              ? 'border-cyan-500 bg-cyan-50 ring-2 ring-cyan-200'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="text-xs font-bold text-slate-900">{layout.label}</div>
+                          <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">{layout.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </section>
             ) : null}
 

@@ -3,6 +3,40 @@ import type { PartnerEmbedOptions } from './partnerEmbed';
 /** 상담 위젯 디자인 프리셋 */
 export type EmbedPresetId = 'default' | 'simple' | 'card' | 'bold' | 'soft' | 'dark';
 
+/** PC 전용 배치 모드 (템플릿과 독립) */
+export type EmbedPcLayoutId = 'auto' | 'split' | 'wide' | 'hero';
+
+export type EmbedPcLayoutMeta = {
+  id: EmbedPcLayoutId;
+  label: string;
+  desc: string;
+};
+
+export const EMBED_PC_LAYOUTS: EmbedPcLayoutMeta[] = [
+  { id: 'auto', label: '프리셋 기본', desc: '템플릿별 PC 배치 그대로' },
+  { id: 'split', label: '스플릿', desc: '좌 신뢰 · 우 폼 2열' },
+  { id: 'wide', label: '와이드폼', desc: '넓은 1열 + 필드 나란히' },
+  { id: 'hero', label: '히어로', desc: '큰 카피 + 흰 폼 패널' },
+];
+
+export function normalizeEmbedPcLayout(value?: string | null): EmbedPcLayoutId {
+  const v = String(value || '').trim().toLowerCase();
+  if (v === 'split' || v === 'wide' || v === 'hero' || v === 'auto') return v;
+  return 'auto';
+}
+
+/** 미리보기용: PC 배치 모드 → 레이아웃 스킨 (색은 preset 유지) */
+export function resolvePcLayoutSkin(
+  preset: EmbedPresetId,
+  pcLayout?: string | null,
+): EmbedPresetId {
+  const layout = normalizeEmbedPcLayout(pcLayout);
+  if (layout === 'split') return 'default';
+  if (layout === 'wide') return 'simple';
+  if (layout === 'hero') return 'soft';
+  return preset;
+}
+
 export type EmbedPresetMeta = {
   id: EmbedPresetId;
   label: string;

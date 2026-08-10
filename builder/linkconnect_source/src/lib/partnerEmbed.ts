@@ -117,6 +117,8 @@ export type PartnerEmbedStatsDailyRow = {
 export type PartnerEmbedOptions = {
   /** default | simple | card | bold | soft | dark */
   preset?: string;
+  /** PC 배치: auto(프리셋 기본) | split | wide | hero */
+  pcLayout?: string;
   accent?: string;
   title?: string;
   submitLabel?: string;

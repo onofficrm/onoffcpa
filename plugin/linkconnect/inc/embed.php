@@ -355,6 +355,7 @@ if (!function_exists('lc_embed_default_options')) {
     {
         return array(
             'preset'               => 'default',
+            'pcLayout'             => 'auto',
             'accent'               => '#0d9488',
             'title'                => '무료 상담 신청',
             'submitLabel'          => '지금 무료 상담 받기',
@@ -398,6 +399,21 @@ if (!function_exists('lc_embed_normalize_accent')) {
             return '';
         }
         return strtolower($value);
+    }
+}
+
+if (!function_exists('lc_embed_normalize_pc_layout')) {
+    /**
+     * @return string auto|split|wide|hero
+     */
+    function lc_embed_normalize_pc_layout($value)
+    {
+        $value = strtolower(trim((string) $value));
+        $allowed = array('auto', 'split', 'wide', 'hero');
+        if (in_array($value, $allowed, true)) {
+            return $value;
+        }
+        return 'auto';
     }
 }
 
@@ -539,6 +555,9 @@ if (!function_exists('lc_embed_partner_options')) {
         if (isset($decoded['preset'])) {
             $defaults['preset'] = lc_embed_normalize_preset($decoded['preset']);
         }
+        if (isset($decoded['pcLayout'])) {
+            $defaults['pcLayout'] = lc_embed_normalize_pc_layout($decoded['pcLayout']);
+        }
         $accent = lc_embed_normalize_accent($decoded['accent'] ?? '');
         if ($accent !== '') {
             $defaults['accent'] = $accent;
@@ -648,6 +667,9 @@ if (!function_exists('lc_embed_set_partner_options')) {
 
         if (array_key_exists('preset', $options)) {
             $next['preset'] = lc_embed_normalize_preset($options['preset']);
+        }
+        if (array_key_exists('pcLayout', $options)) {
+            $next['pcLayout'] = lc_embed_normalize_pc_layout($options['pcLayout']);
         }
         if (array_key_exists('accent', $options)) {
             $accent = lc_embed_normalize_accent($options['accent']);
@@ -1103,6 +1125,9 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
             'showRegion'    => !array_key_exists('showRegion', $options) || !empty($options['showRegion']),
             'showInquiry'   => !array_key_exists('showInquiry', $options) || !empty($options['showInquiry']),
             'preset'        => $preset,
+            'pcLayout'      => function_exists('lc_embed_normalize_pc_layout')
+                ? lc_embed_normalize_pc_layout($options['pcLayout'] ?? 'auto')
+                : 'auto',
             'minimalForm'   => !array_key_exists('minimalForm', $options) || !empty($options['minimalForm']),
             'showTrustBadges' => !array_key_exists('showTrustBadges', $options) || !empty($options['showTrustBadges']),
             'badgeFree'     => !array_key_exists('badgeFree', $options) || !empty($options['badgeFree']),

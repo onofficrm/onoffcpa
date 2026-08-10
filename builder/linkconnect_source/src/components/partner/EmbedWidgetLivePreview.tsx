@@ -3,6 +3,7 @@ import type { LeadEmbedMode, PartnerEmbedOptions } from '../../lib/partnerEmbed'
 import {
   embedThemeTokens,
   normalizeEmbedPreset,
+  resolvePcLayoutSkin,
   type EmbedPresetId,
 } from '../../lib/embedPresets';
 
@@ -34,6 +35,8 @@ export function EmbedWidgetLivePreview({
 }: Props) {
   const preset = normalizeEmbedPreset(options.preset) as EmbedPresetId;
   const theme = embedThemeTokens(preset, options.accent || '#0d9488');
+  const layoutPreset =
+    device === 'pc' ? resolvePcLayoutSkin(preset, options.pcLayout) : preset;
   const showRegion = options.showRegion !== false;
   const showInquiry = options.showInquiry !== false;
   const minimalForm = options.minimalForm !== false;
@@ -130,6 +133,7 @@ export function EmbedWidgetLivePreview({
     <WidgetCard
       theme={theme}
       preset={preset}
+      layoutPreset={layoutPreset}
       stage={stage}
       title={title}
       successMessage={successMessage}
@@ -184,6 +188,7 @@ export function EmbedWidgetLivePreview({
 function WidgetCard({
   theme,
   preset,
+  layoutPreset,
   stage,
   title,
   successMessage,
@@ -208,6 +213,7 @@ function WidgetCard({
 }: {
   theme: ReturnType<typeof embedThemeTokens>;
   preset: EmbedPresetId;
+  layoutPreset: EmbedPresetId;
   stage: EmbedPreviewStage;
   title: string;
   successMessage: string;
@@ -233,7 +239,7 @@ function WidgetCard({
 }) {
   const stickyForm = stickyMobile && stage === 'form' && !wideLayout;
   const borderTone = theme.border === 'transparent' ? '#e2e8f0' : theme.border;
-  const pc = wideLayout ? preset : null;
+  const pc = wideLayout ? layoutPreset : null;
   const stackedPc = pc === 'simple' || pc === 'card';
   const showIntroTitle = !(preset === 'bold' && theme.headerBg);
 
