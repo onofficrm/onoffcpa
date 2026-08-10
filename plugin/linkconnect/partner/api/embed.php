@@ -38,19 +38,22 @@ if ($method === 'GET') {
         : array();
 
     $payload = array(
-        'domains'        => $domains,
-        'domainLock'     => count($domains) > 0,
-        'widgetKey'      => $widget_key,
-        'hasWidgetKey'   => $widget_key !== '',
-        'options'        => $options,
-        'scriptUrl'      => function_exists('lc_embed_script_url') ? lc_embed_script_url() : '',
-        'brandName'      => function_exists('lc_embed_brand_name') ? lc_embed_brand_name() : '',
-        'embedTotal'     => (int) ($stats['embedTotal'] ?? 0),
-        'embedToday'     => (int) ($stats['embedToday'] ?? 0),
-        'embedApproved'  => (int) ($stats['embedApproved'] ?? 0),
-        'statsDays'      => (int) ($stats['days'] ?? 14),
-        'byDomain'       => isset($stats['byDomain']) && is_array($stats['byDomain']) ? $stats['byDomain'] : array(),
-        'daily'          => isset($stats['daily']) && is_array($stats['daily']) ? $stats['daily'] : array(),
+        'domains'           => $domains,
+        'domainLock'        => count($domains) > 0,
+        'widgetKey'         => $widget_key,
+        'hasWidgetKey'      => $widget_key !== '',
+        'hasCustomOptions'  => function_exists('lc_embed_partner_has_custom_options')
+            ? lc_embed_partner_has_custom_options($pt_id)
+            : false,
+        'options'           => $options,
+        'scriptUrl'         => function_exists('lc_embed_script_url') ? lc_embed_script_url() : '',
+        'brandName'         => function_exists('lc_embed_brand_name') ? lc_embed_brand_name() : '',
+        'embedTotal'        => (int) ($stats['embedTotal'] ?? 0),
+        'embedToday'        => (int) ($stats['embedToday'] ?? 0),
+        'embedApproved'     => (int) ($stats['embedApproved'] ?? 0),
+        'statsDays'         => (int) ($stats['days'] ?? 14),
+        'byDomain'          => isset($stats['byDomain']) && is_array($stats['byDomain']) ? $stats['byDomain'] : array(),
+        'daily'             => isset($stats['daily']) && is_array($stats['daily']) ? $stats['daily'] : array(),
     );
 
     if ($lk_code !== '') {

@@ -98,3 +98,29 @@ export const EMBED_CRO_DEFAULTS: Partial<PartnerEmbedOptions> = {
   successShowCall: true,
   successNextStep: '담당자가 확인 후 곧 연락드립니다.',
 };
+
+const CRO_FLAG_KEYS = [
+  'minimalForm',
+  'showTrustBadges',
+  'showLiveCount',
+  'stickyMobileCta',
+  'successShowCall',
+] as const;
+
+/** 목록·배지용 위젯/전환 상태 요약 */
+export function summarizeEmbedWidgetStatus(options?: PartnerEmbedOptions | null) {
+  const opts = options || {};
+  const croOnCount = CRO_FLAG_KEYS.filter((key) => opts[key] !== false).length;
+  const croOn = croOnCount >= 3;
+  const croLabels: string[] = [];
+  if (opts.minimalForm !== false) croLabels.push('미니멀폼');
+  if (opts.showTrustBadges !== false) croLabels.push('신뢰배지');
+  if (opts.stickyMobileCta !== false) croLabels.push('모바일CTA');
+  if (opts.successShowCall !== false) croLabels.push('완료전화');
+  return {
+    croOn,
+    croOnCount,
+    croLabels,
+    croSummary: croOn ? `전환 최적화 ON (${croLabels.slice(0, 2).join('·')})` : '전환 최적화 OFF',
+  };
+}

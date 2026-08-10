@@ -1,10 +1,10 @@
 import { Copy, Download, Monitor, Smartphone, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { HelpTipButton, HelpTipHeading } from '../HelpTipButton';
+import { EmbedDesignGallery } from './EmbedDesignGallery';
 import { EmbedWidgetLivePreview, type EmbedPreviewStage } from './EmbedWidgetLivePreview';
 import { EMBED_HELP } from '../../lib/embedHelpTips';
 import {
-  EMBED_PRESETS,
   normalizeEmbedPreset,
   withEmbedPreset,
   type EmbedPresetId,
@@ -57,14 +57,20 @@ const DEFAULT_OPTIONS: PartnerEmbedOptions = {
   successNextStep: '담당자가 확인 후 곧 연락드립니다.',
 };
 
+export type EmbedGuideTabId = 'preset' | 'convert' | 'copy' | 'fields' | 'install';
+
 type Props = {
   open: boolean;
   onClose: () => void;
   lkCode?: string;
+  /** 모달 열릴 때 시작할 탭 */
+  initialTab?: EmbedGuideTabId;
   onCopySnippet?: (snippet: string) => void;
+  /** 옵션 저장 후 목록 상태 갱신 */
+  onSaved?: () => void;
 };
 
-type TabId = 'preset' | 'convert' | 'copy' | 'fields' | 'install';
+type TabId = EmbedGuideTabId;
 
 const MODES: Array<{ id: LeadEmbedMode; label: string; desc: string }> = [
   { id: 'form', label: '폼형', desc: '페이지에 상담폼 + 전화' },
@@ -80,7 +86,14 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'install', label: '설치' },
 ];
 
-export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet }: Props) {
+export function PartnerWpEmbedGuideModal({
+  open,
+  onClose,
+  lkCode,
+  initialTab = 'preset',
+  onCopySnippet,
+  onSaved,
+}: Props) {
   const [domainsText, setDomainsText] = useState('');
   const [phoneHint, setPhoneHint] = useState('');
   const [brandName, setBrandName] = useState('상담');
@@ -103,7 +116,7 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
   useEffect(() => {
     if (!open) return;
     setSaveMsg('');
-    setTab('preset');
+    setTab(initialTab);
     setPreviewStage('form');
     fetchPartnerEmbedSettings(lkCode || undefined)
       .then((data) => {
@@ -135,7 +148,7 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
         setOptions(DEFAULT_OPTIONS);
         setPhoneHint('허용 도메인을 등록하면 등록된 사이트에서만 위젯이 동작합니다.');
       });
-  }, [open, lkCode]);
+  }, [open, lkCode, initialTab]);
 
   const sampleCode = (lkCode || 'YOUR_LK_CODE').trim();
   const snippet = useMemo(
@@ -212,6 +225,7 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
       if (res.widgetKey) setWidgetKey(res.widgetKey);
       setPreviewTick((n) => n + 1);
       setSaveMsg(res.message || '위젯 설정을 저장했습니다. 설치 코드에 반영됩니다.');
+      onSaved?.();
     } catch (e) {
       setSaveMsg(e instanceof Error ? e.message : '위젯 설정 저장에 실패했습니다.');
     } finally {
@@ -309,39 +323,15 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
                   {EMBED_HELP.design.body}
                 </HelpTipHeading>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  템플릿을 고르면 우측 미리보기가 바로 바뀝니다. 강조색은 템플릿 추천값으로 맞춰지며, 문구·색상 탭에서 다시 수정할 수 있습니다.
+                  디자인별 미리보기를 비교해 고르세요. 선택하면 우측 큰 미리보기·강조색이 바로 바뀌며, 문구·색상 탭에서 세부 수정할 수 있습니다.
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {EMBED_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => selectPreset(preset.id)}
-                      className={`rounded-2xl border p-3 text-left transition-all ${
-                        presetId === preset.id
-                          ? 'border-cyan-500 bg-cyan-50 ring-2 ring-cyan-200'
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div
-                        className="h-10 rounded-xl mb-2 border border-black/5"
-                        style={{
-                          background:
-                            preset.id === 'dark'
-                              ? '#0f172a'
-                              : preset.id === 'soft'
-                                ? `${preset.accentHint || '#7c3aed'}22`
-                                : '#fff',
-                          boxShadow: preset.id === 'card' ? '0 8px 16px rgba(15,23,42,.12)' : undefined,
-                          borderBottom:
-                            preset.id === 'bold' ? `4px solid ${preset.accentHint || '#dc2626'}` : undefined,
-                        }}
-                      />
-                      <div className="text-xs font-bold text-slate-900">{preset.label}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">{preset.desc}</div>
-                    </button>
-                  ))}
-                </div>
+                <EmbedDesignGallery
+                  selectedId={presetId}
+                  options={options}
+                  brandName={brandName}
+                  phoneHint={phoneHint}
+                  onSelect={selectPreset}
+                />
               </section>
             ) : null}
 

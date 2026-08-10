@@ -160,6 +160,8 @@ export type PartnerEmbedSettings = {
   snippet?: string;
   widgetKey?: string;
   hasWidgetKey?: boolean;
+  /** 파트너가 디자인·전환 옵션을 저장한 적 있는지 */
+  hasCustomOptions?: boolean;
   options?: PartnerEmbedOptions;
   embedTotal?: number;
   embedToday?: number;

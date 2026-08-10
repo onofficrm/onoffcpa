@@ -602,6 +602,26 @@ if (!function_exists('lc_embed_partner_options')) {
     }
 }
 
+if (!function_exists('lc_embed_partner_has_custom_options')) {
+    /** 파트너가 위젯 옵션을 한 번이라도 저장했는지 */
+    function lc_embed_partner_has_custom_options($pt_id)
+    {
+        $pt_id = (int) $pt_id;
+        if ($pt_id <= 0 || !lc_db_installed()) {
+            return false;
+        }
+        $partners = lc_table('partners');
+        if (!function_exists('lc_db_column_exists') || !lc_db_column_exists($partners, 'pt_embed_options')) {
+            return false;
+        }
+        $row = lc_sql_fetch(" SELECT pt_embed_options FROM `{$partners}` WHERE pt_id = '{$pt_id}' LIMIT 1 ");
+        if (!is_array($row)) {
+            return false;
+        }
+        return trim((string) ($row['pt_embed_options'] ?? '')) !== '';
+    }
+}
+
 if (!function_exists('lc_embed_set_partner_options')) {
     /**
      * @param array<string,mixed> $options
