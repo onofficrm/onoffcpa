@@ -151,6 +151,57 @@
     };
   }
 
+  /** CRO 마이크로 전환: badge_click / extra_fields_open / sticky_submit / success_call_tap */
+  function trackEmbedInteraction(config, eventName, extra) {
+    if (!config || config.trackConversion === false) return;
+    var name = String(eventName || '').trim();
+    if (!name) return;
+    var traffic = collectTrafficMeta({});
+    var payload = {
+      event: name,
+      lc_event: name,
+      lc_source: 'embed',
+      lc_lk_code: config.lkCode || '',
+      lc_campaign: config.campaignTitle || config.campaignCode || '',
+      lc_utm_source: traffic.utm_source || '',
+      lc_utm_medium: traffic.utm_medium || '',
+      lc_utm_campaign: traffic.utm_campaign || '',
+      lc_page_url: traffic.page_url || '',
+    };
+    if (extra && typeof extra === 'object') {
+      Object.keys(extra).forEach(function (key) {
+        payload[key] = extra[key];
+      });
+    }
+    try {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push(payload);
+    } catch (e) {}
+    try {
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', name, payload);
+      }
+    } catch (e2) {}
+    try {
+      window.dispatchEvent(new CustomEvent('lc-embed-event', { detail: payload }));
+    } catch (e3) {}
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'lc-embed-event', event: name, detail: payload }, '*');
+      }
+    } catch (e4) {}
+  }
+
+  function isStickySubmitContext(config) {
+    if (!optFlag(config, 'stickyMobileCta', true)) return false;
+    try {
+      if (window.matchMedia) {
+        return window.matchMedia('(max-width: 520px)').matches;
+      }
+    } catch (e) {}
+    return typeof window.innerWidth === 'number' && window.innerWidth <= 520;
+  }
+
   function ensureStyles(theme) {
     var accent = (theme && theme.accent) || '#0d9488';
     var accentText = (theme && theme.accentText) || '#ffffff';
@@ -202,7 +253,9 @@
       '.lc-embed__live{display:inline-flex;align-items:center;gap:6px;margin:0 0 12px;padding:6px 10px;border-radius:999px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#b91c1c;font-size:.72rem;font-weight:800;}',
       '.lc-embed__live-dot{width:7px;height:7px;border-radius:999px;background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.2);}',
       '.lc-embed__badges{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px;}',
-      '.lc-embed__badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:rgba(15,23,42,.04);border:1px solid ' + (border === 'transparent' ? '#e2e8f0' : border) + ';font-size:.7rem;font-weight:800;color:' + muted + ';}',
+      '.lc-embed__badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:rgba(15,23,42,.04);border:1px solid ' + (border === 'transparent' ? '#e2e8f0' : border) + ';font-size:.7rem;font-weight:800;color:' + muted + ';cursor:pointer;font-family:inherit;line-height:1.2;}',
+      'button.lc-embed__badge{-webkit-appearance:none;appearance:none;margin:0;}',
+      'button.lc-embed__badge:hover{background:rgba(15,23,42,.07);}',
       '.lc-embed__more{margin:0 0 12px;border:1px solid ' + (border === 'transparent' ? '#e2e8f0' : border) + ';border-radius:12px;padding:8px 10px;background:' + inputBg + ';}',
       '.lc-embed__more>summary{cursor:pointer;font-size:.8rem;font-weight:800;color:' + muted + ';list-style:none;}',
       '.lc-embed__more>summary::-webkit-details-marker{display:none;}',
@@ -320,7 +373,11 @@
     if (!items.length) return null;
     var wrap = el('div', 'lc-embed__badges');
     items.forEach(function (label) {
-      wrap.appendChild(el('span', 'lc-embed__badge', { text: label }));
+      var badge = el('button', 'lc-embed__badge', { type: 'button', text: label });
+      badge.addEventListener('click', function () {
+        trackEmbedInteraction(config, 'badge_click', { lc_badge: label });
+      });
+      wrap.appendChild(badge);
     });
     return wrap;
   }
@@ -383,6 +440,11 @@
       var call = buildCallLink(config, true);
       if (call) {
         call.style.marginTop = '4px';
+        call.addEventListener('click', function () {
+          trackEmbedInteraction(config, 'success_call_tap', {
+            lc_call_label: config.callLabel || '전화 상담',
+          });
+        });
         box.appendChild(call);
       }
     }
@@ -451,6 +513,12 @@
         msg.className = 'lc-embed__msg lc-embed__msg--err';
         msg.textContent = '이름과 연락처는 필수입니다.';
         return;
+      }
+
+      if (isStickySubmitContext(config)) {
+        trackEmbedInteraction(config, 'sticky_submit', {
+          lc_submit_label: (config.submitLabel || btn.textContent || '').trim(),
+        });
       }
 
       btn.disabled = true;
@@ -586,6 +654,13 @@
         details.appendChild(el('summary', '', { text: '추가 정보 (선택)' }));
         optional.forEach(function (field) {
           details.appendChild(buildFieldNode(field));
+        });
+        details.addEventListener('toggle', function () {
+          if (details.open) {
+            trackEmbedInteraction(config, 'extra_fields_open', {
+              lc_extra_count: optional.length,
+            });
+          }
         });
         form.appendChild(details);
       } else {
@@ -797,6 +872,22 @@
         if (redirect) {
           try { window.location.href = redirect; } catch (e) {}
         }
+        return;
+      }
+      if (data.type === 'lc-embed-event' && data.detail) {
+        // iframe 안 이벤트 → 부모 페이지 GTM/dataLayer로 전달
+        try {
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push(data.detail);
+        } catch (e1) {}
+        try {
+          if (typeof window.gtag === 'function') {
+            window.gtag('event', data.detail.event || data.event || 'lc_embed_event', data.detail);
+          }
+        } catch (e2) {}
+        try {
+          window.dispatchEvent(new CustomEvent('lc-embed-event', { detail: data.detail }));
+        } catch (e3) {}
       }
     }
     window.addEventListener('message', onMessage);

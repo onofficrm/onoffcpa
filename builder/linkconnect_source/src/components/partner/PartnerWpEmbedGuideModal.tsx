@@ -11,6 +11,7 @@ import {
 } from '../../lib/embedPresets';
 import {
   applyEmbedCtaPreset,
+  EMBED_CRO_EVENTS,
   EMBED_CTA_PRESETS,
   type EmbedCtaPresetId,
 } from '../../lib/embedConversion';
@@ -557,13 +558,27 @@ export function PartnerWpEmbedGuideModal({
                     />
                     GTM dataLayer 이벤트 전송
                   </label>
-                  <label className="text-xs font-bold text-slate-600">이벤트명</label>
+                  <label className="text-xs font-bold text-slate-600">제출 이벤트명</label>
                   <input
                     type="text"
                     value={options.conversionEventName || 'lc_lead_submit'}
                     onChange={(e) => setOptions((prev) => ({ ...prev, conversionEventName: e.target.value }))}
                     className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm font-mono"
                   />
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] text-slate-600 leading-relaxed space-y-1">
+                  <div className="font-bold text-slate-800">자동 전송되는 CRO 이벤트</div>
+                  <p>
+                    {EMBED_CRO_EVENTS.map((ev, i) => (
+                      <span key={ev.id}>
+                        {i > 0 ? ' · ' : ''}
+                        <code className="text-cyan-800">{ev.id}</code>
+                      </span>
+                    ))}
+                  </p>
+                  <p className="text-slate-500">
+                    dataLayer / gtag / <code className="text-slate-700">lc-embed-event</code> 로 전달됩니다. GTM에서 트리거로 걸어 퍼널을 측정하세요.
+                  </p>
                 </div>
               </section>
             ) : null}

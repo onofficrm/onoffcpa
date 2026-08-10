@@ -83,6 +83,14 @@ export function applyEmbedCtaPreset(
   };
 }
 
+/** dataLayer / gtag 로 전송되는 CRO 마이크로 이벤트명 */
+export const EMBED_CRO_EVENTS = [
+  { id: 'badge_click', label: '신뢰 배지 클릭' },
+  { id: 'extra_fields_open', label: '추가 정보 펼침' },
+  { id: 'sticky_submit', label: '모바일 sticky 제출' },
+  { id: 'success_call_tap', label: '완료 화면 전화 탭' },
+] as const;
+
 /** 전환 최적화 기본값 (신규·미설정 시) */
 export const EMBED_CRO_DEFAULTS: Partial<PartnerEmbedOptions> = {
   minimalForm: true,
