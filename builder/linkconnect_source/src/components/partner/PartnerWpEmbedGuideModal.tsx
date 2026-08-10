@@ -1,7 +1,7 @@
 import { Copy, Download, Monitor, Smartphone, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { HelpTipButton, HelpTipHeading } from '../HelpTipButton';
-import { EmbedWidgetLivePreview } from './EmbedWidgetLivePreview';
+import { EmbedWidgetLivePreview, type EmbedPreviewStage } from './EmbedWidgetLivePreview';
 import { EMBED_HELP } from '../../lib/embedHelpTips';
 import {
   EMBED_PRESETS,
@@ -71,6 +71,7 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
   const [mode, setMode] = useState<LeadEmbedMode>('form');
   const [tab, setTab] = useState<TabId>('preset');
   const [device, setDevice] = useState<'pc' | 'mobile'>('pc');
+  const [previewStage, setPreviewStage] = useState<EmbedPreviewStage>('form');
   const [embedToday, setEmbedToday] = useState(0);
   const [embedTotal, setEmbedTotal] = useState(0);
   const [statsDays, setStatsDays] = useState(14);
@@ -85,6 +86,7 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
     if (!open) return;
     setSaveMsg('');
     setTab('preset');
+    setPreviewStage('form');
     fetchPartnerEmbedSettings(lkCode || undefined)
       .then((data) => {
         setDomainsText((data.domains || []).join('\n'));
@@ -383,7 +385,16 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
 
             {tab === 'fields' ? (
               <section className="space-y-3">
-                <div className="text-sm font-bold text-slate-900">필드 · 완료 후 동작</div>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="text-sm font-bold text-slate-900">필드 · 완료 후 동작</div>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewStage('success')}
+                    className="text-[11px] font-bold text-cyan-700 hover:text-cyan-800 underline underline-offset-2"
+                  >
+                    완료 화면 미리보기 →
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-4 text-sm text-slate-700">
                   <label className="inline-flex items-center gap-2">
                     <input
@@ -627,7 +638,7 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
           </div>
 
           <aside className="bg-slate-50 p-4 sm:p-5 overflow-y-auto flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="text-sm font-bold text-slate-900">실시간 미리보기</div>
               <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
                 <button
@@ -650,13 +661,37 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
                 </button>
               </div>
             </div>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 self-start">
+              <button
+                type="button"
+                onClick={() => setPreviewStage('form')}
+                className={`px-3 py-1.5 rounded-md text-[11px] font-bold ${
+                  previewStage === 'form' ? 'bg-cyan-700 text-white' : 'text-slate-500'
+                }`}
+              >
+                입력 폼
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewStage('success')}
+                disabled={mode === 'phone'}
+                className={`px-3 py-1.5 rounded-md text-[11px] font-bold disabled:opacity-40 ${
+                  previewStage === 'success' ? 'bg-cyan-700 text-white' : 'text-slate-500'
+                }`}
+              >
+                완료 화면
+              </button>
+            </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              설정 변경이 즉시 반영됩니다. 실제 사이트 적용 전에는 「디자인·문구 설정 저장」을 눌러 주세요.
+              {previewStage === 'success'
+                ? '접수 성공 후 고객에게 보이는 안내입니다. 완료 문구·이동 URL이 여기에 반영됩니다.'
+                : '설정 변경이 즉시 반영됩니다. 실제 사이트 적용 전에는 「디자인·문구 설정 저장」을 눌러 주세요.'}
             </p>
             <EmbedWidgetLivePreview
               mode={mode}
               options={options}
               device={device}
+              stage={previewStage}
               phoneHint={phoneHint}
               brandName={brandName}
             />

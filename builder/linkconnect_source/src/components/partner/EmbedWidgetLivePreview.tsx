@@ -7,11 +7,14 @@ import {
 } from '../../lib/embedPresets';
 
 type Device = 'pc' | 'mobile';
+export type EmbedPreviewStage = 'form' | 'success';
 
 type Props = {
   mode: LeadEmbedMode;
   options: PartnerEmbedOptions;
   device: Device;
+  /** form = 입력 화면, success = 접수 완료 화면 */
+  stage?: EmbedPreviewStage;
   phoneHint?: string;
   brandName?: string;
 };
@@ -20,6 +23,7 @@ export function EmbedWidgetLivePreview({
   mode,
   options,
   device,
+  stage = 'form',
   phoneHint,
   brandName = '상담',
 }: Props) {
@@ -32,6 +36,9 @@ export function EmbedWidgetLivePreview({
   const buttonLabel = options.buttonLabel || '무료 상담 신청';
   const callLabel = options.callLabel || '전화 상담';
   const privacyText = options.privacyText || '개인정보 수집·이용에 동의합니다.';
+  const successMessage =
+    options.successMessage || '상담 신청이 접수되었습니다. 곧 연락드리겠습니다.';
+  const redirectUrl = (options.successRedirectUrl || '').trim();
   const hasPhone = Boolean(phoneHint && /[0-9]/.test(phoneHint));
 
   const shellWidth = device === 'mobile' ? 320 : 420;
@@ -43,29 +50,37 @@ export function EmbedWidgetLivePreview({
           className="rounded-2xl border border-slate-200 bg-slate-100 p-4"
           style={{ width: shellWidth }}
         >
-          <a
-            href="#preview-call"
-            onClick={(e) => e.preventDefault()}
-            className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-extrabold no-underline"
-            style={{
-              background: 'rgba(5,150,105,.1)',
-              border: '1px solid rgba(5,150,105,.25)',
-              color: theme.call,
-            }}
-          >
-            {callLabel} <span className="tabular-nums">010-0000-0000</span>
-          </a>
-          {!hasPhone ? (
-            <p className="mt-2 text-[11px] text-amber-700 leading-relaxed">
-              안심번호가 배정되면 실제 번호가 표시됩니다.
+          {stage === 'success' ? (
+            <p className="text-[11px] text-slate-500 text-center leading-relaxed py-2">
+              전화형은 완료 화면이 없습니다. 클릭 시 바로 통화가 연결됩니다.
             </p>
-          ) : null}
+          ) : (
+            <>
+              <a
+                href="#preview-call"
+                onClick={(e) => e.preventDefault()}
+                className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-extrabold no-underline"
+                style={{
+                  background: 'rgba(5,150,105,.1)',
+                  border: '1px solid rgba(5,150,105,.25)',
+                  color: theme.call,
+                }}
+              >
+                {callLabel} <span className="tabular-nums">010-0000-0000</span>
+              </a>
+              {!hasPhone ? (
+                <p className="mt-2 text-[11px] text-amber-700 leading-relaxed">
+                  안심번호가 배정되면 실제 번호가 표시됩니다.
+                </p>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     );
   }
 
-  if (mode === 'button') {
+  if (mode === 'button' && stage === 'form') {
     return (
       <div className="flex justify-center">
         <div
@@ -91,6 +106,9 @@ export function EmbedWidgetLivePreview({
         className="rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#f1f5f9_0%,#e2e8f0_100%)] p-4"
         style={{ width: shellWidth }}
       >
+        {mode === 'button' && stage === 'success' ? (
+          <p className="text-[10px] font-bold text-slate-500 mb-2 text-center">모달 접수 완료 화면</p>
+        ) : null}
         <div
           style={{
             background: theme.bg,
@@ -104,107 +122,265 @@ export function EmbedWidgetLivePreview({
               '-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif',
           }}
         >
-          {preset === 'bold' && theme.headerBg ? (
-            <div
-              style={{
-                background: theme.headerBg,
-                color: theme.headerText,
-                margin: '-0px -20px 16px',
-                padding: '18px 20px 14px',
-              }}
-            >
-              <div style={{ fontSize: '1.125rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-                {title}
-              </div>
-              <div style={{ marginTop: 4, fontSize: '0.8rem', opacity: 0.9 }}>
-                빠른 상담을 남겨 주세요.
-              </div>
-            </div>
+          {stage === 'success' ? (
+            <SuccessPanel
+              theme={theme}
+              preset={preset}
+              title={title}
+              successMessage={successMessage}
+              redirectUrl={redirectUrl}
+              brandName={brandName}
+            />
           ) : (
-            <>
-              <div style={{ margin: '0 0 4px', fontSize: '1.125rem', fontWeight: 800 }}>
-                {title}
-              </div>
-              <div style={{ margin: '0 0 14px', fontSize: '0.875rem', color: theme.muted }}>
-                빠른 상담을 남겨 주세요.
-              </div>
-            </>
+            <FormPanel
+              theme={theme}
+              preset={preset}
+              title={title}
+              hasPhone={hasPhone}
+              callLabel={callLabel}
+              showRegion={showRegion}
+              showInquiry={showInquiry}
+              privacyText={privacyText}
+              submitLabel={submitLabel}
+              brandName={brandName}
+            />
           )}
-
-          {hasPhone ? (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                margin: '0 0 14px',
-                padding: '11px 12px',
-                borderRadius: 12,
-                background: 'rgba(5,150,105,.08)',
-                border: '1px solid rgba(5,150,105,.22)',
-                color: theme.call,
-                fontWeight: 800,
-                fontSize: '0.9rem',
-              }}
-            >
-              {callLabel} <span className="tabular-nums">010-0000-0000</span>
-            </div>
-          ) : null}
-
-          <Field label="이름" required theme={theme} placeholder="홍길동" />
-          <Field label="연락처" required theme={theme} placeholder="010-1234-5678" />
-          {showRegion ? <Field label="지역" theme={theme} placeholder="서울 / 경기 등" /> : null}
-          {showInquiry ? (
-            <Field label="문의 내용" theme={theme} placeholder="상담 내용을 적어 주세요." textarea />
-          ) : null}
-
-          <label
-            style={{
-              display: 'flex',
-              gap: 8,
-              alignItems: 'flex-start',
-              margin: '4px 0 14px',
-              fontSize: '0.8rem',
-              color: theme.muted,
-              lineHeight: 1.4,
-            }}
-          >
-            <input type="checkbox" readOnly checked style={{ marginTop: 2 }} />
-            <span>{privacyText}</span>
-          </label>
-
-          <button
-            type="button"
-            style={{
-              display: 'flex',
-              width: '100%',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: 0,
-              borderRadius: 12,
-              padding: '13px 16px',
-              fontSize: '0.95rem',
-              fontWeight: 800,
-              background: theme.accent,
-              color: theme.accentText,
-              cursor: 'default',
-            }}
-          >
-            {submitLabel}
-          </button>
-          <p
-            style={{
-              margin: '12px 0 0',
-              fontSize: '0.7rem',
-              color: theme.muted,
-              textAlign: 'center',
-            }}
-          >
-            {brandName} 상담 위젯 · 미리보기
-          </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function FormPanel({
+  theme,
+  preset,
+  title,
+  hasPhone,
+  callLabel,
+  showRegion,
+  showInquiry,
+  privacyText,
+  submitLabel,
+  brandName,
+}: {
+  theme: ReturnType<typeof embedThemeTokens>;
+  preset: EmbedPresetId;
+  title: string;
+  hasPhone: boolean;
+  callLabel: string;
+  showRegion: boolean;
+  showInquiry: boolean;
+  privacyText: string;
+  submitLabel: string;
+  brandName: string;
+}) {
+  return (
+    <>
+      {preset === 'bold' && theme.headerBg ? (
+        <div
+          style={{
+            background: theme.headerBg,
+            color: theme.headerText,
+            margin: '0 -20px 16px',
+            padding: '18px 20px 14px',
+          }}
+        >
+          <div style={{ fontSize: '1.125rem', fontWeight: 800, letterSpacing: '-0.02em' }}>{title}</div>
+          <div style={{ marginTop: 4, fontSize: '0.8rem', opacity: 0.9 }}>빠른 상담을 남겨 주세요.</div>
+        </div>
+      ) : (
+        <>
+          <div style={{ margin: '0 0 4px', fontSize: '1.125rem', fontWeight: 800 }}>{title}</div>
+          <div style={{ margin: '0 0 14px', fontSize: '0.875rem', color: theme.muted }}>
+            빠른 상담을 남겨 주세요.
+          </div>
+        </>
+      )}
+
+      {hasPhone ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            margin: '0 0 14px',
+            padding: '11px 12px',
+            borderRadius: 12,
+            background: 'rgba(5,150,105,.08)',
+            border: '1px solid rgba(5,150,105,.22)',
+            color: theme.call,
+            fontWeight: 800,
+            fontSize: '0.9rem',
+          }}
+        >
+          {callLabel} <span className="tabular-nums">010-0000-0000</span>
+        </div>
+      ) : null}
+
+      <Field label="이름" required theme={theme} placeholder="홍길동" />
+      <Field label="연락처" required theme={theme} placeholder="010-1234-5678" />
+      {showRegion ? <Field label="지역" theme={theme} placeholder="서울 / 경기 등" /> : null}
+      {showInquiry ? (
+        <Field label="문의 내용" theme={theme} placeholder="상담 내용을 적어 주세요." textarea />
+      ) : null}
+
+      <label
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'flex-start',
+          margin: '4px 0 14px',
+          fontSize: '0.8rem',
+          color: theme.muted,
+          lineHeight: 1.4,
+        }}
+      >
+        <input type="checkbox" readOnly checked style={{ marginTop: 2 }} />
+        <span>{privacyText}</span>
+      </label>
+
+      <button
+        type="button"
+        style={{
+          display: 'flex',
+          width: '100%',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: 0,
+          borderRadius: 12,
+          padding: '13px 16px',
+          fontSize: '0.95rem',
+          fontWeight: 800,
+          background: theme.accent,
+          color: theme.accentText,
+          cursor: 'default',
+        }}
+      >
+        {submitLabel}
+      </button>
+      <p
+        style={{
+          margin: '12px 0 0',
+          fontSize: '0.7rem',
+          color: theme.muted,
+          textAlign: 'center',
+        }}
+      >
+        {brandName} 상담 위젯 · 미리보기
+      </p>
+    </>
+  );
+}
+
+function SuccessPanel({
+  theme,
+  preset,
+  title,
+  successMessage,
+  redirectUrl,
+  brandName,
+}: {
+  theme: ReturnType<typeof embedThemeTokens>;
+  preset: EmbedPresetId;
+  title: string;
+  successMessage: string;
+  redirectUrl: string;
+  brandName: string;
+}) {
+  const okColor = preset === 'dark' ? '#34d399' : '#047857';
+  return (
+    <div style={{ textAlign: 'center', padding: '8px 4px 4px' }}>
+      {preset === 'bold' && theme.headerBg ? (
+        <div
+          style={{
+            background: theme.headerBg,
+            color: theme.headerText,
+            margin: '0 -20px 18px',
+            padding: '16px 20px',
+          }}
+        >
+          <div style={{ fontSize: '1rem', fontWeight: 800 }}>{title}</div>
+        </div>
+      ) : (
+        <div style={{ margin: '0 0 14px', fontSize: '0.95rem', fontWeight: 800, color: theme.muted }}>
+          {title}
+        </div>
+      )}
+
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          margin: '0 auto 14px',
+          borderRadius: 999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: preset === 'dark' ? 'rgba(52,211,153,.15)' : 'rgba(16,185,129,.12)',
+          color: okColor,
+          fontSize: 28,
+          fontWeight: 800,
+          lineHeight: 1,
+        }}
+        aria-hidden
+      >
+        ✓
+      </div>
+
+      <div style={{ fontSize: '1.05rem', fontWeight: 800, color: theme.text, marginBottom: 8 }}>
+        접수 완료
+      </div>
+      <p
+        style={{
+          margin: '0 0 16px',
+          fontSize: '0.9rem',
+          lineHeight: 1.55,
+          color: okColor,
+          fontWeight: 700,
+          whiteSpace: 'pre-wrap',
+        }}
+      >
+        {successMessage}
+      </p>
+
+      {redirectUrl ? (
+        <div
+          style={{
+            margin: '0 0 14px',
+            padding: '10px 12px',
+            borderRadius: 12,
+            background: preset === 'dark' ? '#1e293b' : '#f8fafc',
+            border: `1px solid ${theme.border === 'transparent' ? '#e2e8f0' : theme.border}`,
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: theme.muted, marginBottom: 4 }}>
+            완료 후 이동
+          </div>
+          <div
+            style={{
+              fontSize: '0.75rem',
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+              color: theme.accent,
+              wordBreak: 'break-all',
+            }}
+          >
+            {redirectUrl}
+          </div>
+          <div style={{ marginTop: 6, fontSize: '0.7rem', color: theme.muted }}>
+            약 0.7초 뒤 이 주소로 이동합니다
+          </div>
+        </div>
+      ) : (
+        <p style={{ margin: '0 0 14px', fontSize: '0.75rem', color: theme.muted, lineHeight: 1.45 }}>
+          완료 후 URL이 없으면 이 안내 문구만 표시됩니다.
+        </p>
+      )}
+
+      <p style={{ margin: 0, fontSize: '0.7rem', color: theme.muted }}>
+        {brandName} 상담 위젯 · 완료 미리보기
+      </p>
     </div>
   );
 }
