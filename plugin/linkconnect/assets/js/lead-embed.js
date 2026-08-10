@@ -212,11 +212,11 @@
       widgetKey: config.widgetKey || '',
       page_url: (detail && detail.lc_page_url) || window.location.href,
       label: (detail && (detail.lc_badge || detail.lc_call_label || detail.lc_submit_label)) || '',
-      lc_badge: detail && detail.lc_badge ? detail.lc_badge : '',
-      lc_call_label: detail && detail.lc_call_label ? detail.lc_call_label : '',
-      lc_submit_label: detail && detail.lc_submit_label ? detail.lc_submit_label : '',
-      lc_extra_count: detail && detail.lc_extra_count != null ? detail.lc_extra_count : undefined,
     };
+    if (detail && detail.lc_badge) body.lc_badge = detail.lc_badge;
+    if (detail && detail.lc_call_label) body.lc_call_label = detail.lc_call_label;
+    if (detail && detail.lc_submit_label) body.lc_submit_label = detail.lc_submit_label;
+    if (detail && detail.lc_extra_count != null) body.lc_extra_count = detail.lc_extra_count;
     var json = '';
     try {
       json = JSON.stringify(body);
@@ -225,7 +225,8 @@
     }
     try {
       if (navigator.sendBeacon) {
-        var blob = new Blob([json], { type: 'application/json' });
+        // text/plain 이 일부 환경에서 php://input 수신이 더 안정적
+        var blob = new Blob([json], { type: 'text/plain;charset=UTF-8' });
         if (navigator.sendBeacon(url, blob)) return;
       }
     } catch (e2) {}

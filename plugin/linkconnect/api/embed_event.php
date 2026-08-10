@@ -24,13 +24,12 @@ if (!function_exists('lc_embed_events_record')) {
 
 $result = lc_embed_events_record($body);
 if (empty($result['ok'])) {
-    // 추적 실패가 위젯 UX를 깨지 않도록 소프트 실패(200)로도 가능하지만,
-    // 잘못된 이벤트/키는 클라이언트가 알 수 있게 400 유지.
-    $msg = (string) ($result['message'] ?? '저장 실패');
-    $code = (strpos($msg, 'lkCode') !== false || strpos($msg, '이벤트') !== false || strpos($msg, '키') !== false)
-        ? 400
-        : 400;
-    lc_api_error($msg, 'EVENT_FAILED', $code);
+    // 추적 실패가 위젯 UX/브라우저 콘솔을 어지럽히지 않도록 soft-ok
+    lc_api_success(array(
+        'message' => 'skipped',
+        'accepted' => false,
+        'reason' => (string) ($result['message'] ?? '저장 실패'),
+    ));
 }
 
-lc_api_success(array('message' => 'ok'));
+lc_api_success(array('message' => 'ok', 'accepted' => true));

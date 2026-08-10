@@ -102,6 +102,7 @@ function normalizeAnalyticsResponse(result: PartnerAnalyticsResponse): PartnerAn
     referrers: result.referrers ?? [],
     devices: result.devices ?? [],
     campaigns: result.campaigns ?? [],
+    cro: result.cro ?? emptyData.cro,
     filterOptions: {
       ...emptyData.filterOptions,
       ...(result.filterOptions ?? {}),
