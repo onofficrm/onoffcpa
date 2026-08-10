@@ -1,4 +1,9 @@
 import type { PartnerEmbedOptions } from './partnerEmbed';
+import {
+  withEmbedPreset,
+  type EmbedPcLayoutId,
+  type EmbedPresetId,
+} from './embedPresets';
 
 /** 업종별 CTA·혜택 문구 프리셋 */
 export type EmbedCtaPresetId = 'general' | 'legal' | 'clean' | 'interior' | 'clinic';
@@ -80,6 +85,84 @@ export function applyEmbedCtaPreset(
     benefitText: preset.benefitText,
     ctaHint: preset.ctaHint,
     successNextStep: preset.successNextStep,
+  };
+}
+
+/** 업종 원클릭 패키지: 템플릿 + PC배치 + CTA + CRO 기본 */
+export type EmbedIndustryPackageId = EmbedCtaPresetId;
+
+export type EmbedIndustryPackage = {
+  id: EmbedIndustryPackageId;
+  label: string;
+  desc: string;
+  preset: EmbedPresetId;
+  pcLayout: EmbedPcLayoutId;
+  ctaId: EmbedCtaPresetId;
+};
+
+export const EMBED_INDUSTRY_PACKAGES: EmbedIndustryPackage[] = [
+  {
+    id: 'general',
+    label: '범용',
+    desc: '기본형 + 스플릿 · 표준 CTA',
+    preset: 'default',
+    pcLayout: 'split',
+    ctaId: 'general',
+  },
+  {
+    id: 'legal',
+    label: '법률·회생',
+    desc: '소프트 히어로 · 비밀보장 CTA',
+    preset: 'soft',
+    pcLayout: 'hero',
+    ctaId: 'legal',
+  },
+  {
+    id: 'clean',
+    label: '청소·유품',
+    desc: '강조형 스플릿 · 견적 CTA',
+    preset: 'bold',
+    pcLayout: 'split',
+    ctaId: 'clean',
+  },
+  {
+    id: 'interior',
+    label: '인테리어',
+    desc: '카드형 와이드 · 빠른 견적',
+    preset: 'card',
+    pcLayout: 'wide',
+    ctaId: 'interior',
+  },
+  {
+    id: 'clinic',
+    label: '병원·뷰티',
+    desc: '소프트 히어로 · 예약 CTA',
+    preset: 'soft',
+    pcLayout: 'hero',
+    ctaId: 'clinic',
+  },
+];
+
+export function applyEmbedIndustryPackage(
+  options: PartnerEmbedOptions,
+  id: EmbedIndustryPackageId,
+): PartnerEmbedOptions {
+  const pkg = EMBED_INDUSTRY_PACKAGES.find((p) => p.id === id);
+  if (!pkg) return options;
+  let next = withEmbedPreset(options, pkg.preset, { applyAccentHint: true });
+  next = applyEmbedCtaPreset(next, pkg.ctaId);
+  return {
+    ...next,
+    pcLayout: pkg.pcLayout,
+    minimalForm: true,
+    showTrustBadges: true,
+    badgeFree: true,
+    badgeCallback: true,
+    badgePrivacy: true,
+    showLiveCount: true,
+    stickyMobileCta: true,
+    successShowCall: true,
+    showFormCall: true,
   };
 }
 

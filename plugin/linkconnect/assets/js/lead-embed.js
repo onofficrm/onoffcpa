@@ -151,6 +151,43 @@
     };
   }
 
+  function pickAbVariant(config) {
+    var ab = config && config.ab;
+    if (!ab || !ab.enabled || !ab.b) return 'A';
+    var key = 'lc_embed_ab_' + String(config.lkCode || '');
+    try {
+      var stored = window.localStorage.getItem(key);
+      if (stored === 'A' || stored === 'B') return stored;
+    } catch (e0) {}
+    var split = parseInt(ab.split, 10);
+    if (!(split >= 10 && split <= 90)) split = 50;
+    var variant = Math.random() * 100 < split ? 'B' : 'A';
+    try {
+      window.localStorage.setItem(key, variant);
+    } catch (e1) {}
+    return variant;
+  }
+
+  function applyAbToConfig(config) {
+    if (!config || typeof config !== 'object') return config;
+    var variant = pickAbVariant(config);
+    config.abVariant = variant;
+    if (variant !== 'B' || !config.ab || !config.ab.b) return config;
+    var b = config.ab.b;
+    Object.keys(b).forEach(function (key) {
+      if (key === 'theme' && b.theme && typeof b.theme === 'object') {
+        config.theme = b.theme;
+        return;
+      }
+      if (key === 'theme') return;
+      config[key] = b[key];
+      if (config.options && typeof config.options === 'object') {
+        config.options[key] = b[key];
+      }
+    });
+    return config;
+  }
+
   /** CRO 마이크로 전환: badge_click / extra_fields_open / sticky_submit / success_call_tap */
   function trackEmbedInteraction(config, eventName, extra) {
     var name = String(eventName || '').trim();
@@ -167,6 +204,7 @@
       lc_utm_campaign: traffic.utm_campaign || '',
       lc_page_url: traffic.page_url || '',
     };
+    if (config.abVariant) payload.lc_ab = config.abVariant;
     if (extra && typeof extra === 'object') {
       Object.keys(extra).forEach(function (key) {
         payload[key] = extra[key];
@@ -217,6 +255,8 @@
     if (detail && detail.lc_call_label) body.lc_call_label = detail.lc_call_label;
     if (detail && detail.lc_submit_label) body.lc_submit_label = detail.lc_submit_label;
     if (detail && detail.lc_extra_count != null) body.lc_extra_count = detail.lc_extra_count;
+    var abVariant = (detail && detail.lc_ab) || (config && config.abVariant) || '';
+    if (abVariant) body.lc_ab = abVariant;
     var json = '';
     try {
       json = JSON.stringify(body);
@@ -961,6 +1001,7 @@
   }
 
   function renderWidget(mount, config, opts) {
+    config = applyAbToConfig(config || {});
     var mode = opts.mode || 'form';
     if (mode === 'phone') {
       renderPhone(mount, config);

@@ -129,6 +129,10 @@ if (!function_exists('lc_embed_events_record')) {
             }
             $meta[$key] = $payload[$key];
         }
+        $ab = strtoupper(trim((string) ($payload['lc_ab'] ?? $payload['abVariant'] ?? '')));
+        if ($ab === 'A' || $ab === 'B') {
+            $meta['lc_ab'] = $ab;
+        }
         $meta_json = $meta ? json_encode($meta, JSON_UNESCAPED_UNICODE) : '';
         if ($meta_json === false) {
             $meta_json = '';
@@ -222,6 +226,10 @@ if (!function_exists('lc_embed_events_stats_for_partner')) {
                 'body' => '최신 HTML 위젯을 설치하면 배지·추가정보·모바일 제출·완료 전화 행동이 유입분석에 쌓입니다.',
             ),
             'byHost' => array(),
+            'byAb' => array(
+                'A' => array('total' => 0, 'badgeClick' => 0, 'stickySubmit' => 0, 'successCallTap' => 0),
+                'B' => array('total' => 0, 'badgeClick' => 0, 'stickySubmit' => 0, 'successCallTap' => 0),
+            ),
             'daily' => array(),
         );
 
@@ -346,6 +354,31 @@ if (!function_exists('lc_embed_events_stats_for_partner')) {
             $daily = array_values($day_map);
         }
 
+        $by_ab = array(
+            'A' => array('total' => 0, 'badgeClick' => 0, 'stickySubmit' => 0, 'successCallTap' => 0),
+            'B' => array('total' => 0, 'badgeClick' => 0, 'stickySubmit' => 0, 'successCallTap' => 0),
+        );
+        foreach (array('A', 'B') as $ab_key) {
+            $like = '%"lc_ab":"' . $ab_key . '"%';
+            $arow = lc_sql_fetch(" SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN ee_event = 'badge_click' THEN 1 ELSE 0 END) AS badge_click,
+                SUM(CASE WHEN ee_event = 'sticky_submit' THEN 1 ELSE 0 END) AS sticky_submit,
+                SUM(CASE WHEN ee_event = 'success_call_tap' THEN 1 ELSE 0 END) AS success_call_tap
+                FROM `{$table}`
+                WHERE pt_id = '{$pt_id}'
+                  AND DATE(ee_created_at) BETWEEN '" . lc_sql_escape($dateFrom) . "' AND '" . lc_sql_escape($dateTo) . "'
+                  AND ee_meta LIKE '" . lc_sql_escape($like) . "' ");
+            if (is_array($arow)) {
+                $by_ab[$ab_key] = array(
+                    'total' => (int) ($arow['total'] ?? 0),
+                    'badgeClick' => (int) ($arow['badge_click'] ?? 0),
+                    'stickySubmit' => (int) ($arow['sticky_submit'] ?? 0),
+                    'successCallTap' => (int) ($arow['success_call_tap'] ?? 0),
+                );
+            }
+        }
+
         $insight = lc_embed_events_build_insight($counts, $rates);
 
         return array(
@@ -355,6 +388,7 @@ if (!function_exists('lc_embed_events_stats_for_partner')) {
             'rates' => $rates,
             'insight' => $insight,
             'byHost' => $by_host,
+            'byAb' => $by_ab,
             'daily' => $daily,
         );
     }

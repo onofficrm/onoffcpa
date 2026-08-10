@@ -1573,6 +1573,10 @@ export type PartnerEmbedCroAnalytics = {
     stickySubmit: number;
     successCallTap: number;
   }>;
+  byAb?: {
+    A?: { total: number; badgeClick: number; stickySubmit: number; successCallTap: number };
+    B?: { total: number; badgeClick: number; stickySubmit: number; successCallTap: number };
+  };
   daily?: Array<{
     date: string;
     badge: number;

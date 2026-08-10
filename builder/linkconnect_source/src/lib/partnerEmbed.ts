@@ -156,6 +156,14 @@ export type PartnerEmbedOptions = {
   successNextStep?: string;
 };
 
+/** A/B 테스트 (파트너 공통, B안은 문구·디자인 패치) */
+export type PartnerEmbedAb = {
+  enabled?: boolean;
+  /** B안 노출 비율 10–90 */
+  split?: number;
+  b?: Partial<PartnerEmbedOptions>;
+};
+
 export type PartnerEmbedSettings = {
   domains: string[];
   domainLock: boolean;
@@ -167,6 +175,12 @@ export type PartnerEmbedSettings = {
   /** 파트너가 디자인·전환 옵션을 저장한 적 있는지 */
   hasCustomOptions?: boolean;
   options?: PartnerEmbedOptions;
+  /** 캠페인 오버라이드가 반영된 최종 옵션 */
+  resolvedOptions?: PartnerEmbedOptions;
+  campaignOptions?: PartnerEmbedOptions | null;
+  hasCampaignOverride?: boolean;
+  campaignId?: number;
+  ab?: PartnerEmbedAb;
   embedTotal?: number;
   embedToday?: number;
   embedApproved?: number;
@@ -193,15 +207,44 @@ export function savePartnerEmbedDomains(domains: string[]) {
   });
 }
 
-export function savePartnerEmbedOptions(options: PartnerEmbedOptions) {
+export function savePartnerEmbedOptions(
+  options: PartnerEmbedOptions,
+  extras?: { campaignId?: number; ab?: PartnerEmbedAb },
+) {
   return partnerApiPost<{
     message: string;
     options: PartnerEmbedOptions;
+    campaignOptions?: PartnerEmbedOptions;
+    resolvedOptions?: PartnerEmbedOptions;
+    hasCampaignOverride?: boolean;
+    campaignId?: number;
+    ab?: PartnerEmbedAb;
     widgetKey?: string;
     hasWidgetKey?: boolean;
   }>('embed.php', {
     action: 'save_options',
     options,
+    ...(extras?.campaignId ? { campaignId: extras.campaignId } : {}),
+    ...(extras?.ab ? { ab: extras.ab } : {}),
+  });
+}
+
+export function clearPartnerEmbedCampaignOptions(campaignId: number) {
+  return partnerApiPost<{
+    message: string;
+    options: PartnerEmbedOptions;
+    hasCampaignOverride?: boolean;
+    campaignId?: number;
+  }>('embed.php', {
+    action: 'clear_campaign_options',
+    campaignId,
+  });
+}
+
+export function savePartnerEmbedAb(ab: PartnerEmbedAb) {
+  return partnerApiPost<{ message: string; ab: PartnerEmbedAb }>('embed.php', {
+    action: 'save_ab',
+    ab,
   });
 }
 

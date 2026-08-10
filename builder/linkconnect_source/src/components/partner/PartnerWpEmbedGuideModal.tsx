@@ -16,9 +16,12 @@ import {
 } from '../../lib/embedPresets';
 import {
   applyEmbedCtaPreset,
+  applyEmbedIndustryPackage,
   EMBED_CRO_EVENTS,
   EMBED_CTA_PRESETS,
+  EMBED_INDUSTRY_PACKAGES,
   type EmbedCtaPresetId,
+  type EmbedIndustryPackageId,
 } from '../../lib/embedConversion';
 import {
   claimPartnerCallNumber,
@@ -30,15 +33,28 @@ import {
   buildLeadEmbedPreviewUrl,
   buildLeadEmbedShortcode,
   buildLeadEmbedSnippet,
+  clearPartnerEmbedCampaignOptions,
   fetchPartnerEmbedSettings,
   issuePartnerEmbedWidgetKey,
   LeadEmbedMode,
   leadEmbedPluginDownloadUrl,
+  PartnerEmbedAb,
   PartnerEmbedOptions,
   rotatePartnerEmbedWidgetKey,
   savePartnerEmbedDomains,
   savePartnerEmbedOptions,
 } from '../../lib/partnerEmbed';
+
+const DEFAULT_AB: PartnerEmbedAb = {
+  enabled: false,
+  split: 50,
+  b: {
+    title: '지금 바로 상담 신청',
+    submitLabel: '1분 만에 상담 받기',
+    benefitText: '상담비 없음 · 빠른 연락',
+    ctaHint: '부담 없이 남겨 주세요',
+  },
+};
 
 const DEFAULT_OPTIONS: PartnerEmbedOptions = {
   preset: 'default',
@@ -142,6 +158,12 @@ export function PartnerWpEmbedGuideModal({
   const [availableNumbers, setAvailableNumbers] = useState<PartnerAvailableCallNumber[]>([]);
   const [claimCnId, setClaimCnId] = useState('');
   const [claimBusy, setClaimBusy] = useState(false);
+  const [optionScope, setOptionScope] = useState<'partner' | 'campaign'>('partner');
+  const [hasCampaignOverride, setHasCampaignOverride] = useState(false);
+  const [partnerOptions, setPartnerOptions] = useState<PartnerEmbedOptions>(DEFAULT_OPTIONS);
+  const [campaignOptionsState, setCampaignOptionsState] = useState<PartnerEmbedOptions | null>(null);
+  const [ab, setAb] = useState<PartnerEmbedAb>(DEFAULT_AB);
+  const [previewAbVariant, setPreviewAbVariant] = useState<'A' | 'B'>('A');
 
   const loadEmbedSettings = (code?: string) => {
     fetchPartnerEmbedSettings(code || undefined)
@@ -153,15 +175,38 @@ export function PartnerWpEmbedGuideModal({
         setByDomain(data.byDomain || []);
         setWidgetKey(data.widgetKey || '');
         setBrandName(data.brandName || '상담');
-        setOptions({
+        const partnerOpts: PartnerEmbedOptions = {
           ...DEFAULT_OPTIONS,
           ...(data.options || {}),
           preset: normalizeEmbedPreset(data.options?.preset),
           pcLayout: normalizeEmbedPcLayout(data.options?.pcLayout),
+        };
+        setPartnerOptions(partnerOpts);
+        const hasOverride = Boolean(data.hasCampaignOverride && data.campaignOptions);
+        setHasCampaignOverride(hasOverride);
+        const resolvedSrc = hasOverride
+          ? data.resolvedOptions || data.campaignOptions || partnerOpts
+          : partnerOpts;
+        const normalizedResolved = {
+          ...DEFAULT_OPTIONS,
+          ...resolvedSrc,
+          preset: normalizeEmbedPreset(resolvedSrc?.preset),
+          pcLayout: normalizeEmbedPcLayout(resolvedSrc?.pcLayout),
+        };
+        setCampaignOptionsState(hasOverride ? normalizedResolved : null);
+        setOptions(normalizedResolved);
+        setOptionScope(hasOverride ? 'campaign' : 'partner');
+        setAb({
+          ...DEFAULT_AB,
+          ...(data.ab || {}),
+          b: { ...DEFAULT_AB.b, ...(data.ab?.b || {}) },
+          split: data.ab?.split ?? 50,
+          enabled: Boolean(data.ab?.enabled),
         });
+        setPreviewAbVariant('A');
         const phone = (data.config?.partnerPhoneDisplay || '').trim();
         const hasPhone = Boolean(data.config?.hasPartnerPhone && phone);
-        const cpId = Number(data.config?.campaignId || 0);
+        const cpId = Number(data.config?.campaignId || data.campaignId || 0);
         const cpTitle = (data.config?.campaignTitle || '').trim();
         setHasCallPhone(hasPhone);
         setCallPhoneDisplay(phone);
@@ -194,6 +239,11 @@ export function PartnerWpEmbedGuideModal({
         setByDomain([]);
         setWidgetKey('');
         setOptions(DEFAULT_OPTIONS);
+        setPartnerOptions(DEFAULT_OPTIONS);
+        setCampaignOptionsState(null);
+        setHasCampaignOverride(false);
+        setOptionScope('partner');
+        setAb(DEFAULT_AB);
         setHasCallPhone(false);
         setCallPhoneDisplay('');
         setCallCampaignId(0);
@@ -293,18 +343,60 @@ export function PartnerWpEmbedGuideModal({
     setSavingOptions(true);
     setSaveMsg('');
     try {
-      const res = await savePartnerEmbedOptions({
+      const payload = {
         ...options,
         preset: normalizeEmbedPreset(options.preset),
+        pcLayout: normalizeEmbedPcLayout(options.pcLayout),
+      };
+      const saveCampaign = optionScope === 'campaign' && callCampaignId > 0;
+      const res = await savePartnerEmbedOptions(payload, {
+        ...(saveCampaign ? { campaignId: callCampaignId } : {}),
+        ab,
       });
-      setOptions({
+      const partnerOpts = {
         ...DEFAULT_OPTIONS,
-        ...(res.options || {}),
-        preset: normalizeEmbedPreset(res.options?.preset),
-      });
+        ...(res.options || (saveCampaign ? partnerOptions : payload)),
+        preset: normalizeEmbedPreset(
+          res.options?.preset || (saveCampaign ? partnerOptions.preset : payload.preset),
+        ),
+        pcLayout: normalizeEmbedPcLayout(
+          res.options?.pcLayout || (saveCampaign ? partnerOptions.pcLayout : payload.pcLayout),
+        ),
+      };
+      setPartnerOptions(partnerOpts);
+      if (saveCampaign) {
+        const resolved = {
+          ...DEFAULT_OPTIONS,
+          ...(res.resolvedOptions || res.campaignOptions || payload),
+          preset: normalizeEmbedPreset(
+            (res.resolvedOptions || res.campaignOptions || payload).preset,
+          ),
+          pcLayout: normalizeEmbedPcLayout(
+            (res.resolvedOptions || res.campaignOptions || payload).pcLayout,
+          ),
+        };
+        setOptions(resolved);
+        setCampaignOptionsState(resolved);
+        setHasCampaignOverride(true);
+        setOptionScope('campaign');
+      } else {
+        setOptions(partnerOpts);
+      }
+      if (res.ab) {
+        setAb({
+          ...DEFAULT_AB,
+          ...res.ab,
+          b: { ...DEFAULT_AB.b, ...(res.ab.b || {}) },
+        });
+      }
       if (res.widgetKey) setWidgetKey(res.widgetKey);
       setPreviewTick((n) => n + 1);
-      setSaveMsg(res.message || '위젯 설정을 저장했습니다. 설치 코드에 반영됩니다.');
+      setSaveMsg(
+        res.message ||
+          (saveCampaign
+            ? '이 상품 전용 설정을 저장했습니다.'
+            : '위젯 설정을 저장했습니다. 설치 코드에 반영됩니다.'),
+      );
       onSaved?.();
     } catch (e) {
       setSaveMsg(e instanceof Error ? e.message : '위젯 설정 저장에 실패했습니다.');
@@ -313,9 +405,61 @@ export function PartnerWpEmbedGuideModal({
     }
   };
 
+  const handleClearCampaignOptions = async () => {
+    if (!callCampaignId) return;
+    if (!window.confirm('이 상품 전용 설정을 삭제하고 공통 설정을 사용할까요?')) return;
+    setSavingOptions(true);
+    setSaveMsg('');
+    try {
+      const res = await clearPartnerEmbedCampaignOptions(callCampaignId);
+      const partnerOpts = {
+        ...DEFAULT_OPTIONS,
+        ...(res.options || partnerOptions),
+        preset: normalizeEmbedPreset(res.options?.preset || partnerOptions.preset),
+        pcLayout: normalizeEmbedPcLayout(res.options?.pcLayout || partnerOptions.pcLayout),
+      };
+      setPartnerOptions(partnerOpts);
+      setCampaignOptionsState(null);
+      setOptions(partnerOpts);
+      setHasCampaignOverride(false);
+      setOptionScope('partner');
+      setSaveMsg(res.message || '상품 전용 설정을 삭제했습니다.');
+      setPreviewTick((n) => n + 1);
+      onSaved?.();
+    } catch (e) {
+      setSaveMsg(e instanceof Error ? e.message : '상품 전용 설정 삭제에 실패했습니다.');
+    } finally {
+      setSavingOptions(false);
+    }
+  };
+
+  const handleCopyHtml = () => {
+    if (!onCopySnippet || !lkCode) return;
+    const needsPhone = mode === 'phone' || options.showFormCall !== false;
+    if (needsPhone && !hasCallPhone) {
+      if (mode === 'phone') {
+        setSaveMsg('전화형 위젯은 콜디비 안심번호 배정이 필요합니다. 위에서 번호를 적용하세요.');
+        return;
+      }
+      const ok = window.confirm(
+        '콜디비 안심번호가 배정되지 않았습니다. 폼에 전화 버튼이 비거나 숨겨질 수 있습니다. 그래도 HTML을 복사할까요?',
+      );
+      if (!ok) {
+        setSaveMsg('번호를 적용한 뒤 다시 복사해 주세요.');
+        return;
+      }
+    }
+    onCopySnippet(snippet);
+  };
+
   const selectPreset = (id: EmbedPresetId) => {
     setOptions((prev) => withEmbedPreset(prev, id, { applyAccentHint: true }));
   };
+
+  const previewOptions = useMemo(() => {
+    if (!ab.enabled || previewAbVariant !== 'B') return options;
+    return { ...options, ...(ab.b || {}) };
+  }, [options, ab, previewAbVariant]);
 
   const productTitle = (productContext?.campaignTitle || '').trim();
   const productChannel = (productContext?.channel || '').trim();
@@ -485,6 +629,66 @@ export function PartnerWpEmbedGuideModal({
               )}
             </section>
 
+            {callCampaignId > 0 ? (
+              <div className="rounded-2xl border border-cyan-200 bg-cyan-50/70 px-3.5 py-3 space-y-2">
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div>
+                    <div className="text-xs font-bold text-cyan-950">설정 적용 범위</div>
+                    <p className="text-[11px] text-cyan-900/80 mt-0.5 leading-relaxed">
+                      {callCampaignTitle || '이 상품'}에만 다른 문구·디자인을 쓰거나, 모든 링크 공통 설정을 편집할 수 있습니다.
+                    </p>
+                  </div>
+                  {hasCampaignOverride ? (
+                    <span className="text-[10px] font-bold text-cyan-800 bg-white border border-cyan-200 px-2 py-0.5 rounded-md">
+                      상품 전용 설정 사용 중
+                    </span>
+                  ) : null}
+                </div>
+                <div className="inline-flex rounded-lg border border-cyan-200 bg-white p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (optionScope === 'campaign') {
+                        setCampaignOptionsState(options);
+                      }
+                      setOptionScope('partner');
+                      setOptions(partnerOptions);
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-[11px] font-bold ${
+                      optionScope === 'partner' ? 'bg-slate-900 text-white' : 'text-slate-500'
+                    }`}
+                  >
+                    공통 설정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (optionScope === 'partner') {
+                        setPartnerOptions(options);
+                      }
+                      setOptionScope('campaign');
+                      setOptions(campaignOptionsState || partnerOptions);
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-[11px] font-bold ${
+                      optionScope === 'campaign' ? 'bg-slate-900 text-white' : 'text-slate-500'
+                    }`}
+                  >
+                    이 상품만
+                  </button>
+                </div>
+                {optionScope === 'campaign' && hasCampaignOverride ? (
+                  <button
+                    type="button"
+                    disabled={savingOptions}
+                    onClick={() => void handleClearCampaignOptions()}
+                    className="text-[11px] font-bold text-rose-700 hover:text-rose-800 underline underline-offset-2"
+                  >
+                    상품 전용 설정 삭제
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="flex gap-1 p-1 rounded-xl bg-slate-100">
               {TABS.map((item) => (
                 <button
@@ -502,6 +706,29 @@ export function PartnerWpEmbedGuideModal({
 
             {tab === 'preset' ? (
               <section className="space-y-3">
+                <div className="space-y-2">
+                  <div className="text-sm font-bold text-slate-900">업종 원클릭 패키지</div>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    템플릿 · PC 배치 · CTA · 전환 옵션을 한 번에 맞춥니다. 이후 세부 수정 가능합니다.
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {EMBED_INDUSTRY_PACKAGES.map((pkg) => (
+                      <button
+                        key={pkg.id}
+                        type="button"
+                        onClick={() =>
+                          setOptions((prev) =>
+                            applyEmbedIndustryPackage(prev, pkg.id as EmbedIndustryPackageId),
+                          )
+                        }
+                        className="rounded-xl border border-slate-200 bg-white hover:border-cyan-400 px-2.5 py-2 text-left"
+                      >
+                        <div className="text-xs font-bold text-slate-900">{pkg.label}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">{pkg.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <HelpTipHeading title="디자인 템플릿" helpTitle={EMBED_HELP.design.title}>
                   {EMBED_HELP.design.body}
                 </HelpTipHeading>
@@ -510,12 +737,12 @@ export function PartnerWpEmbedGuideModal({
                 </p>
                 <EmbedDesignGallery
                   selectedId={presetId}
-                  options={options}
+                  options={previewOptions}
                   brandName={brandName}
                   phoneHint={
                   hasCallPhone && callPhoneDisplay
                     ? `안심번호 ${callPhoneDisplay}`
-                    : options.showFormCall === false
+                    : previewOptions.showFormCall === false
                       ? ''
                       : phoneHint
                 }
@@ -648,6 +875,83 @@ export function PartnerWpEmbedGuideModal({
                     className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm"
                     placeholder="지금 상담 신청이 활발합니다"
                   />
+                </div>
+
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-bold text-amber-950">위젯 A/B 테스트</div>
+                      <p className="text-[11px] text-amber-900/80 mt-0.5 leading-relaxed">
+                        방문자를 A·B로 나누고, 유입분석에서 행동을 비교합니다. B안은 문구·디자인만 다르게 할 수 있습니다.
+                      </p>
+                    </div>
+                    <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-950 shrink-0">
+                      <input
+                        type="checkbox"
+                        className="rounded border-amber-300 text-amber-600"
+                        checked={Boolean(ab.enabled)}
+                        onChange={(e) => setAb((prev) => ({ ...prev, enabled: e.target.checked }))}
+                      />
+                      사용
+                    </label>
+                  </div>
+                  {ab.enabled ? (
+                    <>
+                      <label className="flex items-center gap-2 text-[11px] text-slate-700">
+                        <span className="font-bold shrink-0">B안 비율</span>
+                        <input
+                          type="range"
+                          min={10}
+                          max={90}
+                          step={5}
+                          value={ab.split ?? 50}
+                          onChange={(e) =>
+                            setAb((prev) => ({ ...prev, split: Number(e.target.value) }))
+                          }
+                          className="flex-1"
+                        />
+                        <span className="tabular-nums font-bold w-10 text-right">{ab.split ?? 50}%</span>
+                      </label>
+                      <div className="grid grid-cols-[auto_1fr] gap-2 items-center">
+                        <label className="text-[11px] font-bold text-slate-600">B 제목</label>
+                        <input
+                          type="text"
+                          value={ab.b?.title || ''}
+                          onChange={(e) =>
+                            setAb((prev) => ({ ...prev, b: { ...prev.b, title: e.target.value } }))
+                          }
+                          className="px-2.5 py-1.5 rounded-lg border border-amber-200 bg-white text-xs"
+                        />
+                        <label className="text-[11px] font-bold text-slate-600">B 제출</label>
+                        <input
+                          type="text"
+                          value={ab.b?.submitLabel || ''}
+                          onChange={(e) =>
+                            setAb((prev) => ({
+                              ...prev,
+                              b: { ...prev.b, submitLabel: e.target.value, buttonLabel: e.target.value },
+                            }))
+                          }
+                          className="px-2.5 py-1.5 rounded-lg border border-amber-200 bg-white text-xs"
+                        />
+                        <label className="text-[11px] font-bold text-slate-600">B 혜택</label>
+                        <input
+                          type="text"
+                          value={ab.b?.benefitText || ''}
+                          onChange={(e) =>
+                            setAb((prev) => ({
+                              ...prev,
+                              b: { ...prev.b, benefitText: e.target.value },
+                            }))
+                          }
+                          className="px-2.5 py-1.5 rounded-lg border border-amber-200 bg-white text-xs"
+                        />
+                      </div>
+                      <p className="text-[10px] text-amber-900/70 leading-relaxed">
+                        미리보기에서 A/B를 전환해 확인할 수 있습니다. 저장 시 A/B 설정도 함께 반영됩니다.
+                      </p>
+                    </>
+                  ) : null}
                 </div>
               </section>
             ) : null}
@@ -1011,26 +1315,50 @@ export function PartnerWpEmbedGuideModal({
                 </button>
               </div>
             </div>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 self-start">
-              <button
-                type="button"
-                onClick={() => setPreviewStage('form')}
-                className={`px-3 py-1.5 rounded-md text-[11px] font-bold ${
-                  previewStage === 'form' ? 'bg-cyan-700 text-white' : 'text-slate-500'
-                }`}
-              >
-                입력 폼
-              </button>
-              <button
-                type="button"
-                onClick={() => setPreviewStage('success')}
-                disabled={mode === 'phone'}
-                className={`px-3 py-1.5 rounded-md text-[11px] font-bold disabled:opacity-40 ${
-                  previewStage === 'success' ? 'bg-cyan-700 text-white' : 'text-slate-500'
-                }`}
-              >
-                완료 화면
-              </button>
+            <div className="flex flex-wrap gap-2">
+              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setPreviewStage('form')}
+                  className={`px-3 py-1.5 rounded-md text-[11px] font-bold ${
+                    previewStage === 'form' ? 'bg-cyan-700 text-white' : 'text-slate-500'
+                  }`}
+                >
+                  입력 폼
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewStage('success')}
+                  disabled={mode === 'phone'}
+                  className={`px-3 py-1.5 rounded-md text-[11px] font-bold disabled:opacity-40 ${
+                    previewStage === 'success' ? 'bg-cyan-700 text-white' : 'text-slate-500'
+                  }`}
+                >
+                  완료 화면
+                </button>
+              </div>
+              {ab.enabled ? (
+                <div className="inline-flex rounded-lg border border-amber-200 bg-amber-50 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewAbVariant('A')}
+                    className={`px-3 py-1.5 rounded-md text-[11px] font-bold ${
+                      previewAbVariant === 'A' ? 'bg-amber-700 text-white' : 'text-amber-800'
+                    }`}
+                  >
+                    A안
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewAbVariant('B')}
+                    className={`px-3 py-1.5 rounded-md text-[11px] font-bold ${
+                      previewAbVariant === 'B' ? 'bg-amber-700 text-white' : 'text-amber-800'
+                    }`}
+                  >
+                    B안
+                  </button>
+                </div>
+              ) : null}
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
               {previewStage === 'success'
@@ -1040,13 +1368,13 @@ export function PartnerWpEmbedGuideModal({
             <EmbedDevicePreviewFrame device={device} productLabel={productLabel} pageHost="example.com">
               <EmbedWidgetLivePreview
                 mode={mode}
-                options={options}
+                options={previewOptions}
                 device={device}
                 stage={previewStage}
                 phoneHint={
                   hasCallPhone && callPhoneDisplay
                     ? `안심번호 ${callPhoneDisplay}`
-                    : options.showFormCall === false
+                    : previewOptions.showFormCall === false
                       ? ''
                       : phoneHint
                 }
@@ -1072,7 +1400,7 @@ export function PartnerWpEmbedGuideModal({
           {onCopySnippet && lkCode ? (
             <button
               type="button"
-              onClick={() => onCopySnippet(snippet)}
+              onClick={handleCopyHtml}
               className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-xl text-sm inline-flex items-center justify-center gap-1.5"
             >
               <Copy size={16} />

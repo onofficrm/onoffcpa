@@ -643,28 +643,81 @@ if (!function_exists('lc_embed_partner_has_custom_options')) {
     }
 }
 
-if (!function_exists('lc_embed_set_partner_options')) {
+if (!function_exists('lc_embed_partner_options_doc')) {
     /**
-     * @param array<string,mixed> $options
-     * @return array{ok:bool,message:string,options:array}
+     * pt_embed_options 원본 JSON (+ 메타: campaignOverrides, ab)
+     * @return array{flat:array<string,mixed>,campaignOverrides:array<string,array>,ab:array<string,mixed>}
      */
-    function lc_embed_set_partner_options($pt_id, array $options)
+    function lc_embed_partner_options_doc($pt_id)
     {
+        $flat = lc_embed_partner_options($pt_id);
+        $doc = array(
+            'flat' => $flat,
+            'campaignOverrides' => array(),
+            'ab' => lc_embed_default_ab(),
+        );
         $pt_id = (int) $pt_id;
-        if ($pt_id <= 0) {
-            return array('ok' => false, 'message' => '파트너 정보가 없습니다.', 'options' => lc_embed_default_options());
+        if ($pt_id <= 0 || !lc_db_installed()) {
+            return $doc;
         }
         $partners = lc_table('partners');
         if (!function_exists('lc_db_column_exists') || !lc_db_column_exists($partners, 'pt_embed_options')) {
-            if (function_exists('lc_db_run_migrations')) {
-                lc_db_run_migrations();
+            return $doc;
+        }
+        $row = lc_sql_fetch(" SELECT pt_embed_options FROM `{$partners}` WHERE pt_id = '{$pt_id}' LIMIT 1 ");
+        if (!is_array($row)) {
+            return $doc;
+        }
+        $raw = trim((string) ($row['pt_embed_options'] ?? ''));
+        if ($raw === '') {
+            return $doc;
+        }
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return $doc;
+        }
+        if (isset($decoded['campaignOverrides']) && is_array($decoded['campaignOverrides'])) {
+            foreach ($decoded['campaignOverrides'] as $cpKey => $override) {
+                if (!is_array($override)) {
+                    continue;
+                }
+                $cp_id = (int) $cpKey;
+                if ($cp_id <= 0) {
+                    continue;
+                }
+                $doc['campaignOverrides'][(string) $cp_id] = $override;
             }
         }
-        if (!lc_db_column_exists($partners, 'pt_embed_options')) {
-            return array('ok' => false, 'message' => '위젯 옵션을 저장할 수 없습니다. 관리자에게 문의해 주세요.', 'options' => lc_embed_default_options());
+        if (isset($decoded['ab']) && is_array($decoded['ab'])) {
+            $doc['ab'] = lc_embed_normalize_ab($decoded['ab'], $pt_id, $flat);
         }
+        return $doc;
+    }
+}
 
-        $current = lc_embed_partner_options($pt_id);
+if (!function_exists('lc_embed_default_ab')) {
+    /** @return array{enabled:bool,split:int,b:array<string,mixed>} */
+    function lc_embed_default_ab()
+    {
+        return array(
+            'enabled' => false,
+            'split'   => 50,
+            'b'       => array(),
+        );
+    }
+}
+
+if (!function_exists('lc_embed_merge_option_input')) {
+    /**
+     * 옵션 입력값을 base 위에 병합·검증
+     * @param array<string,mixed> $base
+     * @param array<string,mixed> $options
+     * @return array{ok:bool,message:string,options:array<string,mixed>}
+     */
+    function lc_embed_merge_option_input($pt_id, array $base, array $options)
+    {
+        $pt_id = (int) $pt_id;
+        $current = $base;
         $next = $current;
 
         if (array_key_exists('preset', $options)) {
@@ -757,11 +810,333 @@ if (!function_exists('lc_embed_set_partner_options')) {
             }
         }
 
-        $json = json_encode($next, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return array('ok' => true, 'message' => 'ok', 'options' => $next);
+    }
+}
+
+if (!function_exists('lc_embed_write_partner_options_doc')) {
+    /**
+     * @param array<string,mixed> $flat
+     * @param array<string,array> $campaign_overrides
+     * @param array<string,mixed> $ab
+     * @return array{ok:bool,message:string}
+     */
+    function lc_embed_write_partner_options_doc($pt_id, array $flat, array $campaign_overrides, array $ab)
+    {
+        $pt_id = (int) $pt_id;
+        if ($pt_id <= 0) {
+            return array('ok' => false, 'message' => '파트너 정보가 없습니다.');
+        }
+        $partners = lc_table('partners');
+        if (!function_exists('lc_db_column_exists') || !lc_db_column_exists($partners, 'pt_embed_options')) {
+            if (function_exists('lc_db_run_migrations')) {
+                lc_db_run_migrations();
+            }
+        }
+        if (!lc_db_column_exists($partners, 'pt_embed_options')) {
+            return array('ok' => false, 'message' => '위젯 옵션을 저장할 수 없습니다. 관리자에게 문의해 주세요.');
+        }
+
+        $store = $flat;
+        if ($campaign_overrides) {
+            $store['campaignOverrides'] = $campaign_overrides;
+        }
+        $ab_norm = lc_embed_normalize_ab($ab, $pt_id, $flat);
+        if (!empty($ab_norm['enabled']) || !empty($ab_norm['b'])) {
+            $store['ab'] = $ab_norm;
+        }
+
+        $json = json_encode($store, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($json === false) {
+            return array('ok' => false, 'message' => '옵션 직렬화에 실패했습니다.');
+        }
         lc_sql_query(
             " UPDATE `{$partners}` SET pt_embed_options = '" . lc_sql_escape((string) $json) . "', pt_updated_at = NOW() WHERE pt_id = '{$pt_id}' LIMIT 1 ",
             false
         );
+        return array('ok' => true, 'message' => 'ok');
+    }
+}
+
+if (!function_exists('lc_embed_normalize_ab')) {
+    /**
+     * @param array<string,mixed> $raw
+     * @param array<string,mixed> $base_options
+     * @return array{enabled:bool,split:int,b:array<string,mixed>}
+     */
+    function lc_embed_normalize_ab($raw, $pt_id = 0, array $base_options = array())
+    {
+        $ab = lc_embed_default_ab();
+        if (!is_array($raw)) {
+            return $ab;
+        }
+        $ab['enabled'] = !empty($raw['enabled']);
+        $split = isset($raw['split']) ? (int) $raw['split'] : 50;
+        if ($split < 10) {
+            $split = 10;
+        }
+        if ($split > 90) {
+            $split = 90;
+        }
+        $ab['split'] = $split;
+
+        $b_in = isset($raw['b']) && is_array($raw['b']) ? $raw['b'] : array();
+        // B안은 시각·문구 위주 (리다이렉트·위젯키 등 운영 설정은 A 유지)
+        $allowed_b = array(
+            'preset', 'pcLayout', 'accent', 'title', 'submitLabel', 'buttonLabel', 'callLabel',
+            'successMessage', 'benefitText', 'ctaHint', 'liveCountText', 'successNextStep',
+            'privacyText', 'minimalForm', 'showTrustBadges', 'badgeFree', 'badgeCallback',
+            'badgePrivacy', 'showLiveCount', 'stickyMobileCta', 'successShowCall', 'showFormCall',
+            'showRegion', 'showInquiry',
+        );
+        $b_patch = array();
+        foreach ($allowed_b as $key) {
+            if (array_key_exists($key, $b_in)) {
+                $b_patch[$key] = $b_in[$key];
+            }
+        }
+        if ($b_patch) {
+            $base = $base_options ? $base_options : lc_embed_default_options();
+            $merged = lc_embed_merge_option_input($pt_id, $base, $b_patch);
+            if (!empty($merged['ok'])) {
+                // 입력된 키만 B 패치로 보관 (전체 스냅샷 아님)
+                $flat = $merged['options'];
+                foreach ($allowed_b as $key) {
+                    if (!array_key_exists($key, $b_patch)) {
+                        continue;
+                    }
+                    $ab['b'][$key] = $flat[$key];
+                }
+            }
+        }
+        return $ab;
+    }
+}
+
+if (!function_exists('lc_embed_resolved_options')) {
+    /**
+     * 파트너 기본 + 캠페인 오버라이드
+     * @return array<string,mixed>
+     */
+    function lc_embed_resolved_options($pt_id, $cp_id = 0)
+    {
+        $base = lc_embed_partner_options($pt_id);
+        $cp_id = (int) $cp_id;
+        if ($cp_id <= 0) {
+            return $base;
+        }
+        $doc = lc_embed_partner_options_doc($pt_id);
+        $key = (string) $cp_id;
+        if (empty($doc['campaignOverrides'][$key]) || !is_array($doc['campaignOverrides'][$key])) {
+            return $base;
+        }
+        $merged = lc_embed_merge_option_input($pt_id, $base, $doc['campaignOverrides'][$key]);
+        return !empty($merged['ok']) ? $merged['options'] : $base;
+    }
+}
+
+if (!function_exists('lc_embed_campaign_override')) {
+    /**
+     * @return array<string,mixed>|null
+     */
+    function lc_embed_campaign_override($pt_id, $cp_id)
+    {
+        $cp_id = (int) $cp_id;
+        if ($cp_id <= 0) {
+            return null;
+        }
+        $doc = lc_embed_partner_options_doc($pt_id);
+        $key = (string) $cp_id;
+        if (empty($doc['campaignOverrides'][$key]) || !is_array($doc['campaignOverrides'][$key])) {
+            return null;
+        }
+        return $doc['campaignOverrides'][$key];
+    }
+}
+
+if (!function_exists('lc_embed_set_campaign_options')) {
+    /**
+     * @param array<string,mixed> $options
+     * @return array{ok:bool,message:string,options:array,campaignOptions:array,resolvedOptions:array}
+     */
+    function lc_embed_set_campaign_options($pt_id, $cp_id, array $options)
+    {
+        $pt_id = (int) $pt_id;
+        $cp_id = (int) $cp_id;
+        $partner = lc_embed_partner_options($pt_id);
+        if ($pt_id <= 0 || $cp_id <= 0) {
+            return array(
+                'ok' => false,
+                'message' => '캠페인 정보가 없습니다.',
+                'options' => $partner,
+                'campaignOptions' => array(),
+                'resolvedOptions' => $partner,
+            );
+        }
+        $merged = lc_embed_merge_option_input($pt_id, $partner, $options);
+        if (empty($merged['ok'])) {
+            return array(
+                'ok' => false,
+                'message' => $merged['message'],
+                'options' => $partner,
+                'campaignOptions' => array(),
+                'resolvedOptions' => $partner,
+            );
+        }
+        $doc = lc_embed_partner_options_doc($pt_id);
+        $doc['campaignOverrides'][(string) $cp_id] = $merged['options'];
+        $written = lc_embed_write_partner_options_doc($pt_id, $doc['flat'], $doc['campaignOverrides'], $doc['ab']);
+        if (empty($written['ok'])) {
+            return array(
+                'ok' => false,
+                'message' => $written['message'],
+                'options' => $partner,
+                'campaignOptions' => array(),
+                'resolvedOptions' => $partner,
+            );
+        }
+        return array(
+            'ok' => true,
+            'message' => '이 상품 전용 위젯 설정을 저장했습니다.',
+            'options' => $partner,
+            'campaignOptions' => $merged['options'],
+            'resolvedOptions' => $merged['options'],
+        );
+    }
+}
+
+if (!function_exists('lc_embed_clear_campaign_options')) {
+    /**
+     * @return array{ok:bool,message:string,options:array}
+     */
+    function lc_embed_clear_campaign_options($pt_id, $cp_id)
+    {
+        $pt_id = (int) $pt_id;
+        $cp_id = (int) $cp_id;
+        $partner = lc_embed_partner_options($pt_id);
+        if ($pt_id <= 0 || $cp_id <= 0) {
+            return array('ok' => false, 'message' => '캠페인 정보가 없습니다.', 'options' => $partner);
+        }
+        $doc = lc_embed_partner_options_doc($pt_id);
+        $key = (string) $cp_id;
+        if (isset($doc['campaignOverrides'][$key])) {
+            unset($doc['campaignOverrides'][$key]);
+        }
+        $written = lc_embed_write_partner_options_doc($pt_id, $doc['flat'], $doc['campaignOverrides'], $doc['ab']);
+        if (empty($written['ok'])) {
+            return array('ok' => false, 'message' => $written['message'], 'options' => $partner);
+        }
+        return array(
+            'ok' => true,
+            'message' => '상품 전용 설정을 삭제하고 공통 설정을 사용합니다.',
+            'options' => $partner,
+        );
+    }
+}
+
+if (!function_exists('lc_embed_set_partner_ab')) {
+    /**
+     * @param array<string,mixed> $ab
+     * @return array{ok:bool,message:string,ab:array}
+     */
+    function lc_embed_set_partner_ab($pt_id, array $ab)
+    {
+        $pt_id = (int) $pt_id;
+        $defaults = lc_embed_default_ab();
+        if ($pt_id <= 0) {
+            return array('ok' => false, 'message' => '파트너 정보가 없습니다.', 'ab' => $defaults);
+        }
+        $doc = lc_embed_partner_options_doc($pt_id);
+        $norm = lc_embed_normalize_ab($ab, $pt_id, $doc['flat']);
+        $written = lc_embed_write_partner_options_doc($pt_id, $doc['flat'], $doc['campaignOverrides'], $norm);
+        if (empty($written['ok'])) {
+            return array('ok' => false, 'message' => $written['message'], 'ab' => $doc['ab']);
+        }
+        return array(
+            'ok' => true,
+            'message' => $norm['enabled'] ? 'A/B 테스트를 저장했습니다.' : 'A/B 테스트를 끄고 저장했습니다.',
+            'ab' => $norm,
+        );
+    }
+}
+
+if (!function_exists('lc_embed_ab_payload_for_config')) {
+    /**
+     * 런타임 위젯용 A/B 페이로드 (B안 theme 포함)
+     * @param array<string,mixed> $resolved
+     * @return array{enabled:bool,split?:int,b?:array<string,mixed>}
+     */
+    function lc_embed_ab_payload_for_config($pt_id, array $resolved)
+    {
+        $doc = lc_embed_partner_options_doc($pt_id);
+        $ab = isset($doc['ab']) && is_array($doc['ab']) ? $doc['ab'] : lc_embed_default_ab();
+        if (empty($ab['enabled']) || empty($ab['b']) || !is_array($ab['b'])) {
+            return array('enabled' => false);
+        }
+        $merged = lc_embed_merge_option_input($pt_id, $resolved, $ab['b']);
+        if (empty($merged['ok'])) {
+            return array('enabled' => false);
+        }
+        $b_opts = $merged['options'];
+        $preset = lc_embed_normalize_preset($b_opts['preset'] ?? 'default');
+        $accent = (string) ($b_opts['accent'] ?? '#0d9488');
+        $theme = function_exists('lc_embed_theme_for_preset')
+            ? lc_embed_theme_for_preset($preset, $accent)
+            : array();
+        $b_out = $ab['b'];
+        // 런타임에 바로 덮을 수 있도록 병합된 표시값 + theme
+        foreach (array(
+            'preset', 'pcLayout', 'accent', 'title', 'submitLabel', 'buttonLabel', 'callLabel',
+            'successMessage', 'benefitText', 'ctaHint', 'liveCountText', 'successNextStep',
+            'privacyText', 'minimalForm', 'showTrustBadges', 'badgeFree', 'badgeCallback',
+            'badgePrivacy', 'showLiveCount', 'stickyMobileCta', 'successShowCall', 'showFormCall',
+            'showRegion', 'showInquiry',
+        ) as $key) {
+            if (array_key_exists($key, $b_opts)) {
+                $b_out[$key] = $b_opts[$key];
+            }
+        }
+        $b_out['theme'] = $theme;
+        return array(
+            'enabled' => true,
+            'split'   => (int) ($ab['split'] ?? 50),
+            'b'       => $b_out,
+        );
+    }
+}
+
+if (!function_exists('lc_embed_set_partner_options')) {
+    /**
+     * @param array<string,mixed> $options
+     * @return array{ok:bool,message:string,options:array}
+     */
+    function lc_embed_set_partner_options($pt_id, array $options)
+    {
+        $pt_id = (int) $pt_id;
+        if ($pt_id <= 0) {
+            return array('ok' => false, 'message' => '파트너 정보가 없습니다.', 'options' => lc_embed_default_options());
+        }
+        $partners = lc_table('partners');
+        if (!function_exists('lc_db_column_exists') || !lc_db_column_exists($partners, 'pt_embed_options')) {
+            if (function_exists('lc_db_run_migrations')) {
+                lc_db_run_migrations();
+            }
+        }
+        if (!lc_db_column_exists($partners, 'pt_embed_options')) {
+            return array('ok' => false, 'message' => '위젯 옵션을 저장할 수 없습니다. 관리자에게 문의해 주세요.', 'options' => lc_embed_default_options());
+        }
+
+        $current = lc_embed_partner_options($pt_id);
+        $merged = lc_embed_merge_option_input($pt_id, $current, $options);
+        if (empty($merged['ok'])) {
+            return array('ok' => false, 'message' => $merged['message'], 'options' => $current);
+        }
+        $next = $merged['options'];
+        $doc = lc_embed_partner_options_doc($pt_id);
+        $written = lc_embed_write_partner_options_doc($pt_id, $next, $doc['campaignOverrides'], $doc['ab']);
+        if (empty($written['ok'])) {
+            return array('ok' => false, 'message' => $written['message'], 'options' => $current);
+        }
 
         return array(
             'ok'      => true,
@@ -1071,9 +1446,11 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
         $config_url = lc_site_absolute_url('/plugin/linkconnect/api/embed.php');
         $privacy_url = lc_site_absolute_url('/privacy');
         $allowed_domains = lc_embed_partner_allowed_domains($pt_id);
-        $options = function_exists('lc_embed_partner_options')
-            ? lc_embed_partner_options($pt_id)
-            : lc_embed_default_options();
+        $options = function_exists('lc_embed_resolved_options')
+            ? lc_embed_resolved_options($pt_id, $cp_id)
+            : (function_exists('lc_embed_partner_options')
+                ? lc_embed_partner_options($pt_id)
+                : lc_embed_default_options());
         $accent = (string) ($options['accent'] ?? '#0d9488');
         $preset = function_exists('lc_embed_normalize_preset')
             ? lc_embed_normalize_preset($options['preset'] ?? 'default')
@@ -1090,6 +1467,9 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
                 'call'       => '#059669',
                 'preset'     => $preset,
             );
+        $ab_payload = function_exists('lc_embed_ab_payload_for_config')
+            ? lc_embed_ab_payload_for_config($pt_id, $options)
+            : array('enabled' => false);
 
         return array(
             'lkCode'        => (string) ($link['lk_code'] ?? $lk_code),
@@ -1145,6 +1525,7 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
             'showFormCall' => !array_key_exists('showFormCall', $options) || !empty($options['showFormCall']),
             'successNextStep' => (string) ($options['successNextStep'] ?? ''),
             'options'       => $options,
+            'ab'            => $ab_payload,
             'fields'        => (static function () use ($options) {
                 $fields = array(
                     array('name' => 'name', 'label' => '이름', 'type' => 'text', 'required' => true, 'placeholder' => '홍길동'),

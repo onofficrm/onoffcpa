@@ -44,6 +44,10 @@ export function EmbedCroAnalyticsPanel({ cro, period }: Props) {
   const rates = cro?.rates;
   const daily = cro?.daily ?? [];
   const hosts = cro?.byHost ?? [];
+  const byAb = cro?.byAb;
+  const abA = byAb?.A;
+  const abB = byAb?.B;
+  const hasAbData = Boolean((abA?.total || 0) + (abB?.total || 0) > 0);
   const hasBehavior = steps.some((s) => s.id !== 'db_received' && (s.count || 0) > 0);
 
   return (
@@ -195,6 +199,35 @@ export function EmbedCroAnalyticsPanel({ cro, period }: Props) {
                     </div>
                     <div className="text-[10px] text-slate-400">
                       배지 {host.badgeClick} · 모바일 {host.stickySubmit} · 전화 {host.successCallTap}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <h3 className="text-sm font-bold text-slate-900 mb-3">A/B 비교</h3>
+            {!hasAbData ? (
+              <p className="text-xs text-slate-500 leading-relaxed">
+                위젯 설정에서 A/B를 켜면 방문자가 A·B에 나뉘고, 행동 숫자가 여기에 쌓입니다.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2.5">
+                {(
+                  [
+                    { id: 'A', row: abA },
+                    { id: 'B', row: abB },
+                  ] as const
+                ).map((item) => (
+                  <div key={item.id} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2">
+                    <div className="text-[11px] font-bold text-slate-500 mb-1">{item.id}안</div>
+                    <div className="text-lg font-extrabold text-slate-900 tabular-nums">
+                      {(item.row?.total || 0).toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1 leading-snug">
+                      배지 {item.row?.badgeClick || 0} · 제출 {item.row?.stickySubmit || 0} · 전화{' '}
+                      {item.row?.successCallTap || 0}
                     </div>
                   </div>
                 ))}
