@@ -118,7 +118,7 @@ function DesktopChrome({
           <div className="text-[13px] font-extrabold text-slate-800">{pageTitle}</div>
           <div className="mt-1 text-[11px] text-slate-500">외부 사이트에 위젯이 삽입된 모습입니다</div>
         </div>
-        <div className="mx-auto w-full max-w-[480px] px-6 py-8">{children}</div>
+        <div className="mx-auto w-full max-w-[800px] px-8 py-8">{children}</div>
       </div>
     </div>
   );

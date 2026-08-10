@@ -266,6 +266,9 @@
     var css = [
       '.lc-embed{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:' + text + ';background:' + bg + ';border:1px solid ' + border + ';border-radius:' + radius + ';padding:' + padding + ';max-width:480px;width:100%;box-shadow:' + shadow + ';}',
       '.lc-embed *,.lc-embed *::before,.lc-embed *::after{box-sizing:border-box;}',
+      '.lc-embed__split{display:flex;flex-direction:column;gap:0;}',
+      '.lc-embed__intro{min-width:0;}',
+      '.lc-embed__main{min-width:0;}',
       '.lc-embed__title{margin:0 0 4px;font-size:1.125rem;font-weight:800;letter-spacing:-.02em;}',
       '.lc-embed__sub{margin:0 0 16px;font-size:.875rem;color:' + muted + ';line-height:1.45;}',
       '.lc-embed__header{margin:0 -20px 16px;padding:18px 20px 14px;background:' + ((theme && theme.headerBg) || accent) + ';color:' + ((theme && theme.headerText) || '#fff') + ';}',
@@ -275,6 +278,7 @@
       '.lc-embed__call:hover{background:rgba(5,150,105,.14);}',
       '.lc-embed__call span{font-variant-numeric:tabular-nums;letter-spacing:.02em;}',
       '.lc-embed__call--solo{margin:0;max-width:480px;}',
+      '.lc-embed__fields{display:flex;flex-direction:column;}',
       '.lc-embed__field{margin:0 0 12px;}',
       '.lc-embed__label{display:block;margin:0 0 6px;font-size:.75rem;font-weight:700;color:' + muted + ';}',
       '.lc-embed__req{color:#e11d48;margin-left:2px;}',
@@ -327,6 +331,23 @@
       '.lc-embed-frame{display:block;width:100%;max-width:480px;border:0;background:transparent;overflow:hidden;}',
       '.lc-embed-frame--modal{max-width:100%;width:100%;min-height:420px;border-radius:16px;background:#fff;}',
       '.lc-embed-host{max-width:480px;width:100%;}',
+      /* PC wide split — must come after base max-width rules */
+      '@media (min-width:768px){',
+      '.lc-embed{max-width:800px;padding:24px;}',
+      '.lc-embed__header{margin:0 -24px 20px;padding:20px 24px 16px;}',
+      '.lc-embed__split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:28px;align-items:stretch;}',
+      '.lc-embed__intro{display:flex;flex-direction:column;justify-content:center;padding:4px 20px 4px 0;border-right:1px solid ' + (border === 'transparent' ? '#e2e8f0' : border) + ';}',
+      '.lc-embed__intro .lc-embed__title{font-size:1.35rem;margin:0 0 8px;}',
+      '.lc-embed__intro .lc-embed__sub{margin:0 0 18px;font-size:.9rem;}',
+      '.lc-embed__intro .lc-embed__call{justify-content:flex-start;margin-bottom:0;}',
+      '.lc-embed__intro .lc-embed__badges{margin-bottom:16px;}',
+      '.lc-embed__fields{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}',
+      '.lc-embed__fields .lc-embed__field{margin-bottom:14px;}',
+      '.lc-embed-modal{max-width:800px;}',
+      '.lc-embed-frame{max-width:800px;}',
+      '.lc-embed-host{max-width:800px;}',
+      '.lc-embed__call--solo,.lc-embed__phone-wrap{max-width:800px;}',
+      '}',
     ].join('');
     var style = qs('#' + STYLE_ID);
     if (!style) {
@@ -652,6 +673,9 @@
     var preset = resolvePreset(config);
     var sticky = optFlag(config, 'stickyMobileCta', true);
     var root = el('div', 'lc-embed lc-embed--' + preset + (sticky ? ' lc-embed--sticky' : ''));
+    var split = el('div', 'lc-embed__split');
+    var intro = el('div', 'lc-embed__intro');
+    var main = el('div', 'lc-embed__main');
 
     if (preset === 'bold') {
       var header = el('div', 'lc-embed__header');
@@ -661,27 +685,29 @@
       }
       root.appendChild(header);
     } else {
-      root.appendChild(el('h3', 'lc-embed__title', { text: config.title || '무료 상담 신청' }));
+      intro.appendChild(el('h3', 'lc-embed__title', { text: config.title || '무료 상담 신청' }));
       if (config.subtitle) {
-        root.appendChild(el('p', 'lc-embed__sub', { text: config.subtitle }));
+        intro.appendChild(el('p', 'lc-embed__sub', { text: config.subtitle }));
+      } else {
+        intro.appendChild(el('p', 'lc-embed__sub', { text: '빠른 상담을 남겨 주세요.' }));
       }
     }
 
     var benefit = optText(config, 'benefitText', '');
     if (benefit) {
-      root.appendChild(el('p', 'lc-embed__benefit', { text: benefit }));
+      intro.appendChild(el('p', 'lc-embed__benefit', { text: benefit }));
     }
     if (optFlag(config, 'showLiveCount', true)) {
       var live = el('div', 'lc-embed__live');
       live.appendChild(el('span', 'lc-embed__live-dot'));
       live.appendChild(document.createTextNode(optText(config, 'liveCountText', '지금 상담 신청이 활발합니다')));
-      root.appendChild(live);
+      intro.appendChild(live);
     }
     var badges = buildTrustBadges(config);
-    if (badges) root.appendChild(badges);
+    if (badges) intro.appendChild(badges);
 
     var call = buildCallLink(config, false);
-    if (call) root.appendChild(call);
+    if (call) intro.appendChild(call);
 
     var form = el('form', 'lc-embed__form', { novalidate: 'novalidate' });
     var fields = Array.isArray(config.fields) ? config.fields : [];
@@ -692,9 +718,11 @@
       else optional.push(field);
     });
 
+    var fieldsWrap = el('div', 'lc-embed__fields');
     primary.forEach(function (field) {
-      form.appendChild(buildFieldNode(field));
+      fieldsWrap.appendChild(buildFieldNode(field));
     });
+    form.appendChild(fieldsWrap);
 
     var minimal = optFlag(config, 'minimalForm', true);
     if (optional.length) {
@@ -757,7 +785,11 @@
     form.appendChild(ctaWrap);
     var msg = el('div', 'lc-embed__msg', { role: 'status', 'aria-live': 'polite' });
     form.appendChild(msg);
-    root.appendChild(form);
+    main.appendChild(form);
+
+    split.appendChild(intro);
+    split.appendChild(main);
+    root.appendChild(split);
 
     if (config.brandName) {
       root.appendChild(el('p', 'lc-embed__foot', { text: config.brandName + ' 상담 위젯' }));
