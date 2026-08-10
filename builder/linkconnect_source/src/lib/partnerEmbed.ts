@@ -115,6 +115,8 @@ export type PartnerEmbedStatsDailyRow = {
 };
 
 export type PartnerEmbedOptions = {
+  /** default | simple | card | bold | soft | dark */
+  preset?: string;
   accent?: string;
   title?: string;
   submitLabel?: string;

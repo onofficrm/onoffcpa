@@ -152,7 +152,6 @@
   }
 
   function ensureStyles(theme) {
-    if (qs('#' + STYLE_ID)) return;
     var accent = (theme && theme.accent) || '#0d9488';
     var accentText = (theme && theme.accentText) || '#ffffff';
     var border = (theme && theme.border) || '#e2e8f0';
@@ -160,11 +159,18 @@
     var text = (theme && theme.text) || '#0f172a';
     var muted = (theme && theme.muted) || '#64748b';
     var call = (theme && theme.call) || '#059669';
+    var radius = (theme && theme.radius) || '16px';
+    var shadow = (theme && theme.shadow) || '0 8px 24px rgba(15,23,42,.06)';
+    var padding = (theme && theme.padding) || '20px';
+    var inputBg = (theme && theme.inputBg) || '#f8fafc';
     var css = [
-      '.lc-embed{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:' + text + ';background:' + bg + ';border:1px solid ' + border + ';border-radius:16px;padding:20px;max-width:480px;width:100%;box-shadow:0 8px 24px rgba(15,23,42,.06);}',
+      '.lc-embed{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:' + text + ';background:' + bg + ';border:1px solid ' + border + ';border-radius:' + radius + ';padding:' + padding + ';max-width:480px;width:100%;box-shadow:' + shadow + ';}',
       '.lc-embed *,.lc-embed *::before,.lc-embed *::after{box-sizing:border-box;}',
       '.lc-embed__title{margin:0 0 4px;font-size:1.125rem;font-weight:800;letter-spacing:-.02em;}',
       '.lc-embed__sub{margin:0 0 16px;font-size:.875rem;color:' + muted + ';line-height:1.45;}',
+      '.lc-embed__header{margin:0 -20px 16px;padding:18px 20px 14px;background:' + ((theme && theme.headerBg) || accent) + ';color:' + ((theme && theme.headerText) || '#fff') + ';}',
+      '.lc-embed__header .lc-embed__title{margin:0;color:inherit;}',
+      '.lc-embed__header .lc-embed__sub{margin:4px 0 0;color:inherit;opacity:.9;}',
       '.lc-embed__call{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.22);color:' + call + ';font-weight:800;font-size:.95rem;text-decoration:none;}',
       '.lc-embed__call:hover{background:rgba(5,150,105,.14);}',
       '.lc-embed__call span{font-variant-numeric:tabular-nums;letter-spacing:.02em;}',
@@ -172,8 +178,8 @@
       '.lc-embed__field{margin:0 0 12px;}',
       '.lc-embed__label{display:block;margin:0 0 6px;font-size:.75rem;font-weight:700;color:' + muted + ';}',
       '.lc-embed__req{color:#e11d48;margin-left:2px;}',
-      '.lc-embed__input,.lc-embed__textarea{width:100%;border:1px solid ' + border + ';border-radius:12px;padding:11px 12px;font-size:.95rem;color:' + text + ';background:#f8fafc;outline:none;transition:border-color .15s,box-shadow .15s;}',
-      '.lc-embed__input:focus,.lc-embed__textarea:focus{border-color:' + accent + ';box-shadow:0 0 0 3px rgba(13,148,136,.15);background:#fff;}',
+      '.lc-embed__input,.lc-embed__textarea{width:100%;border:1px solid ' + (border === 'transparent' ? '#e2e8f0' : border) + ';border-radius:12px;padding:11px 12px;font-size:.95rem;color:' + text + ';background:' + inputBg + ';outline:none;transition:border-color .15s,box-shadow .15s;}',
+      '.lc-embed__input:focus,.lc-embed__textarea:focus{border-color:' + accent + ';box-shadow:0 0 0 3px rgba(13,148,136,.15);background:' + (inputBg === '#1e293b' ? '#1e293b' : '#fff') + ';}',
       '.lc-embed__textarea{min-height:96px;resize:vertical;}',
       '.lc-embed__hp{position:absolute!important;left:-9999px!important;height:0!important;overflow:hidden!important;opacity:0!important;}',
       '.lc-embed__privacy{display:flex;gap:8px;align-items:flex-start;margin:4px 0 14px;font-size:.8rem;color:' + muted + ';line-height:1.4;}',
@@ -191,6 +197,7 @@
       '.lc-embed__foot{margin:12px 0 0;font-size:.7rem;color:' + muted + ';text-align:center;}',
       '.lc-embed__phone-wrap{max-width:480px;}',
       '.lc-embed__phone-note{margin:10px 0 0;font-size:.8rem;color:' + muted + ';line-height:1.4;}',
+      '.lc-embed--bold .lc-embed__btn{padding:15px 16px;font-size:1rem;}',
       '.lc-embed-overlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);}',
       '.lc-embed-overlay[hidden]{display:none!important;}',
       '.lc-embed-modal{position:relative;width:100%;max-width:480px;max-height:min(92vh,720px);overflow:auto;}',
@@ -201,10 +208,25 @@
       '.lc-embed-frame--modal{max-width:100%;width:100%;min-height:420px;border-radius:16px;background:#fff;}',
       '.lc-embed-host{max-width:480px;width:100%;}',
     ].join('');
-    var style = document.createElement('style');
-    style.id = STYLE_ID;
+    var style = qs('#' + STYLE_ID);
+    if (!style) {
+      style = document.createElement('style');
+      style.id = STYLE_ID;
+      document.head.appendChild(style);
+    }
     style.textContent = css;
-    document.head.appendChild(style);
+  }
+
+  function resolvePreset(config) {
+    var preset = '';
+    if (config && config.theme && config.theme.preset) preset = String(config.theme.preset);
+    if (!preset && config && config.preset) preset = String(config.preset);
+    if (!preset && config && config.options && config.options.preset) preset = String(config.options.preset);
+    preset = preset.toLowerCase();
+    if (preset === 'simple' || preset === 'card' || preset === 'bold' || preset === 'soft' || preset === 'dark') {
+      return preset;
+    }
+    return 'default';
   }
 
   function el(tag, className, attrs) {
@@ -359,10 +381,21 @@
   }
 
   function buildFormCard(config, opts) {
-    var root = el('div', 'lc-embed');
-    root.appendChild(el('h3', 'lc-embed__title', { text: config.title || '무료 상담 신청' }));
-    if (config.subtitle) {
-      root.appendChild(el('p', 'lc-embed__sub', { text: config.subtitle }));
+    var preset = resolvePreset(config);
+    var root = el('div', 'lc-embed lc-embed--' + preset);
+
+    if (preset === 'bold') {
+      var header = el('div', 'lc-embed__header');
+      header.appendChild(el('h3', 'lc-embed__title', { text: config.title || '무료 상담 신청' }));
+      if (config.subtitle) {
+        header.appendChild(el('p', 'lc-embed__sub', { text: config.subtitle }));
+      }
+      root.appendChild(header);
+    } else {
+      root.appendChild(el('h3', 'lc-embed__title', { text: config.title || '무료 상담 신청' }));
+      if (config.subtitle) {
+        root.appendChild(el('p', 'lc-embed__sub', { text: config.subtitle }));
+      }
     }
 
     var call = buildCallLink(config, false);

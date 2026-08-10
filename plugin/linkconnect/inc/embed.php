@@ -354,6 +354,7 @@ if (!function_exists('lc_embed_default_options')) {
     function lc_embed_default_options()
     {
         return array(
+            'preset'               => 'default',
             'accent'               => '#0d9488',
             'title'                => '무료 상담 신청',
             'submitLabel'          => '상담 신청하기',
@@ -385,6 +386,82 @@ if (!function_exists('lc_embed_normalize_accent')) {
             return '';
         }
         return strtolower($value);
+    }
+}
+
+if (!function_exists('lc_embed_normalize_preset')) {
+    /**
+     * @return string default|simple|card|bold|soft|dark
+     */
+    function lc_embed_normalize_preset($value)
+    {
+        $value = strtolower(trim((string) $value));
+        $allowed = array('default', 'simple', 'card', 'bold', 'soft', 'dark');
+        if (in_array($value, $allowed, true)) {
+            return $value;
+        }
+        return 'default';
+    }
+}
+
+if (!function_exists('lc_embed_theme_for_preset')) {
+    /**
+     * @return array{accent:string,accentText:string,border:string,bg:string,text:string,muted:string,call:string,preset:string,radius:string,shadow:string,padding:string,inputBg:string,headerBg?:string,headerText?:string}
+     */
+    function lc_embed_theme_for_preset($preset, $accent = '#0d9488')
+    {
+        $preset = lc_embed_normalize_preset($preset);
+        $accent = lc_embed_normalize_accent($accent);
+        if ($accent === '') {
+            $accent = '#0d9488';
+        }
+        $base = array(
+            'accent'     => $accent,
+            'accentText' => '#ffffff',
+            'border'     => '#e2e8f0',
+            'bg'         => '#ffffff',
+            'text'       => '#0f172a',
+            'muted'      => '#64748b',
+            'call'       => '#059669',
+            'preset'     => $preset,
+            'radius'     => '16px',
+            'shadow'     => '0 8px 24px rgba(15,23,42,.06)',
+            'padding'    => '20px',
+            'inputBg'    => '#f8fafc',
+        );
+        if ($preset === 'simple') {
+            $base['radius'] = '10px';
+            $base['shadow'] = 'none';
+            $base['padding'] = '16px';
+            $base['inputBg'] = '#ffffff';
+        } elseif ($preset === 'card') {
+            $base['radius'] = '22px';
+            $base['shadow'] = '0 18px 40px rgba(15,23,42,.12)';
+            $base['padding'] = '22px';
+        } elseif ($preset === 'bold') {
+            $base['border'] = 'transparent';
+            $base['padding'] = '0 20px 20px';
+            $base['headerBg'] = $accent;
+            $base['headerText'] = '#ffffff';
+            $base['shadow'] = '0 12px 28px rgba(15,23,42,.1)';
+        } elseif ($preset === 'soft') {
+            $base['border'] = $accent . '33';
+            $base['bg'] = $accent . '14';
+            $base['call'] = $accent;
+            $base['radius'] = '18px';
+            $base['shadow'] = '0 8px 20px rgba(15,23,42,.05)';
+            $base['inputBg'] = '#ffffff';
+        } elseif ($preset === 'dark') {
+            $base['accentText'] = '#0f172a';
+            $base['border'] = '#334155';
+            $base['bg'] = '#0f172a';
+            $base['text'] = '#f8fafc';
+            $base['muted'] = '#94a3b8';
+            $base['call'] = $accent;
+            $base['shadow'] = '0 12px 32px rgba(0,0,0,.35)';
+            $base['inputBg'] = '#1e293b';
+        }
+        return $base;
     }
 }
 
@@ -446,6 +523,9 @@ if (!function_exists('lc_embed_partner_options')) {
         $decoded = json_decode($raw, true);
         if (!is_array($decoded)) {
             return $defaults;
+        }
+        if (isset($decoded['preset'])) {
+            $defaults['preset'] = lc_embed_normalize_preset($decoded['preset']);
         }
         $accent = lc_embed_normalize_accent($decoded['accent'] ?? '');
         if ($accent !== '') {
@@ -525,6 +605,9 @@ if (!function_exists('lc_embed_set_partner_options')) {
         $current = lc_embed_partner_options($pt_id);
         $next = $current;
 
+        if (array_key_exists('preset', $options)) {
+            $next['preset'] = lc_embed_normalize_preset($options['preset']);
+        }
         if (array_key_exists('accent', $options)) {
             $accent = lc_embed_normalize_accent($options['accent']);
             if ($accent === '' && trim((string) $options['accent']) !== '') {
@@ -912,6 +995,21 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
             ? lc_embed_partner_options($pt_id)
             : lc_embed_default_options();
         $accent = (string) ($options['accent'] ?? '#0d9488');
+        $preset = function_exists('lc_embed_normalize_preset')
+            ? lc_embed_normalize_preset($options['preset'] ?? 'default')
+            : 'default';
+        $theme = function_exists('lc_embed_theme_for_preset')
+            ? lc_embed_theme_for_preset($preset, $accent)
+            : array(
+                'accent'     => $accent,
+                'accentText' => '#ffffff',
+                'border'     => '#e2e8f0',
+                'bg'         => '#ffffff',
+                'text'       => '#0f172a',
+                'muted'      => '#64748b',
+                'call'       => '#059669',
+                'preset'     => $preset,
+            );
 
         return array(
             'lkCode'        => (string) ($link['lk_code'] ?? $lk_code),
@@ -948,6 +1046,7 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
             'privacyText'   => (string) ($options['privacyText'] ?? '개인정보 수집·이용에 동의합니다.'),
             'showRegion'    => !array_key_exists('showRegion', $options) || !empty($options['showRegion']),
             'showInquiry'   => !array_key_exists('showInquiry', $options) || !empty($options['showInquiry']),
+            'preset'        => $preset,
             'options'       => $options,
             'fields'        => (static function () use ($options) {
                 $fields = array(
@@ -964,15 +1063,7 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
                 }
                 return $fields;
             })(),
-            'theme'         => array(
-                'accent'     => $accent,
-                'accentText' => '#ffffff',
-                'border'     => '#e2e8f0',
-                'bg'         => '#ffffff',
-                'text'       => '#0f172a',
-                'muted'      => '#64748b',
-                'call'       => '#059669',
-            ),
+            'theme'         => $theme,
         );
     }
 }
