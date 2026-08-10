@@ -847,7 +847,7 @@ export function PartnerWpEmbedGuideModal({
             <p className="text-[11px] text-slate-500 leading-relaxed">
               {previewStage === 'success'
                 ? '접수 성공 후 고객에게 보이는 안내입니다. 완료 문구·이동 URL이 여기에 반영됩니다.'
-                : 'PC·모바일 실사이즈 프레임으로 봅니다. 저장 전에도 설정이 즉시 반영됩니다.'}
+                : 'PC·모바일 실사이즈 프레임입니다. 미리보기를 클릭하거나 「크게 보기」로 확대해 확인할 수 있습니다.'}
             </p>
             <EmbedDevicePreviewFrame device={device} productLabel={productLabel} pageHost="example.com">
               <EmbedWidgetLivePreview

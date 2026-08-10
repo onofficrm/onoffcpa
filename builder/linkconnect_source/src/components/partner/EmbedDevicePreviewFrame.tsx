@@ -1,4 +1,6 @@
+import { Maximize2, X } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 export type EmbedPreviewDevice = 'pc' | 'mobile';
 
@@ -13,21 +15,26 @@ type Props = {
   /** 주소창·페이지 헤더에 표시할 상품명 */
   productLabel?: string;
   pageHost?: string;
+  /** 클릭/버튼으로 크게 보기 (기본 true) */
+  expandable?: boolean;
 };
 
 /**
  * PC 브라우저 / 모바일 실기기 크롬 프레임.
  * 내부는 논리 픽셀(390 / 1280)로 레이아웃하고, 패널 폭에 맞춰 축소합니다.
+ * 클릭 또는 「크게 보기」로 거의 실사이즈 확대 오버레이를 엽니다.
  */
 export function EmbedDevicePreviewFrame({
   device,
   children,
   productLabel,
   pageHost = 'example.com',
+  expandable = true,
 }: Props) {
   const viewport = EMBED_DEVICE_VIEWPORTS[device];
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.28);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -43,8 +50,32 @@ export function EmbedDevicePreviewFrame({
     return () => ro.disconnect();
   }, [viewport.width]);
 
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpanded(false);
+    };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [expanded]);
+
   const pageTitle = productLabel ? `${productLabel} · 홈페이지` : '내 홈페이지';
   const urlPath = productLabel ? `/consult` : '/';
+
+  const chrome = (
+    device === 'mobile' ? (
+      <MobileChrome pageTitle={pageTitle}>{children}</MobileChrome>
+    ) : (
+      <DesktopChrome pageHost={pageHost} urlPath={urlPath} pageTitle={pageTitle}>
+        {children}
+      </DesktopChrome>
+    )
+  );
 
   return (
     <div className="w-full space-y-2">
@@ -52,9 +83,41 @@ export function EmbedDevicePreviewFrame({
         <span className="font-bold tabular-nums">
           {device === 'mobile' ? '모바일' : 'PC'} · {viewport.label}
         </span>
-        <span className="tabular-nums opacity-80">{Math.round(scale * 100)}% 축소</span>
+        <div className="flex items-center gap-2">
+          <span className="tabular-nums opacity-80">{Math.round(scale * 100)}% 축소</span>
+          {expandable ? (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-50"
+            >
+              <Maximize2 size={11} />
+              크게 보기
+            </button>
+          ) : null}
+        </div>
       </div>
-      <div ref={wrapRef} className="w-full flex justify-center overflow-hidden">
+
+      <div
+        ref={wrapRef}
+        className={`w-full flex justify-center overflow-hidden ${
+          expandable ? 'group relative cursor-zoom-in' : ''
+        }`}
+        role={expandable ? 'button' : undefined}
+        tabIndex={expandable ? 0 : undefined}
+        onClick={expandable ? () => setExpanded(true) : undefined}
+        onKeyDown={
+          expandable
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setExpanded(true);
+                }
+              }
+            : undefined
+        }
+        aria-label={expandable ? '미리보기 크게 보기' : undefined}
+      >
         <div
           style={{
             width: viewport.width * scale,
@@ -63,22 +126,143 @@ export function EmbedDevicePreviewFrame({
           }}
         >
           <div
-            className="origin-top-left absolute top-0 left-0"
+            className="origin-top-left absolute top-0 left-0 pointer-events-none"
             style={{
               width: viewport.width,
               height: viewport.height,
               transform: `scale(${scale})`,
             }}
           >
-            {device === 'mobile' ? (
-              <MobileChrome pageTitle={pageTitle}>{children}</MobileChrome>
-            ) : (
-              <DesktopChrome pageHost={pageHost} urlPath={urlPath} pageTitle={pageTitle}>
-                {children}
-              </DesktopChrome>
-            )}
+            {chrome}
           </div>
         </div>
+        {expandable ? (
+          <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-3 opacity-0 transition-opacity group-hover:opacity-100">
+            <span className="rounded-full bg-slate-900/80 px-3 py-1.5 text-[10px] font-bold text-white shadow-lg">
+              클릭하여 크게 보기
+            </span>
+          </div>
+        ) : null}
+      </div>
+
+      {expanded && expandable
+        ? createPortal(
+            <ExpandedPreviewOverlay
+              device={device}
+              viewport={viewport}
+              pageTitle={pageTitle}
+              pageHost={pageHost}
+              urlPath={urlPath}
+              onClose={() => setExpanded(false)}
+            >
+              {children}
+            </ExpandedPreviewOverlay>,
+            document.body,
+          )
+        : null}
+    </div>
+  );
+}
+
+function ExpandedPreviewOverlay({
+  device,
+  viewport,
+  pageTitle,
+  pageHost,
+  urlPath,
+  onClose,
+  children,
+}: {
+  device: EmbedPreviewDevice;
+  viewport: (typeof EMBED_DEVICE_VIEWPORTS)[EmbedPreviewDevice];
+  pageTitle: string;
+  pageHost: string;
+  urlPath: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.7);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const update = () => {
+      const pad = 24;
+      const availW = Math.max(200, el.clientWidth - pad);
+      const availH = Math.max(200, el.clientHeight - pad);
+      const next = Math.min(1, availW / viewport.width, availH / viewport.height);
+      setScale(Math.max(0.35, next));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [viewport.width, viewport.height]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex flex-col bg-slate-950/70 backdrop-blur-sm p-3 sm:p-5"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="embed-preview-expand-title"
+      onClick={onClose}
+    >
+      <div
+        className="mx-auto flex h-full w-full max-w-[1400px] flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 px-4 py-3">
+          <div className="min-w-0">
+            <div id="embed-preview-expand-title" className="text-sm font-bold text-white">
+              미리보기 크게 보기
+            </div>
+            <p className="mt-0.5 truncate text-[11px] text-slate-400">
+              {device === 'mobile' ? '모바일' : 'PC'} · {viewport.label} · {Math.round(scale * 100)}%
+              {scale < 1 ? ' 맞춤' : ' 실사이즈'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-slate-100 hover:bg-slate-700"
+            aria-label="닫기"
+          >
+            <X size={16} />
+            닫기
+          </button>
+        </div>
+        <div ref={stageRef} className="min-h-0 flex-1 overflow-auto bg-slate-800/80 p-4 sm:p-6">
+          <div className="flex min-h-full items-center justify-center">
+            <div
+              style={{
+                width: viewport.width * scale,
+                height: viewport.height * scale,
+                position: 'relative',
+              }}
+            >
+              <div
+                className="origin-top-left absolute top-0 left-0"
+                style={{
+                  width: viewport.width,
+                  height: viewport.height,
+                  transform: `scale(${scale})`,
+                }}
+              >
+                {device === 'mobile' ? (
+                  <MobileChrome pageTitle={pageTitle}>{children}</MobileChrome>
+                ) : (
+                  <DesktopChrome pageHost={pageHost} urlPath={urlPath} pageTitle={pageTitle}>
+                    {children}
+                  </DesktopChrome>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        <p className="shrink-0 border-t border-slate-700 px-4 py-2 text-center text-[11px] text-slate-400">
+          Esc 또는 바깥 영역 클릭으로 닫습니다
+        </p>
       </div>
     </div>
   );
