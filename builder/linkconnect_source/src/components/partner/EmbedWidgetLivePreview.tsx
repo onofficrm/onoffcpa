@@ -233,38 +233,154 @@ function WidgetCard({
 }) {
   const stickyForm = stickyMobile && stage === 'form' && !wideLayout;
   const borderTone = theme.border === 'transparent' ? '#e2e8f0' : theme.border;
+  const pc = wideLayout ? preset : null;
+  const stackedPc = pc === 'simple' || pc === 'card';
+  const showIntroTitle = !(preset === 'bold' && theme.headerBg);
+
+  const introStyle = ((): CSSProperties | undefined => {
+    if (!wideLayout) return undefined;
+    if (pc === 'simple') {
+      return {
+        display: 'flex',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '8px 10px',
+        padding: '0 0 14px',
+        borderBottom: `1px solid ${borderTone}`,
+        minWidth: 0,
+      };
+    }
+    if (pc === 'card') {
+      return {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
+        padding: 0,
+        minWidth: 0,
+      };
+    }
+    if (pc === 'soft') {
+      return {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: '8px 12px 8px 4px',
+        minWidth: 0,
+      };
+    }
+    if (pc === 'dark') {
+      return {
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: '28px 24px',
+        borderRadius: '12px 0 0 12px',
+        background: '#020617',
+        minWidth: 0,
+      };
+    }
+    return {
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      padding: '4px 20px 4px 0',
+      borderRight: `1px solid ${borderTone}`,
+      minWidth: 0,
+    };
+  })();
+
+  const splitStyle = ((): CSSProperties | undefined => {
+    if (!wideLayout) {
+      return stickyForm ? { display: 'flex', flexDirection: 'column', minHeight: 480 } : undefined;
+    }
+    if (stackedPc) {
+      return { display: 'flex', flexDirection: 'column', gap: pc === 'card' ? 16 : 18, alignItems: 'stretch' };
+    }
+    if (pc === 'soft') {
+      return {
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0,1.05fr) minmax(0,1fr)',
+        gap: 24,
+        alignItems: 'stretch',
+      };
+    }
+    if (pc === 'dark') {
+      return {
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.2fr)',
+        gap: 0,
+        alignItems: 'stretch',
+      };
+    }
+    return {
+      display: 'grid',
+      gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.15fr)',
+      gap: pc === 'bold' ? 32 : 28,
+      alignItems: 'stretch',
+    };
+  })();
+
+  const mainStyle = ((): CSSProperties => {
+    const base: CSSProperties = {
+      minWidth: 0,
+      flex: stickyForm ? 1 : undefined,
+      display: stickyForm ? 'flex' : undefined,
+      flexDirection: stickyForm ? 'column' : undefined,
+    };
+    if (pc === 'soft') {
+      return {
+        ...base,
+        background: '#fff',
+        borderRadius: 16,
+        padding: 22,
+        boxShadow: '0 10px 28px rgba(15,23,42,.08)',
+        border: '1px solid rgba(15,23,42,.06)',
+      };
+    }
+    if (pc === 'dark') {
+      return {
+        ...base,
+        background: '#1e293b',
+        borderRadius: '0 12px 12px 0',
+        padding: 24,
+        border: '1px solid #334155',
+        borderLeft: 0,
+      };
+    }
+    return base;
+  })();
+
+  const rootPad =
+    pc === 'dark' ? 8 : pc === 'bold' ? undefined : pc === 'card' ? 28 : pc === 'soft' ? 28 : wideLayout ? 24 : theme.padding;
+  const rootMax =
+    pc === 'simple' ? 720 : pc === 'card' ? 760 : pc === 'bold' || pc === 'dark' ? 840 : pc === 'soft' ? 820 : wideLayout ? 800 : undefined;
 
   const introBlock = (
-    <div
-      style={
-        wideLayout
-          ? {
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              padding: '4px 20px 4px 0',
-              borderRight: `1px solid ${borderTone}`,
-              minWidth: 0,
-            }
-          : undefined
-      }
-    >
-      {preset === 'bold' && theme.headerBg && !wideLayout ? null : preset !== 'bold' || !theme.headerBg ? (
+    <div style={introStyle}>
+      {showIntroTitle ? (
         <>
           <div
             style={{
-              margin: '0 0 4px',
-              fontSize: wideLayout ? '1.35rem' : '1.125rem',
+              margin: pc === 'simple' ? '0 12px 0 0' : pc === 'card' ? '0 0 6px' : '0 0 4px',
+              fontSize: pc === 'soft' ? '1.55rem' : pc === 'dark' || pc === 'card' ? '1.4rem' : wideLayout ? '1.35rem' : '1.125rem',
               fontWeight: 800,
+              lineHeight: pc === 'soft' ? 1.3 : undefined,
+              letterSpacing: pc === 'soft' ? '-0.03em' : undefined,
+              textAlign: pc === 'card' ? 'center' : undefined,
+              color: pc === 'dark' ? '#f8fafc' : undefined,
             }}
           >
             {title}
           </div>
           <div
             style={{
-              margin: wideLayout ? '0 0 18px' : '0 0 10px',
-              fontSize: wideLayout ? '0.9rem' : '0.875rem',
+              margin: pc === 'simple' ? 0 : wideLayout ? '0 0 18px' : '0 0 10px',
+              fontSize: wideLayout ? (pc === 'soft' ? '0.95rem' : '0.9rem') : '0.875rem',
               color: theme.muted,
+              flex: pc === 'simple' ? '1 1 100%' : undefined,
+              textAlign: pc === 'card' ? 'center' : undefined,
             }}
           >
             빠른 상담을 남겨 주세요.
@@ -273,7 +389,14 @@ function WidgetCard({
       ) : null}
 
       {benefitText ? (
-        <div style={{ margin: '0 0 10px', fontSize: '0.82rem', fontWeight: 700, color: theme.accent }}>
+        <div
+          style={{
+            margin: pc === 'simple' ? '0 0 0 auto' : '0 0 10px',
+            fontSize: pc === 'soft' ? '0.95rem' : '0.82rem',
+            fontWeight: 700,
+            color: theme.accent,
+          }}
+        >
           {benefitText}
         </div>
       ) : null}
@@ -284,7 +407,7 @@ function WidgetCard({
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            margin: '0 0 12px',
+            margin: pc === 'simple' ? 0 : pc === 'card' ? '0 auto 12px' : '0 0 12px',
             padding: '6px 10px',
             borderRadius: 999,
             background: 'rgba(239,68,68,.08)',
@@ -308,7 +431,20 @@ function WidgetCard({
       ) : null}
 
       {badges.length > 0 ? (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: wideLayout ? '0 0 16px' : '0 0 12px' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 6,
+            margin: pc === 'simple' ? 0 : pc === 'card' ? '0 0 14px' : wideLayout ? '0 0 16px' : '0 0 12px',
+            justifyContent: pc === 'card' ? 'center' : undefined,
+            width: pc === 'card' ? '100%' : undefined,
+            padding: pc === 'card' ? '10px 12px' : undefined,
+            borderRadius: pc === 'card' ? 14 : undefined,
+            background: pc === 'card' ? 'rgba(15,23,42,.03)' : undefined,
+            border: pc === 'card' ? `1px solid ${borderTone}` : undefined,
+          }}
+        >
           {badges.map((b) => (
             <span
               key={b}
@@ -333,16 +469,18 @@ function WidgetCard({
           style={{
             display: 'flex',
             alignItems: 'center',
-            justifyContent: wideLayout ? 'flex-start' : 'center',
+            justifyContent: pc === 'card' ? 'center' : wideLayout && pc !== 'simple' ? 'flex-start' : 'center',
             gap: 8,
-            margin: wideLayout ? 0 : '0 0 14px',
-            padding: '11px 12px',
+            margin: pc === 'simple' ? 0 : pc === 'card' ? '0 auto' : wideLayout ? 0 : '0 0 14px',
+            padding: pc === 'simple' ? '8px 12px' : '11px 12px',
             borderRadius: 12,
-            background: 'rgba(5,150,105,.08)',
-            border: '1px solid rgba(5,150,105,.22)',
+            background: pc === 'dark' ? 'rgba(34,211,238,.1)' : 'rgba(5,150,105,.08)',
+            border: pc === 'dark' ? '1px solid rgba(34,211,238,.35)' : '1px solid rgba(5,150,105,.22)',
             color: theme.call,
             fontWeight: 800,
-            fontSize: '0.9rem',
+            fontSize: pc === 'simple' ? '0.85rem' : '0.9rem',
+            width: pc === 'card' ? '100%' : undefined,
+            maxWidth: pc === 'card' ? 420 : undefined,
           }}
         >
           {callLabel} <span className="tabular-nums">010-0000-0000</span>
@@ -352,7 +490,7 @@ function WidgetCard({
   );
 
   const formBlock = (
-    <div style={{ minWidth: 0, flex: stickyForm ? 1 : undefined, display: stickyForm ? 'flex' : undefined, flexDirection: stickyForm ? 'column' : undefined }}>
+    <div style={mainStyle}>
       <div
         style={
           wideLayout
@@ -426,8 +564,8 @@ function WidgetCard({
             justifyContent: 'center',
             border: 0,
             borderRadius: 12,
-            padding: '13px 16px',
-            fontSize: '0.95rem',
+            padding: pc === 'bold' ? '16px 18px' : '13px 16px',
+            fontSize: pc === 'bold' ? '1.05rem' : '0.95rem',
             fontWeight: 800,
             background: theme.accent,
             color: theme.accentText,
@@ -461,12 +599,12 @@ function WidgetCard({
         border: `1px solid ${theme.border}`,
         borderRadius: theme.radius,
         boxShadow: theme.shadow,
-        padding: wideLayout ? 24 : theme.padding,
+        padding: pc === 'bold' ? '0 28px 28px' : rootPad,
         overflow: 'hidden',
         fontFamily:
           '-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif',
         minHeight: stickyForm ? 520 : undefined,
-        maxWidth: wideLayout ? 800 : undefined,
+        maxWidth: rootMax,
         width: '100%',
       }}
     >
@@ -489,28 +627,17 @@ function WidgetCard({
               style={{
                 background: theme.headerBg,
                 color: theme.headerText,
-                margin: wideLayout ? '0 -24px 20px' : '0 -20px 16px',
-                padding: wideLayout ? '20px 24px 16px' : '18px 20px 14px',
+                margin: wideLayout ? '0 -28px 24px' : '0 -20px 16px',
+                padding: wideLayout ? '28px 32px 24px' : '18px 20px 14px',
               }}
             >
-              <div style={{ fontSize: wideLayout ? '1.25rem' : '1.125rem', fontWeight: 800 }}>{title}</div>
-              <div style={{ marginTop: 4, fontSize: '0.8rem', opacity: 0.9 }}>빠른 상담을 남겨 주세요.</div>
+              <div style={{ fontSize: wideLayout ? '1.55rem' : '1.125rem', fontWeight: 800 }}>{title}</div>
+              <div style={{ marginTop: wideLayout ? 8 : 4, fontSize: wideLayout ? '0.95rem' : '0.8rem', opacity: 0.9 }}>
+                빠른 상담을 남겨 주세요.
+              </div>
             </div>
           ) : null}
-          <div
-            style={
-              wideLayout
-                ? {
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.15fr)',
-                    gap: 28,
-                    alignItems: 'stretch',
-                  }
-                : stickyForm
-                  ? { display: 'flex', flexDirection: 'column', minHeight: 480 }
-                  : undefined
-            }
-          >
+          <div style={splitStyle}>
             {introBlock}
             {formBlock}
           </div>

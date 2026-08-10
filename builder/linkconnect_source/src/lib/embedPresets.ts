@@ -12,12 +12,12 @@ export type EmbedPresetMeta = {
 };
 
 export const EMBED_PRESETS: EmbedPresetMeta[] = [
-  { id: 'default', label: '기본형', desc: '카드 + 그림자, 범용', accentHint: '#0d9488' },
-  { id: 'simple', label: '심플형', desc: '테두리만, 가벼운 느낌', accentHint: '#0f766e' },
-  { id: 'card', label: '카드형', desc: '둥근 모서리·깊은 그림자', accentHint: '#2563eb' },
-  { id: 'bold', label: '강조형', desc: '상단 컬러바 + 큰 CTA', accentHint: '#dc2626' },
-  { id: 'soft', label: '소프트형', desc: '연한 배경·부드러운 톤', accentHint: '#7c3aed' },
-  { id: 'dark', label: '다크형', desc: '어두운 배경·밝은 글자', accentHint: '#22d3ee' },
+  { id: 'default', label: '기본형', desc: 'PC 2열 신뢰+폼 · 범용', accentHint: '#0d9488' },
+  { id: 'simple', label: '심플형', desc: 'PC 와이드 1열 · 가벼운 톤', accentHint: '#0f766e' },
+  { id: 'card', label: '카드형', desc: 'PC 중앙 카드 · 배지 스트립', accentHint: '#2563eb' },
+  { id: 'bold', label: '강조형', desc: 'PC 풀폭 헤더+2열 · 강한 CTA', accentHint: '#dc2626' },
+  { id: 'soft', label: '소프트형', desc: 'PC 히어로+흰 폼 패널', accentHint: '#7c3aed' },
+  { id: 'dark', label: '다크형', desc: 'PC 대비 스플릿 · 다크 레일', accentHint: '#22d3ee' },
 ];
 
 export function normalizeEmbedPreset(value?: string | null): EmbedPresetId {
