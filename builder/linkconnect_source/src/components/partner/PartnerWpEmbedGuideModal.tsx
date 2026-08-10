@@ -2,6 +2,7 @@ import { Copy, Download, Monitor, Smartphone, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { HelpTipButton, HelpTipHeading } from '../HelpTipButton';
 import { EmbedDesignGallery } from './EmbedDesignGallery';
+import { EmbedDevicePreviewFrame } from './EmbedDevicePreviewFrame';
 import { EmbedWidgetLivePreview, type EmbedPreviewStage } from './EmbedWidgetLivePreview';
 import { EMBED_HELP } from '../../lib/embedHelpTips';
 import {
@@ -60,12 +61,20 @@ const DEFAULT_OPTIONS: PartnerEmbedOptions = {
 
 export type EmbedGuideTabId = 'preset' | 'convert' | 'copy' | 'fields' | 'install';
 
+export type EmbedGuideProductContext = {
+  campaignTitle?: string;
+  channel?: string;
+  linkName?: string;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
   lkCode?: string;
   /** 모달 열릴 때 시작할 탭 */
   initialTab?: EmbedGuideTabId;
+  /** 홍보링크 행에서 열 때 상품·채널 맥락 */
+  productContext?: EmbedGuideProductContext | null;
   onCopySnippet?: (snippet: string) => void;
   /** 옵션 저장 후 목록 상태 갱신 */
   onSaved?: () => void;
@@ -92,6 +101,7 @@ export function PartnerWpEmbedGuideModal({
   onClose,
   lkCode,
   initialTab = 'preset',
+  productContext = null,
   onCopySnippet,
   onSaved,
 }: Props) {
@@ -118,6 +128,7 @@ export function PartnerWpEmbedGuideModal({
     if (!open) return;
     setSaveMsg('');
     setTab(initialTab);
+    setDevice(productContext?.campaignTitle ? 'mobile' : 'pc');
     setPreviewStage('form');
     fetchPartnerEmbedSettings(lkCode || undefined)
       .then((data) => {
@@ -149,7 +160,7 @@ export function PartnerWpEmbedGuideModal({
         setOptions(DEFAULT_OPTIONS);
         setPhoneHint('허용 도메인을 등록하면 등록된 사이트에서만 위젯이 동작합니다.');
       });
-  }, [open, lkCode, initialTab]);
+  }, [open, lkCode, initialTab, productContext?.campaignTitle]);
 
   const sampleCode = (lkCode || 'YOUR_LK_CODE').trim();
   const snippet = useMemo(
@@ -238,6 +249,12 @@ export function PartnerWpEmbedGuideModal({
     setOptions((prev) => withEmbedPreset(prev, id, { applyAccentHint: true }));
   };
 
+  const productTitle = (productContext?.campaignTitle || '').trim();
+  const productChannel = (productContext?.channel || '').trim();
+  const productLinkName = (productContext?.linkName || '').trim();
+  const productLabel = productTitle || undefined;
+  const contextBits = [productChannel, productLinkName].filter(Boolean);
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-slate-900/50 backdrop-blur-sm"
@@ -259,7 +276,16 @@ export function PartnerWpEmbedGuideModal({
               </h3>
               <HelpTipButton title={EMBED_HELP.overview.title}>{EMBED_HELP.overview.body}</HelpTipButton>
             </div>
-            <p className="text-sm text-slate-500 mt-0.5">디자인 프리셋 · 실시간 미리보기 · HTML 설치</p>
+            {productTitle ? (
+              <p className="text-sm text-cyan-800 mt-0.5 font-semibold">
+                {productTitle}용으로 보는 중
+                {contextBits.length ? (
+                  <span className="font-normal text-slate-500"> · {contextBits.join(' · ')}</span>
+                ) : null}
+              </p>
+            ) : (
+              <p className="text-sm text-slate-500 mt-0.5">디자인 프리셋 · 실시간 미리보기 · HTML 설치</p>
+            )}
           </div>
           <button
             type="button"
@@ -271,8 +297,14 @@ export function PartnerWpEmbedGuideModal({
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(340px,440px)]">
           <div className="overflow-y-auto p-5 sm:p-6 space-y-5 border-b lg:border-b-0 lg:border-r border-slate-100">
+            {productTitle ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[11px] leading-relaxed text-amber-950">
+                <span className="font-bold">「{productTitle}」</span> 링크 기준으로 미리보기를 열었습니다.
+                위젯 디자인·전환 설정은 파트너 계정에 공통 저장됩니다.
+              </div>
+            ) : null}
             <section className="rounded-2xl border border-cyan-200 bg-cyan-50/70 p-3.5 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm font-bold text-cyan-950">위젯 형태</div>
@@ -815,16 +847,20 @@ export function PartnerWpEmbedGuideModal({
             <p className="text-[11px] text-slate-500 leading-relaxed">
               {previewStage === 'success'
                 ? '접수 성공 후 고객에게 보이는 안내입니다. 완료 문구·이동 URL이 여기에 반영됩니다.'
-                : '설정 변경이 즉시 반영됩니다. 실제 사이트 적용 전에는 「디자인·문구 설정 저장」을 눌러 주세요.'}
+                : 'PC·모바일 실사이즈 프레임으로 봅니다. 저장 전에도 설정이 즉시 반영됩니다.'}
             </p>
-            <EmbedWidgetLivePreview
-              mode={mode}
-              options={options}
-              device={device}
-              stage={previewStage}
-              phoneHint={phoneHint}
-              brandName={brandName}
-            />
+            <EmbedDevicePreviewFrame device={device} productLabel={productLabel} pageHost="example.com">
+              <EmbedWidgetLivePreview
+                mode={mode}
+                options={options}
+                device={device}
+                stage={previewStage}
+                phoneHint={phoneHint}
+                brandName={brandName}
+                inDeviceFrame
+                productLabel={productLabel}
+              />
+            </EmbedDevicePreviewFrame>
           </aside>
         </div>
 

@@ -1,7 +1,8 @@
-import { Copy, ExternalLink, Link as LinkIcon, Plus, MousePointerClick, Target, CheckCircle2, DollarSign, Info, X, Code2, CircleHelp, Download, Sparkles, Palette, BarChart3 } from 'lucide-react';
+import { Copy, ExternalLink, Link as LinkIcon, Plus, MousePointerClick, Target, CheckCircle2, DollarSign, Info, X, Code2, CircleHelp, Download, Sparkles, Palette, BarChart3, Eye } from 'lucide-react';
 import { SummaryCard, StatusBadge } from '../../components/partner/PartnerShared';
 import {
   PartnerWpEmbedGuideModal,
+  type EmbedGuideProductContext,
   type EmbedGuideTabId,
 } from '../../components/partner/PartnerWpEmbedGuideModal';
 import { Link } from 'react-router-dom';
@@ -41,6 +42,7 @@ export function PartnerLinks() {
   const [wpGuideOpen, setWpGuideOpen] = useState(false);
   const [wpGuideLkCode, setWpGuideLkCode] = useState('');
   const [wpGuideTab, setWpGuideTab] = useState<EmbedGuideTabId>('preset');
+  const [wpGuideProduct, setWpGuideProduct] = useState<EmbedGuideProductContext | null>(null);
   const [embedStatus, setEmbedStatus] = useState<EmbedListStatus | null>(null);
 
   const notify = (msg: string) => {
@@ -105,10 +107,23 @@ export function PartnerLinks() {
     return { presetId, presetLabel, cro };
   }, [embedStatus]);
 
-  const openWidgetGuide = (code: string, tab: EmbedGuideTabId = 'preset') => {
+  const openWidgetGuide = (
+    code: string,
+    tab: EmbedGuideTabId = 'preset',
+    product?: EmbedGuideProductContext | null,
+  ) => {
     setWpGuideLkCode(code);
     setWpGuideTab(tab);
+    setWpGuideProduct(product ?? null);
     setWpGuideOpen(true);
+  };
+
+  const openWidgetGuideForLink = (link: PartnerLink, tab: EmbedGuideTabId = 'preset') => {
+    openWidgetGuide(link.code, tab, {
+      campaignTitle: link.campaign,
+      channel: link.channel,
+      linkName: link.subId,
+    });
   };
 
   const handleCreate = async () => {
@@ -154,7 +169,7 @@ export function PartnerLinks() {
           </a>
           <button
             type="button"
-            onClick={() => openWidgetGuide(links[0]?.code || '', 'install')}
+            onClick={() => links[0] ? openWidgetGuideForLink(links[0], 'install') : openWidgetGuide('', 'install')}
             className="px-4 py-2.5 bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-700 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm text-sm"
           >
             <CircleHelp size={18} className="text-emerald-600" /> 사용방법 안내
@@ -215,7 +230,7 @@ export function PartnerLinks() {
               </Link>
               <button
                 type="button"
-                onClick={() => openWidgetGuide(links[0]?.code || '', 'preset')}
+                onClick={() => links[0] ? openWidgetGuideForLink(links[0], 'preset') : openWidgetGuide('', 'preset')}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-cyan-200 text-cyan-900 text-xs font-bold hover:bg-cyan-50"
               >
                 <Palette size={14} />
@@ -223,7 +238,7 @@ export function PartnerLinks() {
               </button>
               <button
                 type="button"
-                onClick={() => openWidgetGuide(links[0]?.code || '', 'convert')}
+                onClick={() => links[0] ? openWidgetGuideForLink(links[0], 'convert') : openWidgetGuide('', 'convert')}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-700 text-white text-xs font-bold hover:bg-cyan-600"
               >
                 <Sparkles size={14} />
@@ -294,12 +309,21 @@ export function PartnerLinks() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => openWidgetGuide(link.code, 'preset')}
+                                onClick={() => openWidgetGuideForLink(link, 'preset')}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-xs font-bold"
-                                title="상담 위젯 디자인·전환 설정 및 미리보기"
+                                title="이 상품 기준으로 상담 위젯 미리보기·설정"
                               >
                                 <Code2 size={14} />
                                 HTML 위젯
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openWidgetGuideForLink(link, 'preset')}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-800 text-xs font-bold"
+                                title={`${link.campaign}용 PC·모바일 미리보기`}
+                              >
+                                <Eye size={14} />
+                                미리보기
                               </button>
                               <button
                                 type="button"
@@ -318,7 +342,7 @@ export function PartnerLinks() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => openWidgetGuide(link.code, 'install')}
+                                onClick={() => openWidgetGuideForLink(link, 'install')}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50"
                                 title="외부 홈페이지 상담 위젯 사용방법"
                               >
@@ -397,7 +421,7 @@ export function PartnerLinks() {
               </p>
               <button
                 type="button"
-                onClick={() => openWidgetGuide(links[0]?.code || '', 'preset')}
+                onClick={() => links[0] ? openWidgetGuideForLink(links[0], 'preset') : openWidgetGuide('', 'preset')}
                 className="w-full mt-1 inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-bold"
               >
                 <Palette size={14} className="text-cyan-400" />
@@ -410,9 +434,13 @@ export function PartnerLinks() {
 
       <PartnerWpEmbedGuideModal
         open={wpGuideOpen}
-        onClose={() => setWpGuideOpen(false)}
+        onClose={() => {
+          setWpGuideOpen(false);
+          setWpGuideProduct(null);
+        }}
         lkCode={wpGuideLkCode || undefined}
         initialTab={wpGuideTab}
+        productContext={wpGuideProduct}
         onSaved={loadEmbedStatus}
         onCopySnippet={
           wpGuideLkCode
