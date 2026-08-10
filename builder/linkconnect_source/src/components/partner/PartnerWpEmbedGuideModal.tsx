@@ -10,6 +10,11 @@ import {
   type EmbedPresetId,
 } from '../../lib/embedPresets';
 import {
+  applyEmbedCtaPreset,
+  EMBED_CTA_PRESETS,
+  type EmbedCtaPresetId,
+} from '../../lib/embedConversion';
+import {
   buildLeadEmbedPreviewUrl,
   buildLeadEmbedShortcode,
   buildLeadEmbedSnippet,
@@ -27,8 +32,8 @@ const DEFAULT_OPTIONS: PartnerEmbedOptions = {
   preset: 'default',
   accent: '#0d9488',
   title: '무료 상담 신청',
-  submitLabel: '상담 신청하기',
-  buttonLabel: '무료 상담 신청',
+  submitLabel: '지금 무료 상담 받기',
+  buttonLabel: '지금 무료 상담 받기',
   callLabel: '전화 상담',
   successMessage: '상담 신청이 접수되었습니다. 곧 연락드리겠습니다.',
   successRedirectUrl: '',
@@ -38,6 +43,18 @@ const DEFAULT_OPTIONS: PartnerEmbedOptions = {
   showInquiry: true,
   privacyText: '개인정보 수집·이용에 동의합니다.',
   requireWidgetKey: false,
+  minimalForm: true,
+  showTrustBadges: true,
+  badgeFree: true,
+  badgeCallback: true,
+  badgePrivacy: true,
+  benefitText: '상담비 없음 · 3분 내 연락',
+  ctaHint: '영업전화 없음 · 개인정보 안전',
+  showLiveCount: true,
+  liveCountText: '지금 상담 신청이 활발합니다',
+  stickyMobileCta: true,
+  successShowCall: true,
+  successNextStep: '담당자가 확인 후 곧 연락드립니다.',
 };
 
 type Props = {
@@ -47,7 +64,7 @@ type Props = {
   onCopySnippet?: (snippet: string) => void;
 };
 
-type TabId = 'preset' | 'copy' | 'fields' | 'install';
+type TabId = 'preset' | 'convert' | 'copy' | 'fields' | 'install';
 
 const MODES: Array<{ id: LeadEmbedMode; label: string; desc: string }> = [
   { id: 'form', label: '폼형', desc: '페이지에 상담폼 + 전화' },
@@ -57,6 +74,7 @@ const MODES: Array<{ id: LeadEmbedMode; label: string; desc: string }> = [
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'preset', label: '템플릿' },
+  { id: 'convert', label: '전환' },
   { id: 'copy', label: '문구·색상' },
   { id: 'fields', label: '필드·완료' },
   { id: 'install', label: '설치' },
@@ -252,7 +270,10 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setMode(item.id)}
+                    onClick={() => {
+                      setMode(item.id);
+                      if (item.id === 'phone') setPreviewStage('form');
+                    }}
                     className={`rounded-xl border px-2 py-2 text-left transition-colors ${
                       mode === item.id
                         ? 'border-cyan-500 bg-white text-cyan-900 shadow-sm'
@@ -320,6 +341,102 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
                       <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">{preset.desc}</div>
                     </button>
                   ))}
+                </div>
+              </section>
+            ) : null}
+
+            {tab === 'convert' ? (
+              <section className="space-y-4">
+                <div>
+                  <div className="text-sm font-bold text-slate-900">전환율 최적화</div>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    업종 CTA · 신뢰 배지 · 미니멀 폼 · 모바일 sticky 제출을 켜면 미리보기에 바로 반영됩니다.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-slate-600">업종별 CTA 프리셋</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {EMBED_CTA_PRESETS.map((cta) => (
+                      <button
+                        key={cta.id}
+                        type="button"
+                        onClick={() => setOptions((prev) => applyEmbedCtaPreset(prev, cta.id as EmbedCtaPresetId))}
+                        className="rounded-xl border border-slate-200 bg-white hover:border-cyan-400 px-2.5 py-2 text-left"
+                      >
+                        <div className="text-xs font-bold text-slate-900">{cta.label}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5">{cta.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  {[
+                    { key: 'minimalForm', label: '미니멀 폼', desc: '이름·연락처만 먼저, 추가항목 접기' },
+                    { key: 'showTrustBadges', label: '신뢰 배지', desc: '무료 / 3분콜백 / 비밀보장' },
+                    { key: 'showLiveCount', label: '시급성 문구', desc: '상담 활발 안내' },
+                    { key: 'stickyMobileCta', label: '모바일 sticky CTA', desc: '제출 버튼을 하단 고정' },
+                    { key: 'successShowCall', label: '완료 화면 전화 CTA', desc: '접수 후 전화 버튼 노출' },
+                  ].map((item) => (
+                    <label key={item.key} className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 rounded border-slate-300 text-cyan-600"
+                        checked={options[item.key as keyof PartnerEmbedOptions] !== false}
+                        onChange={(e) =>
+                          setOptions((prev) => ({ ...prev, [item.key]: e.target.checked }))
+                        }
+                      />
+                      <span className="text-xs text-slate-700 leading-relaxed">
+                        <span className="font-bold">{item.label}</span>
+                        <span className="block text-slate-500">{item.desc}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {options.showTrustBadges !== false ? (
+                  <div className="flex flex-wrap gap-3 text-xs text-slate-700">
+                    {[
+                      { key: 'badgeFree', label: '상담비 없음' },
+                      { key: 'badgeCallback', label: '3분 내 연락' },
+                      { key: 'badgePrivacy', label: '비밀보장' },
+                    ].map((b) => (
+                      <label key={b.key} className="inline-flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-cyan-600"
+                          checked={options[b.key as keyof PartnerEmbedOptions] !== false}
+                          onChange={(e) => setOptions((prev) => ({ ...prev, [b.key]: e.target.checked }))}
+                        />
+                        {b.label}
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-[auto_1fr] gap-3 items-center">
+                  <label className="text-xs font-bold text-slate-600">혜택 한 줄</label>
+                  <input
+                    type="text"
+                    value={options.benefitText || ''}
+                    onChange={(e) => setOptions((prev) => ({ ...prev, benefitText: e.target.value }))}
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm"
+                    placeholder="상담비 없음 · 3분 내 연락"
+                  />
+                  <label className="text-xs font-bold text-slate-600">버튼 보조문구</label>
+                  <input
+                    type="text"
+                    value={options.ctaHint || ''}
+                    onChange={(e) => setOptions((prev) => ({ ...prev, ctaHint: e.target.value }))}
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm"
+                    placeholder="영업전화 없음 · 개인정보 안전"
+                  />
+                  <label className="text-xs font-bold text-slate-600">시급성 문구</label>
+                  <input
+                    type="text"
+                    value={options.liveCountText || ''}
+                    onChange={(e) => setOptions((prev) => ({ ...prev, liveCountText: e.target.value }))}
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-sm"
+                    placeholder="지금 상담 신청이 활발합니다"
+                  />
                 </div>
               </section>
             ) : null}
@@ -423,6 +540,14 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
                     value={options.successMessage || ''}
                     onChange={(e) => setOptions((prev) => ({ ...prev, successMessage: e.target.value }))}
                     className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  />
+                  <label className="text-xs font-bold text-slate-600">다음 안내</label>
+                  <input
+                    type="text"
+                    value={options.successNextStep || ''}
+                    onChange={(e) => setOptions((prev) => ({ ...prev, successNextStep: e.target.value }))}
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                    placeholder="담당자가 확인 후 곧 연락드립니다."
                   />
                   <label className="text-xs font-bold text-slate-600">완료 후 URL</label>
                   <input
@@ -624,7 +749,7 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
               </section>
             ) : null}
 
-            {(tab === 'preset' || tab === 'copy' || tab === 'fields') && (
+            {(tab === 'preset' || tab === 'convert' || tab === 'copy' || tab === 'fields') && (
               <button
                 type="button"
                 disabled={savingOptions}
@@ -699,7 +824,7 @@ export function PartnerWpEmbedGuideModal({ open, onClose, lkCode, onCopySnippet 
         </div>
 
         <div className="px-5 sm:px-6 py-3.5 bg-white border-t border-slate-100 shrink-0 flex flex-col sm:flex-row gap-2">
-          {(tab === 'preset' || tab === 'copy' || tab === 'fields') && (
+          {(tab === 'preset' || tab === 'convert' || tab === 'copy' || tab === 'fields') && (
             <button
               type="button"
               disabled={savingOptions}

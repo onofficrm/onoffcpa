@@ -130,6 +130,26 @@ export type PartnerEmbedOptions = {
   showInquiry?: boolean;
   privacyText?: string;
   requireWidgetKey?: boolean;
+  /** 이름·연락처만 우선, 추가항목은 접기 */
+  minimalForm?: boolean;
+  /** 신뢰 배지 영역 표시 */
+  showTrustBadges?: boolean;
+  badgeFree?: boolean;
+  badgeCallback?: boolean;
+  badgePrivacy?: boolean;
+  /** 제목 아래 혜택 한 줄 */
+  benefitText?: string;
+  /** 제출 버튼 아래 보조 문구 */
+  ctaHint?: string;
+  /** 시급성 문구 */
+  showLiveCount?: boolean;
+  liveCountText?: string;
+  /** 모바일에서 제출 버튼 sticky */
+  stickyMobileCta?: boolean;
+  /** 완료 화면에 전화 CTA */
+  successShowCall?: boolean;
+  /** 완료 후 다음 안내 */
+  successNextStep?: string;
 };
 
 export type PartnerEmbedSettings = {

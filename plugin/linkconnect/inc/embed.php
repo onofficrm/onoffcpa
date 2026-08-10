@@ -357,8 +357,8 @@ if (!function_exists('lc_embed_default_options')) {
             'preset'               => 'default',
             'accent'               => '#0d9488',
             'title'                => '무료 상담 신청',
-            'submitLabel'          => '상담 신청하기',
-            'buttonLabel'          => '무료 상담 신청',
+            'submitLabel'          => '지금 무료 상담 받기',
+            'buttonLabel'          => '지금 무료 상담 받기',
             'callLabel'            => '전화 상담',
             'successMessage'       => '상담 신청이 접수되었습니다. 곧 연락드리겠습니다.',
             'successRedirectUrl'   => '',
@@ -368,6 +368,18 @@ if (!function_exists('lc_embed_default_options')) {
             'showInquiry'          => true,
             'privacyText'          => '개인정보 수집·이용에 동의합니다.',
             'requireWidgetKey'     => false,
+            'minimalForm'          => true,
+            'showTrustBadges'      => true,
+            'badgeFree'            => true,
+            'badgeCallback'        => true,
+            'badgePrivacy'         => true,
+            'benefitText'          => '상담비 없음 · 3분 내 연락',
+            'ctaHint'              => '영업전화 없음 · 개인정보 안전',
+            'showLiveCount'        => true,
+            'liveCountText'        => '지금 상담 신청이 활발합니다',
+            'stickyMobileCta'      => true,
+            'successShowCall'      => true,
+            'successNextStep'      => '담당자가 확인 후 곧 연락드립니다.',
         );
     }
 }
@@ -531,7 +543,7 @@ if (!function_exists('lc_embed_partner_options')) {
         if ($accent !== '') {
             $defaults['accent'] = $accent;
         }
-        foreach (array('title', 'submitLabel', 'buttonLabel', 'callLabel', 'successMessage') as $key) {
+        foreach (array('title', 'submitLabel', 'buttonLabel', 'callLabel', 'successMessage', 'benefitText', 'ctaHint', 'liveCountText', 'successNextStep') as $key) {
             if (!isset($decoded[$key])) {
                 continue;
             }
@@ -539,7 +551,8 @@ if (!function_exists('lc_embed_partner_options')) {
             if ($val === '') {
                 continue;
             }
-            $defaults[$key] = function_exists('mb_substr') ? mb_substr($val, 0, 120) : substr($val, 0, 120);
+            $max = ($key === 'benefitText' || $key === 'ctaHint' || $key === 'liveCountText' || $key === 'successNextStep') ? 160 : 120;
+            $defaults[$key] = function_exists('mb_substr') ? mb_substr($val, 0, $max) : substr($val, 0, $max);
         }
         if (isset($decoded['successRedirectUrl'])) {
             $redirect = lc_embed_normalize_redirect_url($decoded['successRedirectUrl'], $pt_id);
@@ -560,11 +573,22 @@ if (!function_exists('lc_embed_partner_options')) {
                     : substr($event, 0, 64);
             }
         }
-        if (array_key_exists('showRegion', $decoded)) {
-            $defaults['showRegion'] = !empty($decoded['showRegion']);
-        }
-        if (array_key_exists('showInquiry', $decoded)) {
-            $defaults['showInquiry'] = !empty($decoded['showInquiry']);
+        foreach (array(
+            'showRegion',
+            'showInquiry',
+            'requireWidgetKey',
+            'minimalForm',
+            'showTrustBadges',
+            'badgeFree',
+            'badgeCallback',
+            'badgePrivacy',
+            'showLiveCount',
+            'stickyMobileCta',
+            'successShowCall',
+        ) as $boolKey) {
+            if (array_key_exists($boolKey, $decoded)) {
+                $defaults[$boolKey] = !empty($decoded[$boolKey]);
+            }
         }
         if (isset($decoded['privacyText'])) {
             $privacy = trim((string) $decoded['privacyText']);
@@ -573,9 +597,6 @@ if (!function_exists('lc_embed_partner_options')) {
                     ? mb_substr($privacy, 0, 200)
                     : substr($privacy, 0, 200);
             }
-        }
-        if (array_key_exists('requireWidgetKey', $decoded)) {
-            $defaults['requireWidgetKey'] = !empty($decoded['requireWidgetKey']);
         }
         return $defaults;
     }
@@ -615,15 +636,16 @@ if (!function_exists('lc_embed_set_partner_options')) {
             }
             $next['accent'] = $accent !== '' ? $accent : lc_embed_default_options()['accent'];
         }
-        foreach (array('title', 'submitLabel', 'buttonLabel', 'callLabel', 'successMessage') as $key) {
+        foreach (array('title', 'submitLabel', 'buttonLabel', 'callLabel', 'successMessage', 'benefitText', 'ctaHint', 'liveCountText', 'successNextStep') as $key) {
             if (!array_key_exists($key, $options)) {
                 continue;
             }
             $val = trim((string) $options[$key]);
+            $max = ($key === 'benefitText' || $key === 'ctaHint' || $key === 'liveCountText' || $key === 'successNextStep') ? 160 : 120;
             if ($val === '') {
-                $next[$key] = lc_embed_default_options()[$key];
+                $next[$key] = lc_embed_default_options()[$key] ?? '';
             } else {
-                $next[$key] = function_exists('mb_substr') ? mb_substr($val, 0, 120) : substr($val, 0, 120);
+                $next[$key] = function_exists('mb_substr') ? mb_substr($val, 0, $max) : substr($val, 0, $max);
             }
         }
         if (array_key_exists('successRedirectUrl', $options)) {
@@ -663,8 +685,20 @@ if (!function_exists('lc_embed_set_partner_options')) {
                 ? (function_exists('mb_substr') ? mb_substr($privacy, 0, 200) : substr($privacy, 0, 200))
                 : lc_embed_default_options()['privacyText'];
         }
-        if (array_key_exists('requireWidgetKey', $options)) {
-            $next['requireWidgetKey'] = !empty($options['requireWidgetKey']);
+        foreach (array(
+            'requireWidgetKey',
+            'minimalForm',
+            'showTrustBadges',
+            'badgeFree',
+            'badgeCallback',
+            'badgePrivacy',
+            'showLiveCount',
+            'stickyMobileCta',
+            'successShowCall',
+        ) as $boolKey) {
+            if (array_key_exists($boolKey, $options)) {
+                $next[$boolKey] = !empty($options[$boolKey]);
+            }
         }
 
         if (!empty($next['requireWidgetKey']) && function_exists('lc_embed_ensure_partner_widget_key')) {
@@ -1047,6 +1081,18 @@ if (!function_exists('lc_embed_config_for_lk_code')) {
             'showRegion'    => !array_key_exists('showRegion', $options) || !empty($options['showRegion']),
             'showInquiry'   => !array_key_exists('showInquiry', $options) || !empty($options['showInquiry']),
             'preset'        => $preset,
+            'minimalForm'   => !array_key_exists('minimalForm', $options) || !empty($options['minimalForm']),
+            'showTrustBadges' => !array_key_exists('showTrustBadges', $options) || !empty($options['showTrustBadges']),
+            'badgeFree'     => !array_key_exists('badgeFree', $options) || !empty($options['badgeFree']),
+            'badgeCallback' => !array_key_exists('badgeCallback', $options) || !empty($options['badgeCallback']),
+            'badgePrivacy'  => !array_key_exists('badgePrivacy', $options) || !empty($options['badgePrivacy']),
+            'benefitText'   => (string) ($options['benefitText'] ?? ''),
+            'ctaHint'       => (string) ($options['ctaHint'] ?? ''),
+            'showLiveCount' => !array_key_exists('showLiveCount', $options) || !empty($options['showLiveCount']),
+            'liveCountText' => (string) ($options['liveCountText'] ?? ''),
+            'stickyMobileCta' => !array_key_exists('stickyMobileCta', $options) || !empty($options['stickyMobileCta']),
+            'successShowCall' => !array_key_exists('successShowCall', $options) || !empty($options['successShowCall']),
+            'successNextStep' => (string) ($options['successNextStep'] ?? ''),
             'options'       => $options,
             'fields'        => (static function () use ($options) {
                 $fields = array(
