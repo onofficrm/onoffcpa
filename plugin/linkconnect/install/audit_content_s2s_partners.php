@@ -4,8 +4,6 @@
  * Uploaded temporarily via provision workflow; deleted after use.
  */
 header('Content-Type: application/json; charset=utf-8');
-
-define('_GNUBOARD_', true);
 require_once __DIR__ . '/plugin/linkconnect/_common.php';
 
 if (!function_exists('lc_db_installed') || !lc_db_installed()) {
