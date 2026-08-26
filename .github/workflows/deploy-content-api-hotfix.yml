@@ -1,7 +1,7 @@
 name: Deploy content API hotfix
 
 # Content Platform read-only S2S bridge (LIVE-5C.1)
-# Minimal FTP upload — content-api + inc/content_s2s.php only.
+# Minimal FTP upload — content-api + inc/content_s2s.php + bootstrap hook.
 # Does NOT overwrite the full plugin/linkconnect tree.
 
 on:
@@ -11,6 +11,7 @@ on:
     paths:
       - 'plugin/linkconnect/content-api/**'
       - 'plugin/linkconnect/inc/content_s2s.php'
+      - 'plugin/linkconnect/_common.php'
       - '.github/workflows/deploy-content-api-hotfix.yml'
   workflow_dispatch:
 
@@ -31,6 +32,7 @@ jobs:
           ROOT=".deploy/content-api-hotfix"
           rm -rf "$ROOT"
           FILES=(
+            "plugin/linkconnect/_common.php"
             "plugin/linkconnect/inc/content_s2s.php"
             "plugin/linkconnect/content-api/_common.php"
             "plugin/linkconnect/content-api/campaigns.php"
@@ -49,6 +51,7 @@ jobs:
           printf '%s\n' 'Deny from all' > "$ROOT/plugin/linkconnect/content-api/.htaccess-clients"
           find "$ROOT" -name '._*' -delete 2>/dev/null || true
           echo "Bundle files: $(find "$ROOT" -type f | wc -l)"
+          php -l "$ROOT/plugin/linkconnect/_common.php"
           php -l "$ROOT/plugin/linkconnect/inc/content_s2s.php"
           for f in "$ROOT"/plugin/linkconnect/content-api/*.php; do php -l "$f"; done
 
@@ -82,4 +85,8 @@ jobs:
             echo "::error::content-api/campaigns.php still 404 — verify ONOFFCPA FTP docroot and plugin/linkconnect path"
             exit 1
           fi
-          echo "Endpoint exists on ${BASE} (unauthenticated ${code} is expected)"
+          if [ "$code" = "500" ]; then
+            echo "::error::Still HTTP 500 — Content S2S bootstrap may not be loaded"
+            exit 1
+          fi
+          echo "Endpoint auth-gated on ${BASE} (HTTP ${code})"

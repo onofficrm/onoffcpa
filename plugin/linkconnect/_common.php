@@ -149,6 +149,9 @@ if (is_file(LC_PLUGIN_PATH . '/inc/merchant_marketing.php')) {
 if (is_file(LC_PLUGIN_PATH . '/inc/api.php')) {
     require_once LC_PLUGIN_PATH . '/inc/api.php';
 }
+if (is_file(LC_PLUGIN_PATH . '/inc/content_s2s.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/content_s2s.php';
+}
 if (is_file(LC_PLUGIN_PATH . '/inc/ui.php')) {
     require_once LC_PLUGIN_PATH . '/inc/ui.php';
 }
