@@ -1,0 +1,85 @@
+name: Deploy content API hotfix
+
+# Content Platform read-only S2S bridge (LIVE-5C.1)
+# Minimal FTP upload — content-api + inc/content_s2s.php only.
+# Does NOT overwrite the full plugin/linkconnect tree.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'plugin/linkconnect/content-api/**'
+      - 'plugin/linkconnect/inc/content_s2s.php'
+      - '.github/workflows/deploy-content-api-hotfix.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: onoffcpa-content-api-hotfix
+  cancel-in-progress: true
+
+jobs:
+  deploy-content-api-hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Content API hotfix bundle
+        run: |
+          ROOT=".deploy/content-api-hotfix"
+          rm -rf "$ROOT"
+          FILES=(
+            "plugin/linkconnect/inc/content_s2s.php"
+            "plugin/linkconnect/content-api/_common.php"
+            "plugin/linkconnect/content-api/campaigns.php"
+            "plugin/linkconnect/content-api/links.php"
+            "plugin/linkconnect/content-api/analytics.php"
+            "plugin/linkconnect/content-api/clients.example.php"
+            "plugin/linkconnect/content-api/tests/run_s2s_tests.php"
+          )
+          for file in "${FILES[@]}"; do
+            test -f "$file"
+            mkdir -p "$ROOT/$(dirname "$file")"
+            cp "$file" "$ROOT/$file"
+          done
+          mkdir -p "$ROOT/data/linkconnect/content_s2s_nonce"
+          printf '%s\n' 'Deny from all' > "$ROOT/data/linkconnect/content_s2s_nonce/.htaccess"
+          printf '%s\n' 'Deny from all' > "$ROOT/plugin/linkconnect/content-api/.htaccess-clients"
+          find "$ROOT" -name '._*' -delete 2>/dev/null || true
+          echo "Bundle files: $(find "$ROOT" -type f | wc -l)"
+          php -l "$ROOT/plugin/linkconnect/inc/content_s2s.php"
+          for f in "$ROOT"/plugin/linkconnect/content-api/*.php; do php -l "$f"; done
+
+      - name: FTP upload Content API hotfix
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          protocol: ftp
+          local-dir: .deploy/content-api-hotfix/
+          server-dir: /public_html/
+          state-name: onoffcpa-content-api-v1
+          dangerous-clean-slate: false
+          log-level: standard
+          timeout: 300000
+
+      - name: Post-deploy public URL check
+        run: |
+          BASE=""
+          for CAND in "https://onoffcpa.icrm.co.kr" "https://onoffcpa.iwinv.net"; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "${CAND}/plugin/linkconnect/content-api/campaigns.php" || echo "000")
+            echo "${CAND}/plugin/linkconnect/content-api/campaigns.php => HTTP ${code}"
+            if [ "$code" != "404" ] && [ "$code" != "000" ]; then
+              BASE="$CAND"
+              break
+            fi
+          done
+          if [ -z "$BASE" ]; then
+            echo "::error::content-api/campaigns.php still 404 — verify ONOFFCPA FTP docroot and plugin/linkconnect path"
+            exit 1
+          fi
+          echo "Endpoint exists on ${BASE} (unauthenticated ${code} is expected)"
