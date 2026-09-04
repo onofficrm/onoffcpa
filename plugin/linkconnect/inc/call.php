@@ -1319,6 +1319,7 @@ if (!function_exists('lc_call_normalize_result')) {
             'busy' => LC_CALL_RESULT_BUSY, '통화중' => LC_CALL_RESULT_BUSY,
             'fail' => LC_CALL_RESULT_FAIL, 'failed' => LC_CALL_RESULT_FAIL, 'canceled' => LC_CALL_RESULT_FAIL,
             '통화실패' => LC_CALL_RESULT_FAIL, '실패' => LC_CALL_RESULT_FAIL, '거절' => LC_CALL_RESULT_FAIL,
+            '결번' => LC_CALL_RESULT_FAIL, '결 번' => LC_CALL_RESULT_FAIL,
         );
         if (isset($map[$result])) {
             return $map[$result];
