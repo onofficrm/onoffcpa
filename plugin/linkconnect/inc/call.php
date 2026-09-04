@@ -1326,40 +1326,93 @@ if (!function_exists('lc_call_assignment_by_number')) {
     }
 }
 
+if (!function_exists('lc_call_campaign_by_forward')) {
+    /**
+     * 착신번호(포워딩)로 콜설정 캠페인 조회.
+     */
+    function lc_call_campaign_by_forward($callee)
+    {
+        $callee = lc_call_number_normalize($callee);
+        if ($callee === '' || !lc_db_table_exists(lc_table('call_settings'))) {
+            return null;
+        }
+        $table = lc_table('call_settings');
+        $candidates = array($callee);
+        if (strlen($callee) === 11 && $callee[0] === '0') {
+            $candidates[] = substr($callee, 1);
+        } elseif (strlen($callee) === 10 && $callee[0] !== '0') {
+            $candidates[] = '0' . $callee;
+        }
+        $in = array();
+        foreach (array_unique($candidates) as $cand) {
+            $in[] = "'" . lc_sql_escape($cand) . "'";
+        }
+        $sql_in = implode(',', $in);
+
+        return lc_sql_fetch(" SELECT * FROM `{$table}`
+            WHERE cs_forward1 IN ({$sql_in}) OR cs_forward2 IN ({$sql_in})
+            ORDER BY cs_id DESC LIMIT 1 ");
+    }
+}
+
+if (!function_exists('lc_call_partner_for_campaign')) {
+    /**
+     * 캠페인에 배정된 파트너(활성 가상번호) 1건.
+     */
+    function lc_call_partner_for_campaign($cp_id)
+    {
+        $cp_id = (int) $cp_id;
+        if ($cp_id <= 0 || !lc_db_table_exists(lc_table('call_requests'))) {
+            return null;
+        }
+        $table = lc_table('call_requests');
+
+        return lc_sql_fetch(" SELECT * FROM `{$table}`
+            WHERE cp_id = '{$cp_id}' AND car_status = '" . LC_CALL_REQ_ASSIGNED . "'
+            ORDER BY car_id DESC LIMIT 1 ");
+    }
+}
+
 if (!function_exists('lc_call_logs_rematch_unmatched')) {
     /**
-     * pt_id=0 미매칭 통화로그를 가상번호 배정 기준으로 재연결.
+     * pt_id=0 미매칭 통화로그를 가상번호 배정(우선) · 착신번호 포워딩(보조) 기준으로 재연결.
      *
-     * @return array{ok:bool,message:string,scanned:int,matched:int,unchanged:int,normalized:int,items?:array}
+     * @return array{ok:bool,message:string,scanned:int,matched:int,matchedByVirtual:int,matchedByForward:int,unchanged:int,normalized:int,items?:array}
      */
     function lc_call_logs_rematch_unmatched(array $opts = array())
     {
         if (!lc_db_installed() || !lc_db_table_exists(lc_table('call_logs'))) {
-            return array('ok' => false, 'message' => 'call_logs 테이블이 없습니다.', 'scanned' => 0, 'matched' => 0, 'unchanged' => 0, 'normalized' => 0);
+            return array('ok' => false, 'message' => 'call_logs 테이블이 없습니다.', 'scanned' => 0, 'matched' => 0, 'matchedByVirtual' => 0, 'matchedByForward' => 0, 'unchanged' => 0, 'normalized' => 0);
         }
 
         $clog = lc_table('call_logs');
         $only_unmatched = !isset($opts['onlyUnmatched']) || !empty($opts['onlyUnmatched']);
         $limit = isset($opts['limit']) ? max(1, (int) $opts['limit']) : 5000;
         $where = $only_unmatched ? " pt_id = '0' " : ' 1=1 ';
+        // pt_id=0 이어도 cp만 있는 경우 재시도 허용
+        if ($only_unmatched) {
+            $where = " (pt_id = '0' OR cp_id = '0') ";
+        }
 
         $summary = array(
             'ok' => true,
             'message' => '',
             'scanned' => 0,
             'matched' => 0,
+            'matchedByVirtual' => 0,
+            'matchedByForward' => 0,
             'unchanged' => 0,
             'normalized' => 0,
             'items' => array(),
         );
 
-        $result = lc_sql_query(" SELECT clog_id, clog_virtual_number, pt_id, cp_id, mt_id, cn_id, car_id
+        $result = lc_sql_query(" SELECT clog_id, clog_virtual_number, clog_callee, pt_id, cp_id, mt_id, cn_id, car_id
             FROM `{$clog}`
             WHERE {$where}
             ORDER BY clog_id ASC
             LIMIT {$limit} ", false);
         if (!$result) {
-            return array('ok' => false, 'message' => '통화로그 조회 실패', 'scanned' => 0, 'matched' => 0, 'unchanged' => 0, 'normalized' => 0);
+            return array('ok' => false, 'message' => '통화로그 조회 실패', 'scanned' => 0, 'matched' => 0, 'matchedByVirtual' => 0, 'matchedByForward' => 0, 'unchanged' => 0, 'normalized' => 0);
         }
 
         while ($row = sql_fetch_array($result)) {
@@ -1367,31 +1420,61 @@ if (!function_exists('lc_call_logs_rematch_unmatched')) {
             $clog_id = (int) $row['clog_id'];
             $raw_vn = (string) ($row['clog_virtual_number'] ?? '');
             $vn = lc_call_number_normalize($raw_vn);
-            if ($vn === '') {
+            $callee = lc_call_number_normalize((string) ($row['clog_callee'] ?? ''));
+            if ($vn === '' && $callee === '') {
                 $summary['unchanged']++;
                 continue;
             }
 
             $sets = array();
-            if ($vn !== $raw_vn) {
+            if ($vn !== '' && $vn !== $raw_vn) {
                 $sets[] = "clog_virtual_number = '" . lc_sql_escape($vn) . "'";
                 $summary['normalized']++;
             }
 
-            $assignment = lc_call_assignment_by_number($vn);
-            if (!$assignment) {
+            $pt_id = (int) ($row['pt_id'] ?? 0);
+            $cp_id = (int) ($row['cp_id'] ?? 0);
+            $mt_id = (int) ($row['mt_id'] ?? 0);
+            $cn_id = (int) ($row['cn_id'] ?? 0);
+            $car_id = (int) ($row['car_id'] ?? 0);
+            $how = '';
+
+            $assignment = $vn !== '' ? lc_call_assignment_by_number($vn) : null;
+            if ($assignment) {
+                $pt_id = (int) ($assignment['pt_id'] ?? 0);
+                $cp_id = (int) ($assignment['cp_id'] ?? 0);
+                $mt_id = (int) ($assignment['mt_id'] ?? 0);
+                $cn_id = (int) ($assignment['cn_id'] ?? 0);
+                $car_id = (int) ($assignment['car_id'] ?? 0);
+                $how = 'virtual';
+                $summary['matchedByVirtual']++;
+            } else {
+                $fwd = $callee !== '' ? lc_call_campaign_by_forward($callee) : null;
+                if ($fwd) {
+                    $cp_id = (int) ($fwd['cp_id'] ?? 0);
+                    $mt_id = (int) ($fwd['mt_id'] ?? 0);
+                    $partner_asg = lc_call_partner_for_campaign($cp_id);
+                    if ($partner_asg) {
+                        $pt_id = (int) ($partner_asg['pt_id'] ?? 0);
+                        if ($cn_id <= 0) {
+                            $cn_id = (int) ($partner_asg['cn_id'] ?? 0);
+                        }
+                        if ($car_id <= 0) {
+                            $car_id = (int) ($partner_asg['car_id'] ?? 0);
+                        }
+                    }
+                    $how = 'forward';
+                    $summary['matchedByForward']++;
+                }
+            }
+
+            if ($how === '') {
                 if ($sets) {
                     lc_sql_query(" UPDATE `{$clog}` SET " . implode(', ', $sets) . " WHERE clog_id = '{$clog_id}' ", false);
                 }
                 $summary['unchanged']++;
                 continue;
             }
-
-            $pt_id = (int) ($assignment['pt_id'] ?? 0);
-            $cp_id = (int) ($assignment['cp_id'] ?? 0);
-            $mt_id = (int) ($assignment['mt_id'] ?? 0);
-            $cn_id = (int) ($assignment['cn_id'] ?? 0);
-            $car_id = (int) ($assignment['car_id'] ?? 0);
 
             $sets[] = "pt_id = '{$pt_id}'";
             $sets[] = "cp_id = '{$cp_id}'";
@@ -1405,6 +1488,8 @@ if (!function_exists('lc_call_logs_rematch_unmatched')) {
                 $summary['items'][] = array(
                     'clogId' => $clog_id,
                     'virtualNumber' => $vn,
+                    'callee' => $callee,
+                    'how' => $how,
                     'ptId' => $pt_id,
                     'cpId' => $cp_id,
                 );
@@ -1412,9 +1497,11 @@ if (!function_exists('lc_call_logs_rematch_unmatched')) {
         }
 
         $summary['message'] = sprintf(
-            '스캔 %d건 · 매칭 %d건 · 유지 %d건 · 번호정규화 %d건',
+            '스캔 %d건 · 매칭 %d건 (가상번호 %d · 착신/포워딩 %d) · 유지 %d건 · 번호정규화 %d건',
             $summary['scanned'],
             $summary['matched'],
+            $summary['matchedByVirtual'],
+            $summary['matchedByForward'],
             $summary['unchanged'],
             $summary['normalized']
         );
