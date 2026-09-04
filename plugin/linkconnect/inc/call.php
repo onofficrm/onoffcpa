@@ -1297,10 +1297,172 @@ if (!function_exists('lc_call_assignment_by_number')) {
             $in[] = "'" . lc_sql_escape($cand) . "'";
         }
 
-        return lc_sql_fetch(" SELECT * FROM `{$table}`
+        $row = lc_sql_fetch(" SELECT * FROM `{$table}`
             WHERE car_virtual_number IN (" . implode(',', $in) . ")
               AND car_status = '" . LC_CALL_REQ_ASSIGNED . "'
             ORDER BY car_id DESC LIMIT 1 ");
+        if ($row) {
+            return $row;
+        }
+
+        // call_numbers → cn_id 로 배정 재조회 (번호 표기 불일치 보완)
+        if (lc_db_table_exists(lc_table('call_numbers'))) {
+            $cn_table = lc_table('call_numbers');
+            $cn = lc_sql_fetch(" SELECT cn_id, cn_number FROM `{$cn_table}`
+                WHERE cn_number IN (" . implode(',', $in) . ")
+                ORDER BY cn_id DESC LIMIT 1 ");
+            if ($cn && (int) ($cn['cn_id'] ?? 0) > 0) {
+                $by_cn = lc_sql_fetch(" SELECT * FROM `{$table}`
+                    WHERE cn_id = '" . (int) $cn['cn_id'] . "'
+                      AND car_status = '" . LC_CALL_REQ_ASSIGNED . "'
+                    ORDER BY car_id DESC LIMIT 1 ");
+                if ($by_cn) {
+                    return $by_cn;
+                }
+            }
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('lc_call_logs_rematch_unmatched')) {
+    /**
+     * pt_id=0 미매칭 통화로그를 가상번호 배정 기준으로 재연결.
+     *
+     * @return array{ok:bool,message:string,scanned:int,matched:int,unchanged:int,normalized:int,items?:array}
+     */
+    function lc_call_logs_rematch_unmatched(array $opts = array())
+    {
+        if (!lc_db_installed() || !lc_db_table_exists(lc_table('call_logs'))) {
+            return array('ok' => false, 'message' => 'call_logs 테이블이 없습니다.', 'scanned' => 0, 'matched' => 0, 'unchanged' => 0, 'normalized' => 0);
+        }
+
+        $clog = lc_table('call_logs');
+        $only_unmatched = !isset($opts['onlyUnmatched']) || !empty($opts['onlyUnmatched']);
+        $limit = isset($opts['limit']) ? max(1, (int) $opts['limit']) : 5000;
+        $where = $only_unmatched ? " pt_id = '0' " : ' 1=1 ';
+
+        $summary = array(
+            'ok' => true,
+            'message' => '',
+            'scanned' => 0,
+            'matched' => 0,
+            'unchanged' => 0,
+            'normalized' => 0,
+            'items' => array(),
+        );
+
+        $result = lc_sql_query(" SELECT clog_id, clog_virtual_number, pt_id, cp_id, mt_id, cn_id, car_id
+            FROM `{$clog}`
+            WHERE {$where}
+            ORDER BY clog_id ASC
+            LIMIT {$limit} ", false);
+        if (!$result) {
+            return array('ok' => false, 'message' => '통화로그 조회 실패', 'scanned' => 0, 'matched' => 0, 'unchanged' => 0, 'normalized' => 0);
+        }
+
+        while ($row = sql_fetch_array($result)) {
+            $summary['scanned']++;
+            $clog_id = (int) $row['clog_id'];
+            $raw_vn = (string) ($row['clog_virtual_number'] ?? '');
+            $vn = lc_call_number_normalize($raw_vn);
+            if ($vn === '') {
+                $summary['unchanged']++;
+                continue;
+            }
+
+            $sets = array();
+            if ($vn !== $raw_vn) {
+                $sets[] = "clog_virtual_number = '" . lc_sql_escape($vn) . "'";
+                $summary['normalized']++;
+            }
+
+            $assignment = lc_call_assignment_by_number($vn);
+            if (!$assignment) {
+                if ($sets) {
+                    lc_sql_query(" UPDATE `{$clog}` SET " . implode(', ', $sets) . " WHERE clog_id = '{$clog_id}' ", false);
+                }
+                $summary['unchanged']++;
+                continue;
+            }
+
+            $pt_id = (int) ($assignment['pt_id'] ?? 0);
+            $cp_id = (int) ($assignment['cp_id'] ?? 0);
+            $mt_id = (int) ($assignment['mt_id'] ?? 0);
+            $cn_id = (int) ($assignment['cn_id'] ?? 0);
+            $car_id = (int) ($assignment['car_id'] ?? 0);
+
+            $sets[] = "pt_id = '{$pt_id}'";
+            $sets[] = "cp_id = '{$cp_id}'";
+            $sets[] = "mt_id = '{$mt_id}'";
+            $sets[] = "cn_id = '{$cn_id}'";
+            $sets[] = "car_id = '{$car_id}'";
+
+            lc_sql_query(" UPDATE `{$clog}` SET " . implode(', ', $sets) . " WHERE clog_id = '{$clog_id}' ", false);
+            $summary['matched']++;
+            if (count($summary['items']) < 30) {
+                $summary['items'][] = array(
+                    'clogId' => $clog_id,
+                    'virtualNumber' => $vn,
+                    'ptId' => $pt_id,
+                    'cpId' => $cp_id,
+                );
+            }
+        }
+
+        $summary['message'] = sprintf(
+            '스캔 %d건 · 매칭 %d건 · 유지 %d건 · 번호정규화 %d건',
+            $summary['scanned'],
+            $summary['matched'],
+            $summary['unchanged'],
+            $summary['normalized']
+        );
+
+        return $summary;
+    }
+}
+
+if (!function_exists('lc_call_numbers_ensure_from_logs')) {
+    /**
+     * 미매칭 로그의 가상번호를 풀에 없으면 등록(available).
+     *
+     * @return array{ok:bool,message:string,created:int,exists:int}
+     */
+    function lc_call_numbers_ensure_from_logs()
+    {
+        if (!lc_db_installed() || !lc_db_table_exists(lc_table('call_logs')) || !lc_db_table_exists(lc_table('call_numbers'))) {
+            return array('ok' => false, 'message' => '테이블 없음', 'created' => 0, 'exists' => 0);
+        }
+        $clog = lc_table('call_logs');
+        $created = 0;
+        $exists = 0;
+        $result = lc_sql_query(" SELECT DISTINCT clog_virtual_number FROM `{$clog}` WHERE pt_id = '0' AND clog_virtual_number <> '' ", false);
+        if (!$result) {
+            return array('ok' => false, 'message' => '조회 실패', 'created' => 0, 'exists' => 0);
+        }
+        while ($row = sql_fetch_array($result)) {
+            $vn = lc_call_number_normalize((string) ($row['clog_virtual_number'] ?? ''));
+            if ($vn === '') {
+                continue;
+            }
+            $res = lc_call_number_create(array(
+                'number' => $vn,
+                'memo' => '미매칭 통화로그에서 자동 등록',
+            ));
+            if (!empty($res['ok'])) {
+                $created++;
+            } else {
+                $exists++;
+            }
+        }
+
+        return array(
+            'ok' => true,
+            'message' => "풀 등록 신규 {$created} · 기존/스킵 {$exists}",
+            'created' => $created,
+            'exists' => $exists,
+        );
     }
 }
 

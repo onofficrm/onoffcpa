@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - 'plugin/linkconnect/inc/call.php'
+      - 'plugin/linkconnect/install/rematch_call_logs.php'
       - 'plugin/linkconnect/admin/api/call.php'
       - 'plugin/linkconnect/partner/api/call.php'
       - 'plugin/onoff-builder-bridge/imports/linkconnect/**'
@@ -37,6 +38,7 @@ jobs:
             "plugin/linkconnect/inc/call.php"
             "plugin/linkconnect/admin/api/call.php"
             "plugin/linkconnect/partner/api/call.php"
+            "plugin/linkconnect/install/rematch_call_logs.php"
           )
           for file in "${FILES[@]}"; do
             mkdir -p "$ROOT/$(dirname "$file")"

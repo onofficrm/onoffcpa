@@ -23,6 +23,7 @@ import {
   finalizeAdminConversion,
   formatCallPhone,
   importAdminCallLogs,
+  rematchAdminCallLogs,
   rejectAdminCallRecordingRequest,
   rejectAdminCallRequest,
   revokeAdminCallRequest,
@@ -518,6 +519,21 @@ export function AdminCallDb() {
       const msg = e instanceof Error ? e.message : '가져오기 실패';
       setImportResult(msg);
       notify(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRematchLogs = async () => {
+    setBusy(true);
+    try {
+      const res = await rematchAdminCallLogs({ ensureNumbers: true, onlyUnmatched: true });
+      const poolMsg = res.pool?.message ? ` · ${res.pool.message}` : '';
+      notify(`${res.message}${poolMsg}`);
+      setImportResult(`${res.message}${poolMsg}`);
+      loadAll();
+    } catch (e) {
+      notify(e instanceof Error ? e.message : '재매칭 실패');
     } finally {
       setBusy(false);
     }
@@ -1119,7 +1135,18 @@ export function AdminCallDb() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 font-bold text-slate-800">통화 로그 (녹취 열람 · 최종확정)</div>
+          <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="font-bold text-slate-800">통화 로그 (녹취 열람 · 최종확정)</div>
+            <button
+              type="button"
+              onClick={handleRematchLogs}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 font-bold rounded-xl text-sm disabled:opacity-50"
+              title="미매칭 로그를 가상번호 배정 기준으로 파트너·캠페인에 다시 연결합니다"
+            >
+              가상번호 기준 재매칭
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-500 text-left">

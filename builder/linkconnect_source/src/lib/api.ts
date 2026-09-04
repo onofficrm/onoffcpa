@@ -2713,6 +2713,22 @@ export function importAdminCallLogs(payload: {
   return adminApiPostFormData<CallLogImportResult>('call.php', formData);
 }
 
+export function rematchAdminCallLogs(payload?: { ensureNumbers?: boolean; onlyUnmatched?: boolean }) {
+  return adminApiPost<{
+    message: string;
+    scanned: number;
+    matched: number;
+    unchanged: number;
+    normalized: number;
+    pool?: { ok: boolean; message: string; created: number; exists: number };
+    items?: Array<{ clogId: number; virtualNumber: string; ptId: number; cpId: number }>;
+  }>('call.php', {
+    action: 'rematch_logs',
+    ensureNumbers: payload?.ensureNumbers === false ? 0 : 1,
+    onlyUnmatched: payload?.onlyUnmatched === false ? 0 : 1,
+  });
+}
+
 export function fetchAdminCallSettings(cpId: number) {
   return adminApiGet<{ settings: Record<string, unknown> }>('call.php', { view: 'settings', cpId: String(cpId) });
 }

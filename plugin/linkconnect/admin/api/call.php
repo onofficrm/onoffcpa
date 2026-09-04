@@ -281,6 +281,23 @@ if ($method === 'POST') {
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'IMPORT_FAILED', 400);
     }
 
+    if ($action === 'rematch_logs') {
+        $ensure = !empty($body['ensureNumbers']) || (isset($body['ensureNumbers']) && (string) $body['ensureNumbers'] === '1');
+        $pool = array('ok' => true, 'created' => 0, 'exists' => 0, 'message' => '');
+        if ($ensure && function_exists('lc_call_numbers_ensure_from_logs')) {
+            $pool = lc_call_numbers_ensure_from_logs();
+        }
+        $result = lc_call_logs_rematch_unmatched(array(
+            'onlyUnmatched' => !isset($body['onlyUnmatched']) || !empty($body['onlyUnmatched']) || (string) ($body['onlyUnmatched'] ?? '1') === '1',
+            'limit' => isset($body['limit']) ? (int) $body['limit'] : 5000,
+        ));
+        if ($result['ok'] && function_exists('lc_admin_log_write')) {
+            lc_admin_log_write('call_rematch_logs', 'call_log', 0, (string) ($result['message'] ?? '가상번호 재매칭'), $result);
+        }
+        $result['pool'] = $pool;
+        $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'REMATCH_FAILED', 400);
+    }
+
     if ($action === 'reject_request') {
         $result = lc_call_request_reject((int) ($body['carId'] ?? 0), (string) ($body['adminMemo'] ?? ''));
         if ($result['ok'] && function_exists('lc_admin_log_write')) {
