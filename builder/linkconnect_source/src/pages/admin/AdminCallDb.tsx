@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../../layouts/AdminLayout';
-import { Phone, PhoneCall, PhoneIncoming, Plus, Settings2, PlayCircle, Lock, Check, X, Upload, Info, Headphones, Trash2 } from 'lucide-react';
+import { Phone, PhoneCall, PhoneIncoming, Plus, Settings2, PlayCircle, Lock, Check, X, Upload, Info, Headphones, Trash2, ClipboardPaste } from 'lucide-react';
 import {
   CallLog,
   CallNumber,
@@ -105,14 +105,22 @@ export function AdminCallDb() {
   const [memoDrafts, setMemoDrafts] = useState<Record<number, string>>({});
   const [priceDrafts, setPriceDrafts] = useState<Record<number, { partner: string; advertiser: string }>>({});
 
-  // 통화 엑셀 업로드
+  // 통화내역 가져오기 (파일 / 붙여넣기)
+  const [importMode, setImportMode] = useState<'paste' | 'file'>('paste');
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPaste, setImportPaste] = useState('');
   const [skipConversionOnImport, setSkipConversionOnImport] = useState(true);
   const [importResult, setImportResult] = useState('');
   const [importPreview, setImportPreview] = useState<Array<Record<string, unknown>>>([]);
   const [importHeaders, setImportHeaders] = useState<string[]>([]);
   const [importTotal, setImportTotal] = useState(0);
   const [importPreviewMsg, setImportPreviewMsg] = useState('');
+
+  const CALL_LOG_PASTE_PLACEHOLDER = `발신번호,가상번호,착신번호,통화일자,통화시작시간,통화시간(초),녹음파일,통화결과
+1091484816,50369821003,1067709798,2026-08-31,20:48:50,19초,,통화성공
+1020677673,50369821002,1092262311,2026-08-31,15:41:16,25초,,통화성공`;
+
+  const hasImportSource = importMode === 'paste' ? importPaste.trim().length > 0 : !!importFile;
   // 콜 설정 모달
   const [settingsCp, setSettingsCp] = useState<{ cpId: number; name: string } | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<Record<string, unknown>>({});
@@ -467,12 +475,16 @@ export function AdminCallDb() {
   };
 
   const handlePreviewLogs = async () => {
-    if (!importFile) return;
+    if (!hasImportSource) return;
     setBusy(true);
     setImportResult('');
     clearImportPreview();
     try {
-      const res = await importAdminCallLogs({ file: importFile, dryRun: true });
+      const res = await importAdminCallLogs(
+        importMode === 'paste'
+          ? { pasteText: importPaste, dryRun: true }
+          : { file: importFile!, dryRun: true },
+      );
       setImportPreview(res.preview ?? []);
       setImportHeaders(res.headers ?? []);
       setImportTotal(res.total ?? 0);
@@ -487,21 +499,23 @@ export function AdminCallDb() {
   };
 
   const handleImportLogs = async () => {
-    if (!importFile) return;
+    if (!hasImportSource) return;
     setBusy(true);
     setImportResult('');
     try {
-      const res = await importAdminCallLogs({
-        file: importFile,
-        skipConversion: skipConversionOnImport,
-      });
+      const res = await importAdminCallLogs(
+        importMode === 'paste'
+          ? { pasteText: importPaste, skipConversion: skipConversionOnImport }
+          : { file: importFile!, skipConversion: skipConversionOnImport },
+      );
       setImportResult(res.message);
       notify(res.message);
       setImportFile(null);
+      setImportPaste('');
       clearImportPreview();
       loadAll();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '업로드 실패';
+      const msg = e instanceof Error ? e.message : '가져오기 실패';
       setImportResult(msg);
       notify(msg);
     } finally {
@@ -618,7 +632,7 @@ export function AdminCallDb() {
   const setDraft = (k: string, v: unknown) => setSettingsDraft((p) => ({ ...p, [k]: v }));
 
   return (
-    <AdminLayout activeMenu="call" title="콜디비 관리" description="수동 운영 · 가상번호 등록/배정 · 통화내역 엑셀 업로드">
+    <AdminLayout activeMenu="call" title="콜디비 관리" description="수동 운영 · 가상번호 등록/배정 · 통화내역 붙여넣기/업로드">
       <div className="mb-6 bg-violet-50 border border-violet-100 rounded-2xl p-4 text-sm text-violet-900">
         <div className="flex items-start gap-2">
           <Info className="w-5 h-5 shrink-0 mt-0.5" />
@@ -628,7 +642,7 @@ export function AdminCallDb() {
               <li>가상번호 풀에 번호를 <b>등록(일괄 가능)</b> → 파트너가 사용 가능 번호 중 <b>직접 선택</b></li>
               <li>파트너는 <b>캠페인당 번호 1개</b> (다른 캠페인은 각각 추가 배정 가능)</li>
               <li>필요 시 관리자가 풀에서 번호를 <b>수동/직접 배정</b>하거나 회수</li>
-              <li>콜업체 통화내역 엑셀/CSV를 <b>업로드</b> (가상번호 열 필수)</li>
+              <li>콜업체 통화내역을 <b>복사 붙여넣기</b> 또는 엑셀/CSV <b>업로드</b> (가상번호 열 필수)</li>
               <li>가상번호 기준으로 파트너·광고주 화면에 <b>담당 통화내역만</b> 자동 표시</li>
               <li>파트너·광고주가 <b>녹음 요청</b> → 최고관리자가 .wav 업로드 후 요청자가 재생</li>
             </ol>
@@ -955,37 +969,113 @@ export function AdminCallDb() {
         <div className="space-y-5">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <div className="font-bold text-slate-800 mb-1 flex items-center gap-2">
-              <Upload size={18} className="text-cyan-600" />
-              통화내역 엑셀 업로드
+              <ClipboardPaste size={18} className="text-cyan-600" />
+              통화내역 가져오기
             </div>
             <p className="text-xs text-slate-500 mb-3">
-              콜업체에서 받은 통화내역 파일(xlsx, xls, csv)을 업로드합니다. <b>가상번호</b>가 배정된 파트너·캠페인에 자동 연결되어 각 센터에 표시됩니다.
+              콜업체 시트에서 헤더 포함해 복사한 뒤 붙여넣거나, 파일(xlsx/xls/csv)을 업로드합니다.
+              <b> 가상번호</b>가 배정된 파트너·캠페인에 자동 연결됩니다.
             </p>
-            <div className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-xl p-3 mb-4">
-              필수 열: <b>가상번호</b> · 권장 열: 발신번호, 통화시작, 통화시간(초), 결과, 통화ID, 녹취URL
+
+            <div className="flex gap-1 mb-4 bg-slate-100 p-1 rounded-xl w-fit">
+              <button
+                type="button"
+                onClick={() => { setImportMode('paste'); clearImportPreview(); setImportResult(''); }}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-bold transition ${importMode === 'paste' ? 'bg-white text-cyan-700 shadow-sm' : 'text-slate-500'}`}
+              >
+                <ClipboardPaste size={14} /> 복사 붙여넣기
+              </button>
+              <button
+                type="button"
+                onClick={() => { setImportMode('file'); clearImportPreview(); setImportResult(''); }}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-bold transition ${importMode === 'file' ? 'bg-white text-cyan-700 shadow-sm' : 'text-slate-500'}`}
+              >
+                <Upload size={14} /> 파일 업로드
+              </button>
             </div>
+
+            <div className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-xl p-3 mb-4 space-y-1.5">
+              <div>
+                지원 열: <b>발신번호, 가상번호, 착신번호, 통화일자, 통화시작시간, 통화시간(초), 녹음파일, 통화결과</b>
+              </div>
+              <div className="text-slate-500">
+                필수: <b>가상번호</b> · 통화일자+통화시작시간은 자동 합침 · 통화시간 <code className="px-1 bg-white border border-slate-200 rounded">19초</code> 형식 지원 · 결과 <code className="px-1 bg-white border border-slate-200 rounded">통화성공</code>/<code className="px-1 bg-white border border-slate-200 rounded">부재중</code>
+              </div>
+            </div>
+
+            {importMode === 'paste' ? (
+              <div className="mb-4">
+                <textarea
+                  value={importPaste}
+                  onChange={(e) => {
+                    setImportPaste(e.target.value);
+                    clearImportPreview();
+                    setImportResult('');
+                  }}
+                  placeholder={CALL_LOG_PASTE_PLACEHOLDER}
+                  rows={8}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono leading-relaxed focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-300 resize-y min-h-[10rem]"
+                />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const text = await navigator.clipboard.readText();
+                        if (text.trim()) {
+                          setImportPaste(text);
+                          clearImportPreview();
+                          setImportResult('');
+                        } else {
+                          notify('클립보드가 비어 있습니다.');
+                        }
+                      } catch {
+                        notify('클립보드 읽기 권한이 없습니다. 직접 붙여넣기 해주세요.');
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs"
+                  >
+                    <ClipboardPaste size={13} /> 클립보드에서 붙여넣기
+                  </button>
+                  {importPaste.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => { setImportPaste(''); clearImportPreview(); setImportResult(''); }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-slate-500 hover:text-slate-700 font-bold rounded-lg text-xs"
+                    >
+                      지우기
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={(e) => {
+                    setImportFile(e.target.files?.[0] ?? null);
+                    clearImportPreview();
+                    setImportResult('');
+                  }}
+                  className="text-sm"
+                />
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={(e) => {
-                  setImportFile(e.target.files?.[0] ?? null);
-                  clearImportPreview();
-                  setImportResult('');
-                }}
-                className="text-sm"
-              />
               <label className="inline-flex items-center gap-2 text-sm text-slate-600">
                 <input type="checkbox" checked={skipConversionOnImport} onChange={(e) => setSkipConversionOnImport(e.target.checked)} className="accent-cyan-500" />
                 콜DB 전환 자동 생성 안 함 (통화내역만 표시)
               </label>
-              <button type="button" onClick={handlePreviewLogs} disabled={busy || !importFile}
+              <button type="button" onClick={handlePreviewLogs} disabled={busy || !hasImportSource}
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm disabled:opacity-50">
                 미리보기
               </button>
-              <button type="button" onClick={handleImportLogs} disabled={busy || !importFile}
+              <button type="button" onClick={handleImportLogs} disabled={busy || !hasImportSource}
                 className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-xl text-sm disabled:opacity-50">
-                <Upload size={16} /> 업로드
+                {importMode === 'paste' ? <ClipboardPaste size={16} /> : <Upload size={16} />}
+                {importMode === 'paste' ? '붙여넣기 등록' : '업로드'}
               </button>
             </div>
             {importPreviewMsg ? <p className="mt-3 text-sm text-slate-600">{importPreviewMsg}</p> : null}
@@ -1002,6 +1092,7 @@ export function AdminCallDb() {
                         <th className="px-3 py-2">행</th>
                         <th className="px-3 py-2">가상번호</th>
                         <th className="px-3 py-2">발신번호</th>
+                        <th className="px-3 py-2">착신번호</th>
                         <th className="px-3 py-2">통화시작</th>
                         <th className="px-3 py-2">통화시간</th>
                         <th className="px-3 py-2">결과</th>
@@ -1013,6 +1104,7 @@ export function AdminCallDb() {
                           <td className="px-3 py-2 text-slate-400">{String(row.importRow ?? i + 1)}</td>
                           <td className="px-3 py-2 font-mono text-violet-700">{String(row.virtualNumber ?? '—')}</td>
                           <td className="px-3 py-2 font-mono">{String(row.caller ?? '—')}</td>
+                          <td className="px-3 py-2 font-mono text-slate-500">{String(row.callee ?? '—')}</td>
                           <td className="px-3 py-2">{String(row.startedAt ?? '—')}</td>
                           <td className="px-3 py-2">{String(row.duration ?? '—')}</td>
                           <td className="px-3 py-2">{String(row.result ?? '—')}</td>

@@ -1310,11 +1310,15 @@ if (!function_exists('lc_call_normalize_result')) {
     function lc_call_normalize_result($result, $duration)
     {
         $result = strtolower(trim((string) $result));
+        $result = preg_replace('/\s+/u', '', $result);
         $map = array(
             'success' => LC_CALL_RESULT_SUCCESS, 'answered' => LC_CALL_RESULT_SUCCESS, 'completed' => LC_CALL_RESULT_SUCCESS, 'connect' => LC_CALL_RESULT_SUCCESS,
+            '통화성공' => LC_CALL_RESULT_SUCCESS, '성공' => LC_CALL_RESULT_SUCCESS, '연결' => LC_CALL_RESULT_SUCCESS, '착신' => LC_CALL_RESULT_SUCCESS,
             'missed' => LC_CALL_RESULT_MISSED, 'noanswer' => LC_CALL_RESULT_MISSED, 'no-answer' => LC_CALL_RESULT_MISSED,
-            'busy' => LC_CALL_RESULT_BUSY,
+            '부재중' => LC_CALL_RESULT_MISSED, '부재' => LC_CALL_RESULT_MISSED, '무응답' => LC_CALL_RESULT_MISSED,
+            'busy' => LC_CALL_RESULT_BUSY, '통화중' => LC_CALL_RESULT_BUSY,
             'fail' => LC_CALL_RESULT_FAIL, 'failed' => LC_CALL_RESULT_FAIL, 'canceled' => LC_CALL_RESULT_FAIL,
+            '통화실패' => LC_CALL_RESULT_FAIL, '실패' => LC_CALL_RESULT_FAIL, '거절' => LC_CALL_RESULT_FAIL,
         );
         if (isset($map[$result])) {
             return $map[$result];
@@ -1344,7 +1348,16 @@ if (!function_exists('lc_call_ingest_log')) {
         $virtual_number = lc_call_number_normalize($payload['virtualNumber'] ?? $payload['calledNumber'] ?? $payload['did'] ?? '');
         $caller = lc_call_number_normalize($payload['caller'] ?? $payload['from'] ?? $payload['callerNumber'] ?? '');
         $callee = lc_call_number_normalize($payload['callee'] ?? $payload['to'] ?? '');
-        $duration = (int) ($payload['duration'] ?? $payload['durationSec'] ?? 0);
+        $duration_raw = $payload['duration'] ?? $payload['durationSec'] ?? 0;
+        if (is_string($duration_raw)) {
+            if (preg_match('/(\d+)/', $duration_raw, $dm)) {
+                $duration = (int) $dm[1];
+            } else {
+                $duration = 0;
+            }
+        } else {
+            $duration = (int) $duration_raw;
+        }
         $result = lc_call_normalize_result($payload['result'] ?? $payload['status'] ?? '', $duration);
         $recording_url = trim((string) ($payload['recordingUrl'] ?? $payload['recordUrl'] ?? ''));
         $recording_id = trim((string) ($payload['recordingId'] ?? $payload['recordId'] ?? ''));
@@ -1698,13 +1711,16 @@ if (!function_exists('lc_call_logs_import_column_aliases')) {
     function lc_call_logs_import_column_aliases()
     {
         return array(
+            // 가상번호 우선. 착신번호는 가상번호 열이 없을 때만 DID로 사용(하위호환).
             'virtualNumber'  => array('가상번호', 'virtualnumber', 'virtual_number', 'did', 'callednumber', 'called_number', '착신번호', '수신번호', '050'),
-            'caller'         => array('발신번호', 'caller', 'from', '발신', '고객번호', '고객 전화번호', 'caller_number'),
-            'startedAt'      => array('통화시작', '통화일시', '시작일시', 'startedat', 'starttime', 'start_time', 'calledat', '일시'),
-            'duration'       => array('통화시간', '통화시간초', 'duration', 'durationsec', 'duration_sec', '초', '통화(초)'),
-            'result'         => array('결과', 'result', 'status', '통화결과', '상태'),
+            'caller'         => array('발신번호', 'caller', 'from', '발신', '고객번호', '고객전화번호', 'caller_number'),
+            'callee'         => array('착신번호', '수신번호', 'callee', 'to', '착신', '포워딩번호', '실번호'),
+            'callDate'       => array('통화일자', '통화일', '통화날짜', 'calldate', 'call_date', 'date', '일자', '날짜'),
+            'startedAt'      => array('통화시작시간', '통화시작', '통화일시', '시작일시', 'startedat', 'starttime', 'start_time', 'calledat', '일시', '시작시간'),
+            'duration'       => array('통화시간초', '통화시간(초)', '통화시간', 'duration', 'durationsec', 'duration_sec', '초', '통화(초)'),
+            'result'         => array('통화결과', '결과', 'result', 'status', '상태'),
             'providerCallId' => array('통화id', '통화고유id', 'providercallid', 'callid', 'call_id', '고유id'),
-            'recordingUrl'   => array('녹취url', 'recordingurl', 'recording_url', 'recordurl', '녹취', '녹취주소'),
+            'recordingUrl'   => array('녹음파일', '녹취url', '녹취파일', 'recordingurl', 'recording_url', 'recordurl', '녹취', '녹취주소', '녹음'),
         );
     }
 }
@@ -1714,7 +1730,7 @@ if (!function_exists('lc_call_logs_import_normalize_header')) {
     {
         $value = strtolower(trim((string) $value));
         $value = preg_replace('/\s+/u', '', $value);
-        $value = str_replace(array('_', '-', '.'), '', $value);
+        $value = str_replace(array('_', '-', '.', '(', ')', '（', '）'), '', $value);
 
         return $value;
     }
@@ -1752,6 +1768,114 @@ if (!function_exists('lc_call_logs_import_map_headers')) {
 }
 
 if (!function_exists('lc_call_logs_import_parse_rows')) {
+    /**
+     * 헤더+데이터 매트릭스를 통화 ingest payload 배열로 변환.
+     *
+     * @param array<int,array<int,string>> $matrix
+     * @return array{ok:bool,message:string,rows?:array<int,array<string,mixed>>,headers?:array<int,string>}
+     */
+    function lc_call_logs_import_matrix_to_rows(array $matrix)
+    {
+        if (count($matrix) < 2) {
+            return array('ok' => false, 'message' => '헤더와 데이터 행이 필요합니다.');
+        }
+
+        $headers = array_map('trim', $matrix[0]);
+        $map = lc_call_logs_import_map_headers($headers);
+        if (!isset($map['virtualNumber'])) {
+            return array('ok' => false, 'message' => '가상번호 열을 찾을 수 없습니다. (가상번호 / virtualNumber 등)');
+        }
+
+        $rows = array();
+        for ($i = 1, $n = count($matrix); $i < $n; $i++) {
+            $line = $matrix[$i];
+            $virtual = trim((string) ($line[$map['virtualNumber']] ?? ''));
+            if ($virtual === '') {
+                continue;
+            }
+
+            $started_at = isset($map['startedAt']) ? trim((string) ($line[$map['startedAt']] ?? '')) : '';
+            $call_date = isset($map['callDate']) ? trim((string) ($line[$map['callDate']] ?? '')) : '';
+            if ($call_date !== '' && $started_at !== '') {
+                // 통화일자 + 통화시작시간 분리 양식 → 합침 (예: 2026-08-31 + 20:48:50)
+                if (!preg_match('/\d{4}/', $started_at)) {
+                    $started_at = $call_date . ' ' . $started_at;
+                }
+            } elseif ($call_date !== '' && $started_at === '') {
+                $started_at = $call_date;
+            }
+
+            $duration_raw = isset($map['duration']) ? trim((string) ($line[$map['duration']] ?? '')) : '';
+
+            $payload = array(
+                'virtualNumber' => $virtual,
+                'caller'        => isset($map['caller']) ? (string) ($line[$map['caller']] ?? '') : '',
+                'callee'        => isset($map['callee']) ? (string) ($line[$map['callee']] ?? '') : '',
+                'startedAt'     => $started_at,
+                'duration'      => $duration_raw,
+                'result'        => isset($map['result']) ? (string) ($line[$map['result']] ?? '') : '',
+                'providerCallId'=> isset($map['providerCallId']) ? (string) ($line[$map['providerCallId']] ?? '') : '',
+                'recordingUrl'  => isset($map['recordingUrl']) ? (string) ($line[$map['recordingUrl']] ?? '') : '',
+                'importRow'     => $i + 1,
+            );
+
+            if ($payload['providerCallId'] === '') {
+                $payload['providerCallId'] = 'import-' . date('Ymd') . '-' . $i . '-' . substr(md5($virtual . $payload['caller'] . $payload['startedAt'] . $payload['duration']), 0, 10);
+            }
+
+            $rows[] = $payload;
+        }
+
+        if (!$rows) {
+            return array('ok' => false, 'message' => '등록할 통화 데이터가 없습니다.');
+        }
+
+        return array('ok' => true, 'message' => count($rows) . '건 파싱됨', 'rows' => $rows, 'headers' => $headers);
+    }
+
+    /**
+     * CSV/TSV 텍스트(붙여넣기) → 매트릭스.
+     *
+     * @return array<int,array<int,string>>
+     */
+    function lc_call_logs_import_text_to_matrix($raw)
+    {
+        $raw = (string) $raw;
+        if (strncmp($raw, "\xEF\xBB\xBF", 3) === 0) {
+            $raw = substr($raw, 3);
+        }
+        $delimiter = (substr_count($raw, "\t") > substr_count($raw, ',')) ? "\t" : ',';
+        $lines = preg_split('/\r\n|\r|\n/', $raw);
+        $matrix = array();
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $row = str_getcsv($line, $delimiter);
+            if ($row && implode('', $row) !== '') {
+                $matrix[] = $row;
+            }
+        }
+
+        return $matrix;
+    }
+
+    /**
+     * 붙여넣기 텍스트(xlsx 복사본·CSV·TSV)를 통화 ingest payload 배열로 변환.
+     *
+     * @return array{ok:bool,message:string,rows?:array<int,array<string,mixed>>,headers?:array<int,string>}
+     */
+    function lc_call_logs_import_parse_text($raw)
+    {
+        $raw = trim((string) $raw);
+        if ($raw === '') {
+            return array('ok' => false, 'message' => '붙여넣을 통화내역이 없습니다.');
+        }
+
+        return lc_call_logs_import_matrix_to_rows(lc_call_logs_import_text_to_matrix($raw));
+    }
+
     /**
      * 업로드 파일(xlsx/xls/csv)을 통화 ingest payload 배열로 변환.
      *
@@ -1793,64 +1917,10 @@ if (!function_exists('lc_call_logs_import_parse_rows')) {
             if ($raw === false) {
                 return array('ok' => false, 'message' => '파일을 읽을 수 없습니다.');
             }
-            if (strncmp($raw, "\xEF\xBB\xBF", 3) === 0) {
-                $raw = substr($raw, 3);
-            }
-            $delimiter = (substr_count($raw, "\t") > substr_count($raw, ',')) ? "\t" : ',';
-            $lines = preg_split('/\r\n|\r|\n/', $raw);
-            foreach ($lines as $line) {
-                $line = trim($line);
-                if ($line === '') {
-                    continue;
-                }
-                $row = str_getcsv($line, $delimiter);
-                if ($row && implode('', $row) !== '') {
-                    $matrix[] = $row;
-                }
-            }
+            $matrix = lc_call_logs_import_text_to_matrix($raw);
         }
 
-        if (count($matrix) < 2) {
-            return array('ok' => false, 'message' => '헤더와 데이터 행이 필요합니다.');
-        }
-
-        $headers = array_map('trim', $matrix[0]);
-        $map = lc_call_logs_import_map_headers($headers);
-        if (!isset($map['virtualNumber'])) {
-            return array('ok' => false, 'message' => '가상번호 열을 찾을 수 없습니다. (가상번호 / virtualNumber 등)');
-        }
-
-        $rows = array();
-        for ($i = 1, $n = count($matrix); $i < $n; $i++) {
-            $line = $matrix[$i];
-            $virtual = trim((string) ($line[$map['virtualNumber']] ?? ''));
-            if ($virtual === '') {
-                continue;
-            }
-
-            $payload = array(
-                'virtualNumber' => $virtual,
-                'caller'        => isset($map['caller']) ? (string) ($line[$map['caller']] ?? '') : '',
-                'startedAt'     => isset($map['startedAt']) ? (string) ($line[$map['startedAt']] ?? '') : '',
-                'duration'      => isset($map['duration']) ? (string) ($line[$map['duration']] ?? '') : '',
-                'result'        => isset($map['result']) ? (string) ($line[$map['result']] ?? '') : '',
-                'providerCallId'=> isset($map['providerCallId']) ? (string) ($line[$map['providerCallId']] ?? '') : '',
-                'recordingUrl'  => isset($map['recordingUrl']) ? (string) ($line[$map['recordingUrl']] ?? '') : '',
-                'importRow'     => $i + 1,
-            );
-
-            if ($payload['providerCallId'] === '') {
-                $payload['providerCallId'] = 'import-' . date('Ymd') . '-' . $i . '-' . substr(md5($virtual . $payload['caller'] . $payload['startedAt']), 0, 10);
-            }
-
-            $rows[] = $payload;
-        }
-
-        if (!$rows) {
-            return array('ok' => false, 'message' => '등록할 통화 데이터가 없습니다.');
-        }
-
-        return array('ok' => true, 'message' => count($rows) . '건 파싱됨', 'rows' => $rows, 'headers' => $headers);
+        return lc_call_logs_import_matrix_to_rows($matrix);
     }
 }
 
