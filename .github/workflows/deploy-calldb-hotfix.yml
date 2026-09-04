@@ -8,8 +8,6 @@ on:
       - main
     paths:
       - 'plugin/linkconnect/inc/call.php'
-      - 'plugin/linkconnect/install/import_call_logs_0503.php'
-      - 'plugin/linkconnect/install/data/call_import_0503_202608.csv'
       - 'plugin/linkconnect/admin/api/call.php'
       - 'plugin/linkconnect/partner/api/call.php'
       - 'plugin/onoff-builder-bridge/imports/linkconnect/**'
@@ -39,8 +37,6 @@ jobs:
             "plugin/linkconnect/inc/call.php"
             "plugin/linkconnect/admin/api/call.php"
             "plugin/linkconnect/partner/api/call.php"
-            "plugin/linkconnect/install/import_call_logs_0503.php"
-            "plugin/linkconnect/install/data/call_import_0503_202608.csv"
           )
           for file in "${FILES[@]}"; do
             mkdir -p "$ROOT/$(dirname "$file")"
