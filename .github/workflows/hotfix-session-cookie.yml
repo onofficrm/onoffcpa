@@ -1,0 +1,75 @@
+name: Hotfix session cookie login
+
+# 로그인 후 메뉴 미변경(세션 쿠키 SameSite 오염) 긴급 수정
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'common.php'
+      - 'bbs/login_check.php'
+      - '.github/workflows/hotfix-session-cookie.yml'
+
+concurrency:
+  group: onoffcpa-session-cookie-hotfix
+  cancel-in-progress: true
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload session cookie fix via FTP
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+        run: |
+          upload() {
+            local src="$1"
+            local dest="$2"
+            echo "→ $dest"
+            curl --fail --show-error --silent \
+              --ftp-create-dirs \
+              --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+              -T "$src" \
+              "ftp://${FTP_SERVER}:${FTP_PORT}${dest}"
+          }
+          php -l common.php
+          php -l bbs/login_check.php
+          upload common.php /public_html/common.php
+          upload bbs/login_check.php /public_html/bbs/login_check.php
+          echo "Uploaded"
+
+      - name: Verify login Set-Cookie is clean
+        run: |
+          rm -f /tmp/cj.txt
+          curl -sS -c /tmp/cj.txt -b /tmp/cj.txt "https://onoffcpa.icrm.co.kr/bbs/login.php" -o /dev/null
+          curl -sS -c /tmp/cj.txt -b /tmp/cj.txt -D /tmp/login_hdr.txt -o /dev/null \
+            -X POST "https://onoffcpa.icrm.co.kr/bbs/login_check.php" \
+            --data-urlencode "mb_id=admin" \
+            --data-urlencode "mb_password=Admin20260906" \
+            --data-urlencode "url=/"
+          echo "=== Set-Cookie lines ==="
+          grep -i '^Set-Cookie:' /tmp/login_hdr.txt || true
+          if grep -i 'SameSite=None; secure; HttpOnly; SameSite=None' /tmp/login_hdr.txt; then
+            echo "FAIL: malformed SameSite cookie still present"
+            exit 1
+          fi
+          curl -sS -c /tmp/cj.txt -b /tmp/cj.txt "https://onoffcpa.icrm.co.kr/" -o /tmp/home.html
+          python3 - <<'PY'
+          import re, json
+          html=open('/tmp/home.html',encoding='utf-8',errors='replace').read()
+          m=re.search(r'window\.__LC_AUTH__=(\{.*?\});', html)
+          assert m, 'no auth bootstrap'
+          d=json.loads(m.group(1))
+          print(d)
+          assert d.get('loggedIn') is True
+          assert d.get('isSuperAdmin') is True
+          print('OK logged-in auth bootstrap')
+          PY

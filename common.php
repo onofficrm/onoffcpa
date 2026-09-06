@@ -363,6 +363,59 @@ if(XenoPostToForm::check()) {
 // 기본적으로 사용하는 필드만 얻은 후 상황에 따라 필드를 추가로 얻음
 $config = get_config(true);
 
+if (!function_exists('g5_emit_clean_session_cookie')) {
+    /**
+     * 세션 쿠키를 단일·정상 Set-Cookie 로 재전송 (로그인 regenerate 후 Chrome 유지용)
+     * @param string $samesite None|Lax|Strict
+     */
+    function g5_emit_clean_session_cookie($samesite = 'Lax')
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            return false;
+        }
+
+        $name = session_name();
+        $id = session_id();
+        if ($name === '' || $id === '') {
+            return false;
+        }
+
+        $samesite = in_array($samesite, array('None', 'Lax', 'Strict'), true) ? $samesite : 'Lax';
+        $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+        if ($samesite === 'None') {
+            $secure = true;
+        }
+
+        $domain = defined('G5_COOKIE_DOMAIN') ? G5_COOKIE_DOMAIN : '';
+        if ($domain === null) {
+            $domain = '';
+        }
+
+        if (PHP_VERSION_ID >= 70300) {
+            return setcookie($name, $id, array(
+                'expires'  => 0,
+                'path'     => '/',
+                'domain'   => $domain,
+                'secure'   => $secure,
+                'httponly' => true,
+                'samesite' => $samesite,
+            ));
+        }
+
+        $cookie = rawurlencode($name) . '=' . rawurlencode($id) . '; path=/';
+        if ($domain !== '') {
+            $cookie .= '; domain=' . $domain;
+        }
+        if ($secure) {
+            $cookie .= '; secure';
+        }
+        $cookie .= '; HttpOnly; SameSite=' . $samesite;
+        header('Set-Cookie: ' . $cookie, false);
+
+        return true;
+    }
+}
+
 // 본인인증 또는 쇼핑몰 사용시에만 secure; SameSite=None 로 설정합니다.
 if( $config['cf_cert_use'] || (defined('G5_YOUNGCART_VER') && G5_YOUNGCART_VER) ) {
     // Chrome 80 버전부터 아래 이슈 대응
@@ -372,24 +425,46 @@ if( $config['cf_cert_use'] || (defined('G5_YOUNGCART_VER') && G5_YOUNGCART_VER) 
         {
             global $g5;
 
-            $res = @session_start($options);
+            // 이미 세션이 시작된 뒤 재호출되면(로그인 시 regenerate 등)
+            // Set-Cookie 를 중복·오염시켜 Chrome 이 세션 쿠키를 버릴 수 있음.
+            $already_active = (session_status() === PHP_SESSION_ACTIVE);
+            $res = $already_active ? true : @session_start($options);
 
             // IE 브라우저 또는 엣지브라우저 또는 IOS 모바일과 http환경에서는 secure; SameSite=None을 설정하지 않습니다.
+            $skip_samesite_none = false;
             if (isset($_SERVER['HTTP_USER_AGENT'])) {
                 if (preg_match('/Edge/i', $_SERVER['HTTP_USER_AGENT'])
                     || preg_match('/(iPhone|iPod|iPad).*AppleWebKit.*Safari/i', $_SERVER['HTTP_USER_AGENT'])
                     || preg_match('~MSIE|Internet Explorer~i', $_SERVER['HTTP_USER_AGENT'])
                     || preg_match('~Trident/7.0(; Touch)?; rv:11.0~',$_SERVER['HTTP_USER_AGENT'])
                     || !(isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']=='on')) {
-                    return $res;
+                    $skip_samesite_none = true;
                 }
             }
 
+            // regenerate 이후 재호출: 깨끗한 쿠키만 재전송하고 종료
+            if ($already_active) {
+                g5_emit_clean_session_cookie($skip_samesite_none ? 'Lax' : 'None');
+                if (!$skip_samesite_none) {
+                    $g5['session_cookie_samesite'] = 'none';
+                }
+                return $res;
+            }
+
+            if ($skip_samesite_none) {
+                return $res;
+            }
+
+            // 최초 시작: ini_set(session.cookie_samesite) 로 이미 None 이 반영된 경우 추가 header 금지
             $headers = headers_list();
             krsort($headers);
-            $cookie_session_name = method_exists('XenoPostToForm', 'g5_session_name') ? XenoPostToForm::g5_session_name() : 'PHPSESSID'; 
+            $cookie_session_name = method_exists('XenoPostToForm', 'g5_session_name') ? XenoPostToForm::g5_session_name() : 'PHPSESSID';
             foreach ($headers as $header) {
                 if (!preg_match('~^Set-Cookie: '.$cookie_session_name.'=~', $header)) continue;
+                if (stripos($header, 'SameSite=') !== false) {
+                    $g5['session_cookie_samesite'] = 'none';
+                    break;
+                }
                 $header = preg_replace('~(; secure; HttpOnly)?$~', '; secure; HttpOnly; SameSite=None', $header);
                 header($header, false);
                 $g5['session_cookie_samesite'] = 'none';
@@ -399,8 +474,16 @@ if( $config['cf_cert_use'] || (defined('G5_YOUNGCART_VER') && G5_YOUNGCART_VER) 
         }
     }
 
+    // 세션 시작 전에 SameSite 를 ini 로 지정해 첫 Set-Cookie 부터 정상 값이 나가게 함
+    if (PHP_VERSION_ID >= 70300) {
+        @ini_set('session.cookie_samesite', 'None');
+        @ini_set('session.cookie_secure', '1');
+    }
     session_start_samesite();
 } else {
+    if (PHP_VERSION_ID >= 70300) {
+        @ini_set('session.cookie_samesite', 'Lax');
+    }
     @session_start();
 }
 //==============================================================================

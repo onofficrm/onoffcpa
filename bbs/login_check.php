@@ -64,7 +64,11 @@ run_event('login_session_before', $mb, $is_social_login);
 
 if (! (defined('SKIP_SESSION_REGENERATE_ID') && SKIP_SESSION_REGENERATE_ID)) {
     session_regenerate_id(false);
-    if (function_exists('session_start_samesite')) {
+    // 세션 ID 변경 후 Chrome 이 받을 수 있는 단일 Set-Cookie 로 재전송
+    if (function_exists('g5_emit_clean_session_cookie')) {
+        $samesite = (!empty($config['cf_cert_use']) || (defined('G5_YOUNGCART_VER') && G5_YOUNGCART_VER)) ? 'None' : 'Lax';
+        g5_emit_clean_session_cookie($samesite);
+    } elseif (function_exists('session_start_samesite')) {
         session_start_samesite();
     }
 }
