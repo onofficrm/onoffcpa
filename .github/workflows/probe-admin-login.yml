@@ -1,0 +1,169 @@
+name: Probe admin login
+
+# 최고관리자 로그인 장애 진단 (비밀번호 원문/해시 미출력)
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: onoffcpa-probe-admin-login
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Upload and run admin login probe
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+        run: |
+          cat > probe_admin_login.php << 'EOF'
+          <?php
+          header('Content-Type: application/json; charset=utf-8');
+          error_reporting(E_ALL);
+          ini_set('display_errors', '0');
+          define('_GNUBOARD_', true);
+
+          $out = array('ok' => false, 'steps' => array());
+          $dbconfig = __DIR__ . '/data/dbconfig.php';
+          if (!is_file($dbconfig)) {
+              $out['error'] = 'dbconfig missing';
+              echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+              exit;
+          }
+          include_once $dbconfig;
+          $out['steps'][] = 'dbconfig loaded';
+
+          mysqli_report(MYSQLI_REPORT_OFF);
+          $link = @mysqli_connect(G5_MYSQL_HOST, G5_MYSQL_USER, G5_MYSQL_PASSWORD, G5_MYSQL_DB);
+          if (!$link) {
+              $out['error'] = 'db connect fail';
+              $out['errno'] = mysqli_connect_errno();
+              echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+              exit;
+          }
+          mysqli_set_charset($link, 'utf8mb4');
+          $out['steps'][] = 'db connected';
+
+          $prefix = 'g5_';
+          if (defined('G5_TABLE_PREFIX')) {
+              $prefix = G5_TABLE_PREFIX;
+          } elseif (is_file(__DIR__ . '/config.php')) {
+              // try read define without executing fully
+              $cfg = file_get_contents(__DIR__ . '/config.php');
+              if (preg_match("/define\\(\\s*'G5_TABLE_PREFIX'\\s*,\\s*'([^']+)'\\s*\\)/", $cfg, $m)) {
+                  $prefix = $m[1];
+              }
+          }
+          $out['tablePrefix'] = $prefix;
+
+          $config_table = $prefix . 'config';
+          $member_table = $prefix . 'member';
+
+          $cf = null;
+          $res = mysqli_query($link, "SELECT cf_admin, cf_admin_email, cf_intercept_ip, cf_possible_ip FROM `{$config_table}` LIMIT 1");
+          if ($res) {
+              $cf = mysqli_fetch_assoc($res);
+          }
+          if (!$cf) {
+              $out['error'] = 'config row missing';
+              echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+              exit;
+          }
+
+          $admin_id = trim((string) ($cf['cf_admin'] ?? ''));
+          $out['cfAdmin'] = $admin_id;
+          $out['cfAdminEmail'] = (string) ($cf['cf_admin_email'] ?? '');
+          $out['hasInterceptIpRules'] = trim((string) ($cf['cf_intercept_ip'] ?? '')) !== '';
+          $out['hasPossibleIpRules'] = trim((string) ($cf['cf_possible_ip'] ?? '')) !== '';
+          $out['interceptIpPreview'] = substr(trim((string) ($cf['cf_intercept_ip'] ?? '')), 0, 120);
+          $out['possibleIpPreview'] = substr(trim((string) ($cf['cf_possible_ip'] ?? '')), 0, 120);
+
+          $member = null;
+          if ($admin_id !== '') {
+              $aid = mysqli_real_escape_string($link, $admin_id);
+              $res = mysqli_query($link, "SELECT mb_id, mb_name, mb_nick, mb_level, mb_intercept_date, mb_leave_date, mb_email_certify, mb_datetime, mb_today_login, mb_login_ip, LENGTH(mb_password) AS pw_len, LEFT(mb_password, 4) AS pw_prefix FROM `{$member_table}` WHERE mb_id = '{$aid}' LIMIT 1");
+              if ($res) {
+                  $member = mysqli_fetch_assoc($res);
+              }
+          }
+          $out['adminMemberExists'] = is_array($member);
+          if ($member) {
+              $out['adminMember'] = array(
+                  'mb_id' => $member['mb_id'],
+                  'mb_name' => $member['mb_name'],
+                  'mb_level' => (int) $member['mb_level'],
+                  'mb_intercept_date' => (string) $member['mb_intercept_date'],
+                  'mb_leave_date' => (string) $member['mb_leave_date'],
+                  'mb_email_certify' => (string) $member['mb_email_certify'],
+                  'mb_datetime' => (string) $member['mb_datetime'],
+                  'mb_today_login' => (string) $member['mb_today_login'],
+                  'mb_login_ip' => (string) $member['mb_login_ip'],
+                  'pw_len' => (int) $member['pw_len'],
+                  'pw_prefix' => (string) $member['pw_prefix'],
+              );
+              $today = date('Ymd');
+              $out['isIntercepted'] = ($member['mb_intercept_date'] !== '' && $member['mb_intercept_date'] <= $today);
+              $out['isLeft'] = ($member['mb_leave_date'] !== '' && $member['mb_leave_date'] <= $today);
+              $out['emailCertified'] = ($member['mb_email_certify'] !== '' && $member['mb_email_certify'] !== '0' && !preg_match('/^0000/', $member['mb_email_certify']));
+          }
+
+          // high-level members snapshot (no passwords)
+          $levels = array();
+          $res = mysqli_query($link, "SELECT mb_id, mb_level, mb_intercept_date, mb_leave_date FROM `{$member_table}` WHERE mb_level >= 8 ORDER BY mb_level DESC, mb_id ASC LIMIT 20");
+          if ($res) {
+              while ($row = mysqli_fetch_assoc($res)) {
+                  $levels[] = $row;
+              }
+          }
+          $out['highLevelMembers'] = $levels;
+
+          // file presence checks that affect login UX
+          $out['files'] = array(
+              'bbs/login.php' => is_file(__DIR__ . '/bbs/login.php'),
+              'bbs/login_check.php' => is_file(__DIR__ . '/bbs/login_check.php'),
+              'login/index.php' => is_file(__DIR__ . '/login/index.php'),
+              'extend/linkconnect-member.extend.php' => is_file(__DIR__ . '/extend/linkconnect-member.extend.php'),
+              'adm/index.php' => is_file(__DIR__ . '/adm/index.php'),
+          );
+
+          $out['ok'] = true;
+          mysqli_close($link);
+          echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+          EOF
+
+          curl --fail --show-error --silent \
+            --ftp-create-dirs \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T probe_admin_login.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/_probe_admin_login.php"
+
+          # also ensure /login redirect exists
+          mkdir -p login
+          cat > login/index.php << 'EOF'
+          <?php
+          $qs = isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== ''
+              ? '?' . $_SERVER['QUERY_STRING']
+              : '';
+          header('Location: /bbs/login.php' . $qs, true, 302);
+          exit;
+          EOF
+          curl --fail --show-error --silent \
+            --ftp-create-dirs \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -T login/index.php \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/public_html/login/index.php"
+
+          echo "=== HTTP PROBE ==="
+          curl -sS "https://onoffcpa.icrm.co.kr/_probe_admin_login.php" || true
+          echo
+          echo "=== /login check ==="
+          curl -sS -o /dev/null -w "login_http=%{http_code} redirect=%{redirect_url}\n" --max-time 15 "https://onoffcpa.icrm.co.kr/login"
+
+          curl --silent --show-error \
+            --user "${FTP_USERNAME}:${FTP_PASSWORD}" \
+            -Q "DELE /public_html/_probe_admin_login.php" \
+            "ftp://${FTP_SERVER}:${FTP_PORT}/" || true
