@@ -117,9 +117,9 @@ export function AdminCallDb() {
   const [importTotal, setImportTotal] = useState(0);
   const [importPreviewMsg, setImportPreviewMsg] = useState('');
 
-  const CALL_LOG_PASTE_PLACEHOLDER = `발신번호,가상번호,착신번호,통화일자,통화시작시간,통화시간(초),녹음파일,통화결과
-1091484816,50369821003,1067709798,2026-08-31,20:48:50,19초,,통화성공
-1020677673,50369821002,1092262311,2026-08-31,15:41:16,25초,,통화성공`;
+  const CALL_LOG_PASTE_PLACEHOLDER = `예시 형식입니다. 실제 등록하려면 콜업체 시트를 복사해 붙여넣으세요.
+발신번호,가상번호,착신번호,통화일자,통화시작시간,통화시간(초),녹음파일,통화결과
+1091484816,50369821003,1067709798,2026-08-31,20:48:50,19초,,통화성공`;
 
   const hasImportSource = importMode === 'paste' ? importPaste.trim().length > 0 : !!importFile;
   // 콜 설정 모달
@@ -1137,7 +1137,10 @@ export function AdminCallDb() {
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="font-bold text-slate-800">통화 로그 (녹취 열람 · 최종확정)</div>
+            <div>
+              <div className="font-bold text-slate-800">통화 로그 (녹취 열람 · 최종확정)</div>
+              <div className="text-xs text-slate-500 mt-0.5">총 {logs.length.toLocaleString()}건 · 최신 통화일시 순</div>
+            </div>
             <button
               type="button"
               onClick={handleRematchLogs}

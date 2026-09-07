@@ -2350,6 +2350,9 @@ if (!function_exists('lc_call_logs_import_bulk')) {
             $summary['failed'],
             $summary['unmatched']
         );
+        if ($summary['imported'] === 0 && $summary['duplicate'] > 0 && $summary['failed'] === 0) {
+            $summary['message'] .= ' (이미 등록된 통화내역입니다. 아래 목록을 확인하세요)';
+        }
 
         return $summary;
     }
@@ -2399,7 +2402,7 @@ if (!function_exists('lc_call_logs_list')) {
             LEFT JOIN `{$cp}` c ON c.cp_id = l.cp_id
             LEFT JOIN `{$pt}` p ON p.pt_id = l.pt_id
             WHERE {$where}
-            ORDER BY l.clog_id DESC LIMIT {$limit} ";
+            ORDER BY l.clog_started_at DESC, l.clog_id DESC LIMIT {$limit} ";
         $result = lc_sql_query($sql, false);
         if ($result) {
             while ($row = sql_fetch_array($result)) {
