@@ -2515,36 +2515,63 @@ if (!function_exists('lc_call_can_view_unmasked_unmatched_caller')) {
     }
 }
 
-if (!function_exists('lc_call_mask_caller_last4')) {
+if (!function_exists('lc_call_mask_caller_privacy')) {
     /**
-     * 발신번호 뒷자리 4자리를 **** 로 마스킹 (개인정보).
-     * 예: 1075768091 → 107576****
+     * 미매칭 발신번호 마스킹: 중간 2자리 + 뒷 2자리를 ** 로 처리.
+     * 예: 1075768091 → 1075**80**
      */
-    function lc_call_mask_caller_last4($phone)
+    function lc_call_mask_caller_privacy($phone)
     {
         $raw = trim((string) $phone);
         if ($raw === '') {
             return '';
         }
-        if (strpos($raw, '****') !== false) {
+        // 이미 마스킹된 값이면 그대로
+        if (strpos($raw, '*') !== false) {
             return $raw;
         }
         $digits = preg_replace('/[^0-9]/', '', $raw);
         if ($digits === '') {
             return $raw;
         }
-        if (strlen($digits) <= 4) {
-            return '****';
+        $len = strlen($digits);
+        if ($len <= 4) {
+            return str_repeat('*', $len);
         }
 
-        return substr($digits, 0, -4) . '****';
+        $chars = str_split($digits);
+        // 뒷번호 2자리
+        $chars[$len - 1] = '*';
+        $chars[$len - 2] = '*';
+        // 중간번호 2자리 (마지막 2자리와 겹치지 않게)
+        $mid_start = (int) floor(($len - 2) / 2);
+        if ($mid_start < 0) {
+            $mid_start = 0;
+        }
+        if ($mid_start > $len - 4) {
+            $mid_start = max(0, $len - 4);
+        }
+        $chars[$mid_start] = '*';
+        $chars[$mid_start + 1] = '*';
+
+        return implode('', $chars);
+    }
+}
+
+if (!function_exists('lc_call_mask_caller_last4')) {
+    /**
+     * @deprecated lc_call_mask_caller_privacy 사용. 호환용 별칭.
+     */
+    function lc_call_mask_caller_last4($phone)
+    {
+        return lc_call_mask_caller_privacy($phone);
     }
 }
 
 if (!function_exists('lc_call_log_to_api')) {
     /**
      * @param bool $with_recording 관리자만 true (녹취 노출)
-     * @param bool $mask true면 파트너용 전면 마스킹. false여도 미매칭은 onoffcpa 최고관리자 외 뒷4자리 마스킹.
+     * @param bool $mask true면 파트너용 전면 마스킹. false여도 미매칭은 onoffcpa 최고관리자 외 중간2+뒷2 마스킹.
      */
     function lc_call_log_to_api(array $row, $with_recording = false, $mask = true)
     {
