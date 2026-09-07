@@ -2172,7 +2172,11 @@ if (!function_exists('lc_call_logs_import_parse_rows')) {
             );
 
             if ($payload['providerCallId'] === '') {
-                $payload['providerCallId'] = 'import-' . date('Ymd') . '-' . $i . '-' . substr(md5($virtual . $payload['caller'] . $payload['startedAt'] . $payload['duration']), 0, 10);
+                // 날짜/행번호 없이 내용 해시만 사용 → 같은 통화내역 재등록 시 중복으로 처리
+                $payload['providerCallId'] = 'import-' . substr(md5(
+                    $virtual . '|' . $payload['caller'] . '|' . $payload['callee'] . '|'
+                    . $payload['startedAt'] . '|' . $payload['duration'] . '|' . $payload['result']
+                ), 0, 16);
             }
 
             $rows[] = $payload;
