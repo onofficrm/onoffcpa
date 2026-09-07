@@ -2017,27 +2017,121 @@ if (!function_exists('lc_call_logs_import_map_headers')) {
     }
 }
 
+if (!function_exists('lc_call_logs_import_first_row_is_header')) {
+    /**
+     * 첫 행이 헤더인지 데이터인지 판별.
+     *
+     * @param array<int,string> $row
+     */
+    function lc_call_logs_import_first_row_is_header(array $row)
+    {
+        $first = trim((string) ($row[0] ?? ''));
+        $first_digits = preg_replace('/\D+/', '', $first);
+        // 첫 칸이 전화번호/가상번호처럼 보이면 데이터 행
+        if ($first_digits !== '' && strlen($first_digits) >= 8 && preg_match('/^\d+$/', $first_digits)) {
+            return false;
+        }
+
+        $map = lc_call_logs_import_map_headers($row);
+
+        return isset($map['virtualNumber'])
+            || isset($map['caller'])
+            || isset($map['callDate'])
+            || isset($map['startedAt'])
+            || isset($map['result'])
+            || isset($map['duration']);
+    }
+}
+
+if (!function_exists('lc_call_logs_import_positional_map')) {
+    /**
+     * 헤더 없는 표준 콜업체 양식(발신/가상/착신/일자/시간/초/녹음/결과) 위치 매핑.
+     *
+     * @return array<string,int>
+     */
+    function lc_call_logs_import_positional_map($col_count)
+    {
+        $col_count = (int) $col_count;
+        if ($col_count >= 8) {
+            return array(
+                'caller'        => 0,
+                'virtualNumber' => 1,
+                'callee'        => 2,
+                'callDate'      => 3,
+                'startedAt'     => 4,
+                'duration'      => 5,
+                'recordingUrl'  => 6,
+                'result'        => 7,
+            );
+        }
+        if ($col_count === 7) {
+            // 녹음열 없음
+            return array(
+                'caller'        => 0,
+                'virtualNumber' => 1,
+                'callee'        => 2,
+                'callDate'      => 3,
+                'startedAt'     => 4,
+                'duration'      => 5,
+                'result'        => 6,
+            );
+        }
+        if ($col_count === 6) {
+            // 일자+시간 합침
+            return array(
+                'caller'        => 0,
+                'virtualNumber' => 1,
+                'callee'        => 2,
+                'startedAt'     => 3,
+                'duration'      => 4,
+                'result'        => 5,
+            );
+        }
+
+        return array();
+    }
+}
+
 if (!function_exists('lc_call_logs_import_parse_rows')) {
     /**
      * 헤더+데이터 매트릭스를 통화 ingest payload 배열로 변환.
+     * 헤더가 없어도 표준 8열(발신/가상/착신/일자/시간/초/녹음/결과)이면 자동 매핑.
      *
      * @param array<int,array<int,string>> $matrix
      * @return array{ok:bool,message:string,rows?:array<int,array<string,mixed>>,headers?:array<int,string>}
      */
     function lc_call_logs_import_matrix_to_rows(array $matrix)
     {
-        if (count($matrix) < 2) {
-            return array('ok' => false, 'message' => '헤더와 데이터 행이 필요합니다.');
+        if (!$matrix) {
+            return array('ok' => false, 'message' => '붙여넣을 통화내역이 없습니다.');
         }
 
-        $headers = array_map('trim', $matrix[0]);
-        $map = lc_call_logs_import_map_headers($headers);
+        $default_headers = array('발신번호', '가상번호', '착신번호', '통화일자', '통화시작시간', '통화시간(초)', '녹음파일', '통화결과');
+        $has_header = lc_call_logs_import_first_row_is_header($matrix[0]);
+        if ($has_header) {
+            if (count($matrix) < 2) {
+                return array('ok' => false, 'message' => '헤더와 데이터 행이 필요합니다.');
+            }
+            $headers = array_map('trim', $matrix[0]);
+            $map = lc_call_logs_import_map_headers($headers);
+            $start = 1;
+        } else {
+            $headers = $default_headers;
+            $map = lc_call_logs_import_positional_map(count($matrix[0]));
+            $start = 0;
+        }
+
         if (!isset($map['virtualNumber'])) {
-            return array('ok' => false, 'message' => '가상번호 열을 찾을 수 없습니다. (가상번호 / virtualNumber 등)');
+            return array(
+                'ok' => false,
+                'message' => $has_header
+                    ? '가상번호 열을 찾을 수 없습니다. (가상번호 / virtualNumber 등)'
+                    : '헤더가 없고 표준 열 순서(발신번호 가상번호 착신번호 통화일자 통화시작시간 …)와도 맞지 않습니다. 헤더를 포함하거나 표준 순서로 붙여넣어 주세요.',
+            );
         }
 
         $rows = array();
-        for ($i = 1, $n = count($matrix); $i < $n; $i++) {
+        for ($i = $start, $n = count($matrix); $i < $n; $i++) {
             $line = $matrix[$i];
             $virtual = trim((string) ($line[$map['virtualNumber']] ?? ''));
             if ($virtual === '') {
@@ -2056,6 +2150,14 @@ if (!function_exists('lc_call_logs_import_parse_rows')) {
             }
 
             $duration_raw = isset($map['duration']) ? trim((string) ($line[$map['duration']] ?? '')) : '';
+            $recording = isset($map['recordingUrl']) ? trim((string) ($line[$map['recordingUrl']] ?? '')) : '';
+            // "다운로드" 같은 버튼 텍스트는 URL이 아님
+            if ($recording !== ''
+                && !preg_match('#^https?://#i', $recording)
+                && !preg_match('#\.(mp3|wav|m4a|ogg)(\?|$)#i', $recording)
+            ) {
+                $recording = '';
+            }
 
             $payload = array(
                 'virtualNumber' => $virtual,
@@ -2065,7 +2167,7 @@ if (!function_exists('lc_call_logs_import_parse_rows')) {
                 'duration'      => $duration_raw,
                 'result'        => isset($map['result']) ? (string) ($line[$map['result']] ?? '') : '',
                 'providerCallId'=> isset($map['providerCallId']) ? (string) ($line[$map['providerCallId']] ?? '') : '',
-                'recordingUrl'  => isset($map['recordingUrl']) ? (string) ($line[$map['recordingUrl']] ?? '') : '',
+                'recordingUrl'  => $recording,
                 'importRow'     => $i + 1,
             );
 
@@ -2080,11 +2182,13 @@ if (!function_exists('lc_call_logs_import_parse_rows')) {
             return array('ok' => false, 'message' => '등록할 통화 데이터가 없습니다.');
         }
 
-        return array('ok' => true, 'message' => count($rows) . '건 파싱됨', 'rows' => $rows, 'headers' => $headers);
+        $suffix = $has_header ? '' : ' (헤더 없음 · 표준 열 순서 자동인식)';
+
+        return array('ok' => true, 'message' => count($rows) . '건 파싱됨' . $suffix, 'rows' => $rows, 'headers' => $headers);
     }
 
     /**
-     * CSV/TSV 텍스트(붙여넣기) → 매트릭스.
+     * CSV/TSV/공백구분 텍스트(붙여넣기) → 매트릭스.
      *
      * @return array<int,array<int,string>>
      */
@@ -2094,7 +2198,16 @@ if (!function_exists('lc_call_logs_import_parse_rows')) {
         if (strncmp($raw, "\xEF\xBB\xBF", 3) === 0) {
             $raw = substr($raw, 3);
         }
-        $delimiter = (substr_count($raw, "\t") > substr_count($raw, ',')) ? "\t" : ',';
+        $tab_count = substr_count($raw, "\t");
+        $comma_count = substr_count($raw, ',');
+        if ($tab_count > 0 && $tab_count >= $comma_count) {
+            $mode = 'tab';
+        } elseif ($comma_count > 0) {
+            $mode = 'comma';
+        } else {
+            $mode = 'space';
+        }
+
         $lines = preg_split('/\r\n|\r|\n/', $raw);
         $matrix = array();
         foreach ($lines as $line) {
@@ -2102,9 +2215,13 @@ if (!function_exists('lc_call_logs_import_parse_rows')) {
             if ($line === '') {
                 continue;
             }
-            $row = str_getcsv($line, $delimiter);
+            if ($mode === 'space') {
+                $row = preg_split('/\s+/u', $line, -1, PREG_SPLIT_NO_EMPTY);
+            } else {
+                $row = str_getcsv($line, $mode === 'tab' ? "\t" : ',');
+            }
             if ($row && implode('', $row) !== '') {
-                $matrix[] = $row;
+                $matrix[] = array_map('trim', $row);
             }
         }
 
@@ -2112,7 +2229,7 @@ if (!function_exists('lc_call_logs_import_parse_rows')) {
     }
 
     /**
-     * 붙여넣기 텍스트(xlsx 복사본·CSV·TSV)를 통화 ingest payload 배열로 변환.
+     * 붙여넣기 텍스트(xlsx 복사본·CSV·TSV·공백구분)를 통화 ingest payload 배열로 변환.
      *
      * @return array{ok:bool,message:string,rows?:array<int,array<string,mixed>>,headers?:array<int,string>}
      */
