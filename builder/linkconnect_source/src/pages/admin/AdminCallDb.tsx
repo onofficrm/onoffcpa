@@ -1170,10 +1170,16 @@ export function AdminCallDb() {
                     <tr key={l.clogId} className="hover:bg-slate-50">
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{l.startedAt}</td>
                       <td className="px-4 py-3 font-mono">{l.virtualNumber}</td>
-                      <td className="px-4 py-3 font-mono">{l.caller}</td>
+                      <td className="px-4 py-3 font-mono" title={l.callerMasked ? '미매칭 · 개인정보 마스킹' : undefined}>
+                        {l.caller}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="font-medium">{l.partner}</div>
-                        <div className="text-xs text-slate-400">{l.campaign || '미매칭'}</div>
+                        {l.campaign ? (
+                          <div className="text-xs text-slate-400">{l.campaign}</div>
+                        ) : (
+                          <div className="text-xs text-amber-600 font-medium">미매칭</div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center font-mono">{fmtDuration(l.duration)}</td>
                       <td className={`px-4 py-3 text-center font-bold ${r.cls}`}>{r.label}</td>

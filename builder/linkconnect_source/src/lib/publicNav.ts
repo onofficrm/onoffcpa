@@ -26,6 +26,7 @@ export function isCompanyNavActive(pathname: string): boolean {
 /** 캠페인·프로모션 (이벤트는 메뉴에서 숨김 — /events 직접 접근은 유지) */
 export const campaignNavItems: NavLinkItem[] = [
   { to: '/cpa-list', label: 'CPA' },
+  { to: '/cps', label: 'CPS' },
 ];
 
 /** 센터 */

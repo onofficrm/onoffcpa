@@ -36,6 +36,7 @@ if ($type === 'cpa' || $type === 'all') {
     $cpa_items = lc_campaign_list_for_api(array(
         'category' => $category,
         'q'        => $q,
+        'type'     => 'cpa',
     ));
     foreach ($cpa_items as &$row) {
         if (is_array($row) && !isset($row['campaignType'])) {

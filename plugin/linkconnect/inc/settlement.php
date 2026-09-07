@@ -351,14 +351,28 @@ if (!function_exists('lc_settlement_admin_update')) {
                 return array('ok' => false, 'message' => '승인 금액이 없습니다.');
             }
 
-            $partner = lc_get_partner_by_id($pt_id);
-            if (!$partner || (int) $partner['pt_balance'] < $approved_amount) {
-                return array('ok' => false, 'message' => '파트너 잔액이 부족합니다.');
+            $is_core = function_exists('lc_onoff_core_settlement_is_core_row')
+                && lc_onoff_core_settlement_is_core_row($row);
+
+            if ($is_core) {
+                // Core CPS: do not debit CPA wallet balance; mark commissions PAID.
+                if (function_exists('lc_onoff_core_settlement_on_admin_pay')) {
+                    $core_pay = lc_onoff_core_settlement_on_admin_pay($st_id);
+                    if (empty($core_pay['ok'])) {
+                        return array('ok' => false, 'message' => (string) ($core_pay['message'] ?? 'core commission pay failed'));
+                    }
+                }
+            } else {
+                $partner = lc_get_partner_by_id($pt_id);
+                if (!$partner || (int) $partner['pt_balance'] < $approved_amount) {
+                    return array('ok' => false, 'message' => '파트너 잔액이 부족합니다.');
+                }
+
+                $pt_table = lc_table('partners');
+                $new_balance = (int) $partner['pt_balance'] - $approved_amount;
+                lc_sql_query(" UPDATE `{$pt_table}` SET pt_balance = '{$new_balance}', pt_updated_at = NOW() WHERE pt_id = '{$pt_id}' ", false);
             }
 
-            $pt_table = lc_table('partners');
-            $new_balance = (int) $partner['pt_balance'] - $approved_amount;
-            lc_sql_query(" UPDATE `{$pt_table}` SET pt_balance = '{$new_balance}', pt_updated_at = NOW() WHERE pt_id = '{$pt_id}' ", false);
             lc_sql_query(" UPDATE `{$table}` SET
                 st_status = '" . lc_sql_escape(LC_SETTLEMENT_PAID) . "',
                 st_approved_amount = '{$approved_amount}',
@@ -376,6 +390,12 @@ if (!function_exists('lc_settlement_admin_update')) {
                 WHERE st_id = '{$st_id}' ", false);
         } elseif ($action === 'reject') {
             $memo = isset($payload['memo']) ? trim((string) $payload['memo']) : '반려';
+            if (function_exists('lc_onoff_core_settlement_is_core_row')
+                && lc_onoff_core_settlement_is_core_row($row)
+                && function_exists('lc_onoff_core_settlement_on_admin_reject')
+            ) {
+                lc_onoff_core_settlement_on_admin_reject($st_id);
+            }
             lc_sql_query(" UPDATE `{$table}` SET
                 st_status = '" . lc_sql_escape(LC_SETTLEMENT_REJECTED) . "',
                 st_approved_amount = 0,

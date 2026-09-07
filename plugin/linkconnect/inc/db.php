@@ -636,8 +636,21 @@ if (!function_exists('lc_db_run_migrations')) {
         if (lc_db_table_exists($partners) && !lc_db_column_exists($partners, 'pt_notify_prefs')) {
             $alters[] = "ALTER TABLE `{$partners}` ADD COLUMN `pt_notify_prefs` text AFTER `pt_balance`";
         }
+        if (lc_db_table_exists($partners) && !lc_db_column_exists($partners, 'pt_onoff_roles')) {
+            $alters[] = "ALTER TABLE `{$partners}` ADD COLUMN `pt_onoff_roles` varchar(200) NOT NULL DEFAULT '' AFTER `pt_notify_prefs`";
+        }
         if (lc_db_table_exists($merchants) && !lc_db_column_exists($merchants, 'mt_notify_prefs')) {
             $alters[] = "ALTER TABLE `{$merchants}` ADD COLUMN `mt_notify_prefs` text AFTER `mt_balance`";
+        }
+
+        if (lc_db_table_exists($campaigns) && !lc_db_column_exists($campaigns, 'cp_platform_service')) {
+            $alters[] = "ALTER TABLE `{$campaigns}` ADD COLUMN `cp_platform_service` varchar(20) NOT NULL DEFAULT 'ONOFFCPA' AFTER `cp_type`";
+        }
+        if (lc_db_table_exists($campaigns) && !lc_db_column_exists($campaigns, 'cp_product_type')) {
+            $alters[] = "ALTER TABLE `{$campaigns}` ADD COLUMN `cp_product_type` varchar(20) NOT NULL DEFAULT '' AFTER `cp_platform_service`";
+        }
+        if (lc_db_table_exists($campaigns) && !lc_db_column_exists($campaigns, 'cp_commission_rule_id')) {
+            $alters[] = "ALTER TABLE `{$campaigns}` ADD COLUMN `cp_commission_rule_id` varchar(64) NOT NULL DEFAULT '' AFTER `cp_product_type`";
         }
 
         $nf = lc_table('notifications');

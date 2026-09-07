@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Search, Info, Link as LinkIcon, Filter, CheckCircle2, AlertTriangle, TrendingUp, Briefcase, PlusCircle, CheckCircle, DollarSign, BookOpen } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { SummaryCard } from '../../components/partner/PartnerShared';
 import { PartnerLayout } from '../../layouts/PartnerLayout';
 import {
@@ -12,9 +13,10 @@ import { AiPromoPanel } from '../../components/AiPromoPanel';
 import { PartnerCampaignDetailModal } from '../../components/partner/PartnerCampaignDetailModal';
 import { CallDbBadge, CallDbStatsHint } from '../../components/CallDbBadge';
 
-const fallbackCategories = ['전체', '금융', '법률', '병원', '교육', '생활서비스', '렌탈', '기타'];
+const fallbackCategories = ['전체', '금융', '법률', '병원', '교육', '생활서비스', '렌탈', '디지털상품', '기타'];
 
 type DetailTab = 'intro' | 'guide' | 'assets';
+type CampaignTypeFilter = 'all' | 'cpa' | 'cps';
 
 type CampaignCardItem = {
   id: number;
@@ -32,10 +34,12 @@ type CampaignCardItem = {
   hasPublishedGuide?: boolean;
   callEnabled?: boolean;
   landingUrl: string;
+  campaignType: 'cpa' | 'cps';
   raw: PartnerCampaign;
 };
 
 function toCardItem(campaign: PartnerCampaign): CampaignCardItem {
+  const campaignType = campaign.campaignType === 'cps' || campaign.type === 'cps' ? 'cps' : 'cpa';
   return {
     id: campaign.id,
     title: campaign.title,
@@ -52,11 +56,16 @@ function toCardItem(campaign: PartnerCampaign): CampaignCardItem {
     hasPublishedGuide: campaign.hasPublishedGuide,
     callEnabled: Boolean(campaign.callEnabled),
     landingUrl: campaign.landingUrl || '',
+    campaignType,
     raw: campaign,
   };
 }
 
 export function PartnerSearch() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const typeParam = searchParams.get('type');
+  const typeFilter: CampaignTypeFilter =
+    typeParam === 'cps' || typeParam === 'cpa' || typeParam === 'all' ? typeParam : 'all';
   const [activeCategory, setActiveCategory] = useState('전체');
   const [searchQuery, setSearchQuery] = useState('');
   const [categories, setCategories] = useState(fallbackCategories);
@@ -68,6 +77,7 @@ export function PartnerSearch() {
   const [linkSubId, setLinkSubId] = useState('');
   const [linkCreating, setLinkCreating] = useState(false);
   const [linkResult, setLinkResult] = useState('');
+  const [linkWarning, setLinkWarning] = useState('');
   const [detailModal, setDetailModal] = useState<{ campaign: PartnerCampaign; tab: DetailTab } | null>(null);
   const [guideConfirmed, setGuideConfirmed] = useState<Record<number, boolean>>({});
   const [linkGuideWarning, setLinkGuideWarning] = useState(false);
@@ -82,6 +92,7 @@ export function PartnerSearch() {
         const data = await fetchPartnerCampaigns({
           category: activeCategory,
           q: searchQuery,
+          type: typeFilter,
         });
         if (cancelled) {
           return;
@@ -99,18 +110,24 @@ export function PartnerSearch() {
       }
     };
 
-    const timer = window.setTimeout(load, searchQuery ? 300 : 0);
-
+    const timer = window.setTimeout(load, 250);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [activeCategory, searchQuery]);
+  }, [activeCategory, searchQuery, typeFilter]);
 
   const recommendedItems = useMemo(
     () => items.filter((item) => item.recommended || item.badge).slice(0, 3),
     [items],
   );
+
+  const setTypeFilter = (next: CampaignTypeFilter) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'all') params.delete('type');
+    else params.set('type', next);
+    setSearchParams(params, { replace: true });
+  };
 
   const highApprovalCount = useMemo(
     () => items.filter((item) => parseInt(item.approvalRate, 10) >= 70).length,
@@ -134,6 +151,7 @@ export function PartnerSearch() {
     setLinkChannel('');
     setLinkSubId('');
     setLinkResult('');
+    setLinkWarning('');
     setLinkGuideWarning(false);
 
     if (!item.hasPublishedGuide) return;
@@ -153,15 +171,22 @@ export function PartnerSearch() {
     if (!linkModal) return;
     setLinkCreating(true);
     setLinkResult('');
+    setLinkWarning('');
     try {
       const result = await createPartnerLink({
         campaignId: linkModal.id,
         channel: linkChannel,
         subId: linkSubId,
       });
-      if (result.link?.url) {
-        setLinkResult(result.link.url);
-        await navigator.clipboard.writeText(result.link.url);
+      const promo =
+        result.link?.referralUrl ||
+        result.link?.landingUrl ||
+        result.link?.url ||
+        '';
+      if (promo) {
+        setLinkResult(promo);
+        setLinkWarning(result.link?.referralWarning || '');
+        await navigator.clipboard.writeText(promo);
       }
     } catch (err) {
       setLinkResult(err instanceof Error ? err.message : '링크 생성에 실패했습니다.');
@@ -173,8 +198,31 @@ export function PartnerSearch() {
   return (
     <PartnerLayout activeMenu="search" title="광고상품 찾기">
       <p className="text-slate-500 mb-8 -mt-2">
-        홍보 가능한 CPA 광고상품을 확인하고, 내 채널에 맞는 캠페인을 선택하세요.
+        CPA·CPS 광고상품을 확인하고, 내 채널에 맞는 캠페인을 선택하세요. CPS(낙장도메인 등)는 추천 URL로 홍보합니다.
       </p>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        {(
+          [
+            { id: 'all' as const, label: '전체' },
+            { id: 'cpa' as const, label: 'CPA' },
+            { id: 'cps' as const, label: 'CPS' },
+          ] as const
+        ).map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setTypeFilter(opt.id)}
+            className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${
+              typeFilter === opt.id
+                ? 'bg-slate-900 text-white'
+                : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       {error && (
         <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
@@ -340,9 +388,16 @@ export function PartnerSearch() {
                 <input value={linkSubId} onChange={(e) => setLinkSubId(e.target.value)} placeholder="blog_01" className="mt-1 w-full px-4 py-3 border border-slate-200 rounded-xl text-sm" />
               </label>
               {linkResult && (
-                <p className={`text-sm ${linkResult.startsWith('http') ? 'text-emerald-600 break-all' : 'text-red-600'}`}>
-                  {linkResult.startsWith('http') ? `생성 완료 (클립보드 복사됨): ${linkResult}` : linkResult}
-                </p>
+                <div className="space-y-2">
+                  <p className={`text-sm ${linkResult.startsWith('http') ? 'text-emerald-600 break-all' : 'text-red-600'}`}>
+                    {linkResult.startsWith('http') ? `생성 완료 (클립보드 복사됨): ${linkResult}` : linkResult}
+                  </p>
+                  {linkWarning ? (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                      {linkWarning}
+                    </p>
+                  ) : null}
+                </div>
               )}
               <AiPromoPanel
                 campaign={{

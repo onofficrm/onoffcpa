@@ -13,6 +13,7 @@ import { EventDetail } from './pages/EventDetail';
 import { CenterSelect } from './pages/CenterSelect';
 import { CpaList } from './pages/cpa/CpaList';
 import { CpaCampaignDetail } from './pages/cpa/CpaCampaignDetail';
+import { CpsList } from './pages/cps/CpsList';
 import { PartnerDashboard } from './pages/partner/Dashboard';
 import { PartnerSearch } from './pages/partner/PartnerSearch';
 import { PartnerLinks } from './pages/partner/PartnerLinks';
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="select-center" element={<CenterSelect />} />
           <Route path="cpa-list" element={<CpaList />} />
           <Route path="cpa/:code" element={<CpaCampaignDetail />} />
+          <Route path="cps" element={<CpsList />} />
           <Route path="events" element={<Events />} />
           <Route path="events/detail" element={<EventDetail />} />
           <Route path="notice" element={<NoticeList />} />

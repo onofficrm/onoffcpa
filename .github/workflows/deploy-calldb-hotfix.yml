@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - 'plugin/linkconnect/inc/call.php'
+      - 'plugin/linkconnect/inc/call_recording_request.php'
       - 'plugin/linkconnect/install/rematch_call_logs.php'
       - 'plugin/linkconnect/admin/api/call.php'
       - 'plugin/linkconnect/partner/api/call.php'
@@ -36,6 +37,7 @@ jobs:
           rm -rf "$ROOT"
           FILES=(
             "plugin/linkconnect/inc/call.php"
+            "plugin/linkconnect/inc/call_recording_request.php"
             "plugin/linkconnect/admin/api/call.php"
             "plugin/linkconnect/partner/api/call.php"
             "plugin/linkconnect/install/rematch_call_logs.php"

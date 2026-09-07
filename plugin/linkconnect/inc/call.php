@@ -2371,18 +2371,90 @@ if (!function_exists('lc_call_request_to_api')) {
     }
 }
 
+if (!function_exists('lc_call_is_onoffcpa_host')) {
+    /**
+     * 미매칭 발신번호 원문 열람 허용 호스트 (onoffcpa 전용).
+     * LC_ONOFFCPA_PUBLIC_URL 상수는 사이트마다 덮어쓸 수 있어 하드코딩 허용 목록만 사용.
+     */
+    function lc_call_is_onoffcpa_host()
+    {
+        $allowed = array('onoffcpa.icrm.co.kr', 'onoffcpa.iwinv.net');
+        $http_host = isset($_SERVER['HTTP_HOST']) ? strtolower((string) $_SERVER['HTTP_HOST']) : '';
+        $http_host = preg_replace('/:\d+$/', '', $http_host);
+
+        return $http_host !== '' && in_array($http_host, $allowed, true);
+    }
+}
+
+if (!function_exists('lc_call_can_view_unmasked_unmatched_caller')) {
+    /**
+     * 미매칭 발신번호 원문 열람: onoffcpa 최고관리자만.
+     */
+    function lc_call_can_view_unmasked_unmatched_caller()
+    {
+        return function_exists('lc_is_super_admin')
+            && lc_is_super_admin()
+            && lc_call_is_onoffcpa_host();
+    }
+}
+
+if (!function_exists('lc_call_mask_caller_last4')) {
+    /**
+     * 발신번호 뒷자리 4자리를 **** 로 마스킹 (개인정보).
+     * 예: 1075768091 → 107576****
+     */
+    function lc_call_mask_caller_last4($phone)
+    {
+        $raw = trim((string) $phone);
+        if ($raw === '') {
+            return '';
+        }
+        if (strpos($raw, '****') !== false) {
+            return $raw;
+        }
+        $digits = preg_replace('/[^0-9]/', '', $raw);
+        if ($digits === '') {
+            return $raw;
+        }
+        if (strlen($digits) <= 4) {
+            return '****';
+        }
+
+        return substr($digits, 0, -4) . '****';
+    }
+}
+
 if (!function_exists('lc_call_log_to_api')) {
     /**
      * @param bool $with_recording 관리자만 true (녹취 노출)
+     * @param bool $mask true면 파트너용 전면 마스킹. false여도 미매칭은 onoffcpa 최고관리자 외 뒷4자리 마스킹.
      */
     function lc_call_log_to_api(array $row, $with_recording = false, $mask = true)
     {
         $caller = (string) $row['clog_caller'];
+        $pt_id = (int) ($row['pt_id'] ?? 0);
+        $is_unmatched = $pt_id <= 0;
+        $caller_masked = false;
+
+        if ($mask) {
+            $caller_out = function_exists('lc_conversion_mask_phone')
+                ? lc_conversion_mask_phone($caller)
+                : lc_call_mask_caller_last4($caller);
+            $caller_masked = true;
+        } elseif ($is_unmatched && !lc_call_can_view_unmasked_unmatched_caller()) {
+            $caller_out = lc_call_mask_caller_last4($caller);
+            $caller_masked = true;
+        } else {
+            $caller_out = $caller;
+        }
+
         $virtual = lc_call_number_normalize((string) ($row['clog_virtual_number'] ?? ''));
         $out = array(
             'clogId'        => (int) $row['clog_id'],
             'virtualNumber' => $virtual !== '' ? lc_call_number_format($virtual) : '',
-            'caller'        => $mask ? lc_conversion_mask_phone($caller) : $caller,
+            'caller'        => $caller_out,
+            'callerMasked'  => $caller_masked,
+            'unmatched'     => $is_unmatched,
             'campaign'      => (string) ($row['cp_name'] ?? ''),
             'partner'       => (string) ($row['pt_code'] ?? '-'),
             'startedAt'     => !empty($row['clog_started_at']) ? date('Y.m.d H:i', strtotime($row['clog_started_at'])) : '',

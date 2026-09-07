@@ -92,7 +92,7 @@ if (!function_exists('lc_call_recording_requests_list')) {
 
         $limit = isset($filters['limit']) ? (int) $filters['limit'] : 200;
         $rows = array();
-        $sql = " SELECT r.*, l.clog_virtual_number, l.clog_caller, l.clog_started_at, l.clog_duration, l.clog_result,
+        $sql = " SELECT r.*, l.pt_id AS clog_pt_id, l.clog_virtual_number, l.clog_caller, l.clog_started_at, l.clog_duration, l.clog_result,
                     c.cp_name, p.pt_code, p.pt_name, m.mt_company
             FROM `{$crr}` r
             INNER JOIN `{$clog}` l ON l.clog_id = r.clog_id
@@ -374,6 +374,15 @@ if (!function_exists('lc_call_recording_request_to_api')) {
     function lc_call_recording_request_to_api(array $row, $include_play = false)
     {
         $status = (string) ($row['crr_status'] ?? '');
+        $caller = (string) ($row['clog_caller'] ?? '');
+        $clog_pt_id = isset($row['clog_pt_id']) ? (int) $row['clog_pt_id'] : -1;
+        if ($clog_pt_id === 0
+            && function_exists('lc_call_can_view_unmasked_unmatched_caller')
+            && !lc_call_can_view_unmasked_unmatched_caller()
+            && function_exists('lc_call_mask_caller_last4')
+        ) {
+            $caller = lc_call_mask_caller_last4($caller);
+        }
         $out = array(
             'crrId'          => (int) ($row['crr_id'] ?? 0),
             'clogId'         => (int) ($row['clog_id'] ?? 0),
@@ -388,7 +397,7 @@ if (!function_exists('lc_call_recording_request_to_api')) {
             'requestedAt'    => !empty($row['crr_requested_at']) ? date('Y.m.d H:i', strtotime($row['crr_requested_at'])) : '',
             'processedAt'    => !empty($row['crr_processed_at']) ? date('Y.m.d H:i', strtotime($row['crr_processed_at'])) : '',
             'virtualNumber'  => (string) ($row['clog_virtual_number'] ?? ''),
-            'caller'         => (string) ($row['clog_caller'] ?? ''),
+            'caller'         => $caller,
             'campaign'       => (string) ($row['cp_name'] ?? ''),
             'partner'        => (string) ($row['pt_code'] ?? ($row['pt_name'] ?? '')),
             'merchant'       => (string) ($row['mt_company'] ?? ''),

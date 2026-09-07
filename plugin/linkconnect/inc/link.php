@@ -795,20 +795,29 @@ if (!function_exists('lc_link_create')) {
         $rows = lc_link_list_for_partner($pt_id);
         foreach ($rows as $row) {
             if ((int) $row['lk_id'] === $lk_id) {
-                return array('ok' => true, 'message' => '홍보 링크가 생성되었습니다.', 'link' => lc_link_to_api($row));
+                $link_api = lc_link_to_api($row);
+                if (function_exists('lc_onoff_core_enrich_link_api')) {
+                    $link_api = lc_onoff_core_enrich_link_api($link_api, $campaign, $pt_id);
+                }
+                return array('ok' => true, 'message' => '홍보 링크가 생성되었습니다.', 'link' => $link_api);
             }
         }
 
         $link = lc_link_get_by_id($lk_id);
 
-        return array(
-            'ok'      => true,
-            'message' => '홍보 링크가 생성되었습니다.',
-            'link'    => $link ? lc_link_to_api(array_merge($link, array(
+        $link_api = $link ? lc_link_to_api(array_merge($link, array(
                 'cp_name'              => $campaign['cp_name'],
                 'cp_price'             => $campaign['cp_price'],
                 'cp_tracking_base_url' => (string) ($campaign['cp_tracking_base_url'] ?? ''),
-            ))) : null,
+            ))) : null;
+        if (is_array($link_api) && function_exists('lc_onoff_core_enrich_link_api')) {
+            $link_api = lc_onoff_core_enrich_link_api($link_api, $campaign, $pt_id);
+        }
+
+        return array(
+            'ok'      => true,
+            'message' => '홍보 링크가 생성되었습니다.',
+            'link'    => $link_api,
         );
     }
 }

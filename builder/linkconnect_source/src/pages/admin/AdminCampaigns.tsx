@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AdminLayout } from '../../layouts/AdminLayout';
 import { SummaryCard, StatusBadge } from '../../components/admin/AdminShared';
 import {
-  Briefcase, Activity, PauseCircle, AlertCircle, Coins, Percent,
+  Briefcase, Activity, PauseCircle, AlertCircle, Percent,
   Search, Download, X, Edit3, Plus, Database, Image, Upload,
   Wand2, Loader2, Copy,
 } from 'lucide-react';
@@ -28,6 +28,7 @@ const statusFilterOptions = [
   { label: '일시중지', value: 'paused' },
   { label: '종료', value: 'ended' },
   { label: '검수중', value: 'draft' },
+  { label: '자체상품', value: 'platform_owned' },
   { label: '광고비 부족', value: 'low_balance' },
 ];
 
@@ -36,6 +37,7 @@ const emptySummary: AdminCampaignSummary = {
   active: 0,
   paused: 0,
   lowBalance: 0,
+  platformOwned: 0,
   avgPrice: 0,
   avgApproval: 0,
 };
@@ -264,8 +266,8 @@ export function AdminCampaigns() {
         <SummaryCard title="전체 광고상품" value={summary.total.toLocaleString()} suffix="개" icon={<Briefcase size={18} />} />
         <SummaryCard title="운영중 상품" value={summary.active.toLocaleString()} suffix="개" color="emerald" highlight icon={<Activity size={18} />} />
         <SummaryCard title="일시중지 상품" value={summary.paused.toLocaleString()} suffix="개" icon={<PauseCircle size={18} />} />
+        <SummaryCard title="자체상품(Core)" value={(summary.platformOwned ?? 0).toLocaleString()} suffix="개" color="cyan" highlight icon={<Briefcase size={18} />} />
         <SummaryCard title="광고비 부족 상품" value={summary.lowBalance.toLocaleString()} suffix="개" color="red" highlight icon={<AlertCircle size={18} />} />
-        <SummaryCard title="평균 파트너 단가" value={summary.avgPrice.toLocaleString()} suffix="원" dark icon={<Coins size={18} />} />
         <SummaryCard title="평균 승인율" value={summary.avgApproval.toLocaleString()} suffix="%" color="cyan" highlight icon={<Percent size={18} />} />
       </div>
 
@@ -372,9 +374,9 @@ export function AdminCampaigns() {
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="font-medium text-slate-700 mb-0.5">{campaign.advertiser}</div>
+                        <div className="font-medium text-slate-700 mb-0.5">{campaign.advertiser || (campaign.platformOwned ? 'ONOFFCPA' : '-')}</div>
                         <div className="text-xs font-bold text-cyan-600 bg-cyan-50 px-1.5 py-0.5 rounded inline-block">
-                          {campaign.type}
+                          {campaign.type}{campaign.platformOwned ? ' · Core' : ''}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
@@ -387,11 +389,25 @@ export function AdminCampaigns() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="font-bold text-slate-900 text-base">{campaign.partnerPrice.toLocaleString()}원</div>
+                        <div className="font-bold text-slate-900 text-base">
+                          {campaign.partnerPriceLabel || `${campaign.partnerPrice.toLocaleString()}원`}
+                        </div>
+                        {campaign.platformOwned ? (
+                          <div className="text-[11px] text-violet-600 mt-0.5">Core 정산</div>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="text-sm font-medium text-slate-600">{campaign.advertiserPrice.toLocaleString()}원</div>
-                        <div className="text-xs font-bold text-emerald-600 mt-0.5">+{campaign.margin.toLocaleString()}원</div>
+                        {campaign.platformOwned ? (
+                          <>
+                            <div className="text-sm font-medium text-slate-500">광고비 차감 없음</div>
+                            <div className="text-xs font-bold text-violet-600 mt-0.5">자체상품</div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-sm font-medium text-slate-600">{campaign.advertiserPrice.toLocaleString()}원</div>
+                            <div className="text-xs font-bold text-emerald-600 mt-0.5">+{campaign.margin.toLocaleString()}원</div>
+                          </>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap font-medium text-slate-700">
                         {campaign.totalDb.toLocaleString()}건
@@ -547,6 +563,7 @@ export function AdminCampaigns() {
                         className={`w-full px-3 py-2 border rounded-xl text-sm ${isEditMode ? 'bg-white border-slate-300 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
                       >
                         <option value="CPA">CPA</option>
+                        <option value="CPS">CPS</option>
                       </select>
                     </div>
                     <div className="col-span-1">

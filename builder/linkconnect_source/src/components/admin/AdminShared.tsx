@@ -72,6 +72,7 @@ export function StatusBadge({ status }: { status: string }) {
     '일시중지': 'bg-yellow-50 text-yellow-600 border-yellow-200',
     '종료': 'bg-slate-100 text-slate-600 border-slate-200',
     '운영중': 'bg-cyan-50 text-cyan-600 border-cyan-200',
+    '운영중(자체상품)': 'bg-violet-50 text-violet-700 border-violet-200',
     '차단': 'bg-red-50 text-red-600 border-red-200',
     '지연': 'bg-yellow-50 text-yellow-600 border-yellow-200',
     '검수중': 'bg-blue-50 text-blue-600 border-blue-200',

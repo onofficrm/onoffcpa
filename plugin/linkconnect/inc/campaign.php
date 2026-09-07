@@ -94,6 +94,10 @@ if (!function_exists('lc_campaign_resolve_partner_price')) {
 if (!function_exists('lc_campaign_resolve_merchant_price')) {
     function lc_campaign_resolve_merchant_price(array $row)
     {
+        // 플랫폼 자체 CPS는 광고주 잔액 차감 대상이 아님 (Core 수수료 SoT).
+        if (function_exists('lc_campaign_is_platform_owned') && lc_campaign_is_platform_owned($row)) {
+            return 0;
+        }
         $merchant_price = (int) ($row['cp_merchant_price'] ?? 0);
         if ($merchant_price > 0) {
             return $merchant_price;
@@ -103,10 +107,73 @@ if (!function_exists('lc_campaign_resolve_merchant_price')) {
     }
 }
 
+if (!function_exists('lc_campaign_is_platform_owned')) {
+    /**
+     * ONOFFCPA 운영주체 자체 CPS (Core 수수료) — 외부 광고주 광고비 모델과 분리.
+     */
+    function lc_campaign_is_platform_owned(array $row)
+    {
+        $type = strtolower(trim((string) ($row['cp_type'] ?? '')));
+        if ($type !== 'cps') {
+            return false;
+        }
+
+        $code = strtoupper(trim((string) ($row['cp_code'] ?? '')));
+        if (strpos($code, 'CPS-') === 0) {
+            return true;
+        }
+
+        $product = strtolower(trim((string) ($row['cp_product_type'] ?? '')));
+        if (in_array($product, array('lifetime', 'course', 'fixed'), true)) {
+            return true;
+        }
+
+        $platform = strtoupper(trim((string) ($row['cp_platform_service'] ?? '')));
+        if (in_array($platform, array('DOMAIN', 'CONTENT', 'TRAFFIC', 'BACKLINK', 'GEO'), true)) {
+            return true;
+        }
+
+        $rule = trim((string) ($row['cp_commission_rule_id'] ?? ''));
+        if ($rule !== '' && (strpos($rule, 'lifetime') !== false || strpos($rule, 'cps_') === 0)) {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('lc_campaign_platform_owned_sql')) {
+    /**
+     * SQL boolean expression: platform-owned CPS on alias (default c).
+     */
+    function lc_campaign_platform_owned_sql($alias = 'c')
+    {
+        $a = preg_replace('/[^a-z_]/', '', (string) $alias);
+        if ($a === '') {
+            $a = 'c';
+        }
+
+        return "(LOWER({$a}.cp_type) = 'cps' AND ("
+            . "UPPER({$a}.cp_code) LIKE 'CPS-%'"
+            . " OR LOWER(IFNULL({$a}.cp_product_type,'')) IN ('lifetime','course','fixed')"
+            . " OR UPPER(IFNULL({$a}.cp_platform_service,'')) IN ('DOMAIN','CONTENT','TRAFFIC','BACKLINK','GEO')"
+            . " OR IFNULL({$a}.cp_commission_rule_id,'') LIKE 'cps_%'"
+            . " OR IFNULL({$a}.cp_commission_rule_id,'') LIKE '%lifetime%'"
+            . '))';
+    }
+}
+
 if (!function_exists('lc_campaign_to_api')) {
     function lc_campaign_to_api(array $row, $call_enabled_set = null)
     {
         $cp_id = (int) $row['cp_id'];
+
+        $type = strtolower((string) ($row['cp_type'] ?? 'cpa'));
+        $price = lc_campaign_resolve_partner_price($row);
+        $approval = (string) ($row['cp_approval_rate'] ?? '');
+        $price_formatted = $type === 'cps' && $approval !== ''
+            ? $approval
+            : number_format($price);
 
         return array(
             'id'                => $cp_id,
@@ -114,10 +181,11 @@ if (!function_exists('lc_campaign_to_api')) {
             'title'             => (string) $row['cp_name'],
             'category'          => (string) $row['cp_category'],
             'type'              => (string) $row['cp_type'],
+            'campaignType'      => $type,
             'description'       => (string) ($row['cp_description'] ?? ''),
-            'price'             => lc_campaign_resolve_partner_price($row),
-            'priceFormatted'    => number_format(lc_campaign_resolve_partner_price($row)),
-            'approvalRate'      => (string) $row['cp_approval_rate'],
+            'price'             => $price,
+            'priceFormatted'    => $price_formatted,
+            'approvalRate'      => $approval,
             'avgTime'           => (string) $row['cp_avg_time'],
             'allowedChannels'   => (string) $row['cp_allowed_channels'],
             'forbiddenChannels' => (string) $row['cp_forbidden_channels'],
@@ -137,6 +205,9 @@ if (!function_exists('lc_campaign_to_api')) {
             'callEnabled'       => function_exists('lc_campaign_call_enabled')
                 ? lc_campaign_call_enabled($cp_id, $call_enabled_set)
                 : false,
+            'platformService'   => isset($row['cp_platform_service']) ? (string) $row['cp_platform_service'] : '',
+            'productType'       => isset($row['cp_product_type']) ? (string) $row['cp_product_type'] : '',
+            'commissionRuleId'  => isset($row['cp_commission_rule_id']) ? (string) $row['cp_commission_rule_id'] : '',
         );
     }
 }
@@ -251,22 +322,16 @@ if (!function_exists('lc_campaign_list_for_api')) {
             return array();
         }
 
+        $lp_items = array();
         if ($type === 'cps' && function_exists('lc_campaign_cps_linkprice_for_api')) {
-            if (lc_db_table_exists(lc_table('lp_merchants'))) {
-                return lc_campaign_cps_linkprice_for_api($filters);
-            }
             $lp_items = lc_campaign_cps_linkprice_for_api($filters);
-            if (!empty($lp_items)) {
-                return $lp_items;
+            if (!is_array($lp_items)) {
+                $lp_items = array();
             }
         }
 
         if (lc_db_installed()) {
             $rows = lc_campaign_list_active($filters);
-
-            if ($type === 'cps' && count($rows) === 0 && function_exists('lc_sample_cps_items')) {
-                return lc_campaign_cps_sample_for_api($filters);
-            }
 
             $cp_ids = array_column($rows, 'cp_id');
             $published = function_exists('lc_campaign_promo_guide_published_cp_id_set')
@@ -283,11 +348,24 @@ if (!function_exists('lc_campaign_list_for_api')) {
                 $items[] = $api;
             }
 
+            if ($type === 'cps' && !empty($lp_items)) {
+                $items = array_merge($items, $lp_items);
+            }
+
+            if ($type === 'cps' && count($items) === 0 && function_exists('lc_sample_cps_items')) {
+                return lc_campaign_cps_sample_for_api($filters);
+            }
+
             return $items;
         }
 
-        if ($type === 'cps' && function_exists('lc_sample_cps_items')) {
-            return lc_campaign_cps_sample_for_api($filters);
+        if ($type === 'cps') {
+            if (!empty($lp_items)) {
+                return $lp_items;
+            }
+            if (function_exists('lc_sample_cps_items')) {
+                return lc_campaign_cps_sample_for_api($filters);
+            }
         }
 
         if (!function_exists('lc_sample_cpa_campaigns')) {
@@ -545,19 +623,33 @@ if (!function_exists('lc_campaign_cps_partner_lpm_id')) {
 
 if (!function_exists('lc_campaign_cps_partner_for_api')) {
     /**
-     * 파트너 검색용 CPS 광고주 → PartnerCampaign 형식
+     * 파트너 검색용 CPS — DB 플랫폼 캠페인 + 링크프라이스 머천트
      *
      * @return array<int,array<string,mixed>>
      */
     function lc_campaign_cps_partner_for_api($pt_id, array $filters = array())
     {
-        if (!function_exists('lc_lp_partner_list_merchants')) {
-            return array();
+        $pt_id = (int) $pt_id;
+        $items = array();
+
+        // 1) ONOFF 플랫폼 CPS (낙장도메인 등)
+        if (lc_db_installed()) {
+            $rows = lc_campaign_list_active(array(
+                'type'     => 'cps',
+                'category' => $filters['category'] ?? '',
+                'q'        => $filters['q'] ?? '',
+            ));
+            foreach ($rows as $row) {
+                $api = lc_campaign_to_api($row);
+                $api['campaignType'] = 'cps';
+                $api['type'] = 'cps';
+                $items[] = $api;
+            }
         }
 
-        $pt_id = (int) $pt_id;
-        if ($pt_id <= 0) {
-            return array();
+        // 2) 링크프라이스 CPS
+        if (!function_exists('lc_lp_partner_list_merchants') || $pt_id <= 0) {
+            return $items;
         }
 
         $list = lc_lp_partner_list_merchants($pt_id, array(
@@ -566,7 +658,6 @@ if (!function_exists('lc_campaign_cps_partner_for_api')) {
         ));
 
         $category_filter = trim((string) ($filters['category'] ?? ''));
-        $items = array();
         foreach (($list['items'] ?? array()) as $row) {
             $category = trim((string) ($row['categoryName'] ?? ''));
             if ($category === '') {
@@ -674,8 +765,11 @@ if (!function_exists('lc_campaign_cps_sample_for_api')) {
 }
 
 if (!function_exists('lc_campaign_admin_status_ui')) {
-    function lc_campaign_admin_status_ui($status, $low_balance = false)
+    function lc_campaign_admin_status_ui($status, $low_balance = false, $platform_owned = false)
     {
+        if ($platform_owned && $status === LC_STATUS_ACTIVE) {
+            return '운영중(자체상품)';
+        }
         if ($low_balance && $status === LC_STATUS_ACTIVE) {
             return '광고비부족';
         }
@@ -754,12 +848,18 @@ if (!function_exists('lc_campaign_list_admin')) {
 
         if (!empty($filters['status'])) {
             $status = (string) $filters['status'];
+            $platform_sql = lc_campaign_platform_owned_sql('c');
             if ($status === 'low_balance') {
                 $merchant_price_expr = lc_campaign_merchant_price_expr('c');
-                $where .= " AND c.cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "' AND m.mt_balance < {$merchant_price_expr} ";
+                $where .= " AND c.cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "'"
+                    . " AND NOT {$platform_sql}"
+                    . " AND IFNULL(m.mt_balance,0) < {$merchant_price_expr} ";
+            } elseif ($status === 'platform_owned') {
+                $where .= " AND c.cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "' AND {$platform_sql} ";
             } elseif ($status === LC_STATUS_ACTIVE) {
                 $merchant_price_expr = lc_campaign_merchant_price_expr('c');
-                $where .= " AND c.cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "' AND m.mt_balance >= {$merchant_price_expr} ";
+                $where .= " AND c.cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "'"
+                    . " AND ({$platform_sql} OR IFNULL(m.mt_balance,0) >= {$merchant_price_expr}) ";
             } else {
                 $where .= " AND c.cp_status = '" . lc_sql_escape($status) . "' ";
             }
@@ -803,12 +903,13 @@ if (!function_exists('lc_campaign_admin_summary')) {
     {
         if (!lc_db_installed()) {
             return array(
-                'total'       => 0,
-                'active'      => 0,
-                'paused'      => 0,
-                'lowBalance'  => 0,
-                'avgPrice'    => 0,
-                'avgApproval' => 0,
+                'total'          => 0,
+                'active'         => 0,
+                'paused'         => 0,
+                'lowBalance'     => 0,
+                'platformOwned'  => 0,
+                'avgPrice'       => 0,
+                'avgApproval'    => 0,
             );
         }
 
@@ -817,11 +918,13 @@ if (!function_exists('lc_campaign_admin_summary')) {
         $cv_table = lc_table('conversions');
 
         $merchant_price_expr = lc_campaign_merchant_price_expr('c');
+        $platform_sql = lc_campaign_platform_owned_sql('c');
         $row = lc_sql_fetch(" SELECT
             COUNT(*) AS total_cnt,
-            SUM(CASE WHEN c.cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "' AND m.mt_balance >= {$merchant_price_expr} THEN 1 ELSE 0 END) AS active_cnt,
+            SUM(CASE WHEN c.cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "' AND ({$platform_sql} OR IFNULL(m.mt_balance,0) >= {$merchant_price_expr}) THEN 1 ELSE 0 END) AS active_cnt,
             SUM(CASE WHEN c.cp_status = 'paused' THEN 1 ELSE 0 END) AS paused_cnt,
-            SUM(CASE WHEN c.cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "' AND m.mt_balance < {$merchant_price_expr} THEN 1 ELSE 0 END) AS low_balance_cnt,
+            SUM(CASE WHEN c.cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "' AND NOT {$platform_sql} AND IFNULL(m.mt_balance,0) < {$merchant_price_expr} THEN 1 ELSE 0 END) AS low_balance_cnt,
+            SUM(CASE WHEN c.cp_status = '" . lc_sql_escape(LC_STATUS_ACTIVE) . "' AND {$platform_sql} THEN 1 ELSE 0 END) AS platform_owned_cnt,
             AVG(c.cp_price) AS avg_price
             FROM `{$cp_table}` c
             LEFT JOIN `{$mt_table}` m ON m.mt_id = c.mt_id ");
@@ -834,12 +937,13 @@ if (!function_exists('lc_campaign_admin_summary')) {
         $approved_cv = (int) ($rate_row['approved_cnt'] ?? 0);
 
         return array(
-            'total'       => (int) ($row['total_cnt'] ?? 0),
-            'active'      => (int) ($row['active_cnt'] ?? 0),
-            'paused'      => (int) ($row['paused_cnt'] ?? 0),
-            'lowBalance'  => (int) ($row['low_balance_cnt'] ?? 0),
-            'avgPrice'    => (int) round((float) ($row['avg_price'] ?? 0)),
-            'avgApproval' => $total_cv > 0 ? round(($approved_cv / $total_cv) * 100, 1) : 0,
+            'total'          => (int) ($row['total_cnt'] ?? 0),
+            'active'         => (int) ($row['active_cnt'] ?? 0),
+            'paused'         => (int) ($row['paused_cnt'] ?? 0),
+            'lowBalance'     => (int) ($row['low_balance_cnt'] ?? 0),
+            'platformOwned'  => (int) ($row['platform_owned_cnt'] ?? 0),
+            'avgPrice'       => (int) round((float) ($row['avg_price'] ?? 0)),
+            'avgApproval'    => $total_cv > 0 ? round(($approved_cv / $total_cv) * 100, 1) : 0,
         );
     }
 }
@@ -852,36 +956,51 @@ if (!function_exists('lc_campaign_to_admin_api')) {
         $canceled = (int) ($row['canceled_db'] ?? 0);
         $rate = $total > 0 ? round(($approved / $total) * 100, 1) . '%' : '-';
         $cancel_rate = $total > 0 ? round(($canceled / $total) * 100, 1) . '%' : '-';
+        $platform_owned = lc_campaign_is_platform_owned($row);
         $partner_price = lc_campaign_resolve_partner_price($row);
         $merchant_price = lc_campaign_resolve_merchant_price($row);
         $balance = (int) ($row['mt_balance'] ?? 0);
-        $low_balance = $row['cp_status'] === LC_STATUS_ACTIVE && $balance < $merchant_price;
+        $low_balance = !$platform_owned
+            && $row['cp_status'] === LC_STATUS_ACTIVE
+            && $balance < $merchant_price;
+        $approval = trim((string) ($row['cp_approval_rate'] ?? ''));
+        $partner_label = $platform_owned && $approval !== ''
+            ? $approval
+            : number_format($partner_price) . '원';
+        $advertiser = trim((string) ($row['mt_company'] ?? ''));
+        if ($platform_owned && $advertiser === '') {
+            $advertiser = 'ONOFFCPA';
+        }
 
         return array(
             'id'              => (int) $row['cp_id'],
             'code'            => (string) $row['cp_code'],
             'name'            => (string) $row['cp_name'],
-            'advertiser'      => (string) ($row['mt_company'] ?? ''),
+            'advertiser'      => $advertiser,
             'mtId'            => (int) ($row['mt_id'] ?? 0),
             'category'        => (string) $row['cp_category'],
             'type'            => strtoupper((string) $row['cp_type']),
             'partnerPrice'    => $partner_price,
+            'partnerPriceLabel' => $partner_label,
             'advertiserPrice' => $merchant_price,
-            'margin'          => max(0, $merchant_price - $partner_price),
+            'margin'          => $platform_owned ? 0 : max(0, $merchant_price - $partner_price),
             'totalDb'         => $total,
             'approvedDb'      => $approved,
             'canceledDb'      => $canceled,
             'spend'           => (int) ($row['spend'] ?? 0),
             'rate'            => $rate,
             'cancelRate'      => $cancel_rate,
-            'status'          => lc_campaign_admin_status_ui($row['cp_status'], $low_balance),
+            'status'          => lc_campaign_admin_status_ui($row['cp_status'], $low_balance, $platform_owned),
             'statusCode'      => (string) $row['cp_status'],
             'lowBalance'      => $low_balance,
+            'platformOwned'   => $platform_owned,
+            'settlementMode'  => $platform_owned ? 'onoff_core' : 'merchant_wallet',
+            'platformService' => isset($row['cp_platform_service']) ? (string) $row['cp_platform_service'] : '',
             'description'     => (string) ($row['cp_description'] ?? ''),
-            'approvalRate'    => (string) $row['cp_approval_rate'],
+            'approvalRate'    => $approval,
             'avgTime'         => (string) $row['cp_avg_time'],
             'allowedChannels' => (string) $row['cp_allowed_channels'],
-            'forbiddenChannels' => (string) $row['cp_forbidden_channels'],
+            'forbiddenChannels' => (string) ($row['cp_forbidden_channels'] ?? ''),
             'landingUrl'      => (string) $row['cp_landing_url'],
             'trackingBaseUrl' => (string) ($row['cp_tracking_base_url'] ?? ''),
             'badge'           => (string) $row['cp_badge'],

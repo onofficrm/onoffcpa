@@ -30,6 +30,38 @@ if ($method === 'GET') {
             lc_campaign_ensure_modemo(array('activate' => true));
         }
     }
+    if (lc_db_installed() && function_exists('lc_cps_enabled') && lc_cps_enabled()
+        && function_exists('lc_campaign_ensure_domain_cps')) {
+        $cp_table = lc_table('campaigns');
+        $domain = lc_sql_fetch(" SELECT cp_id FROM `{$cp_table}` WHERE cp_code = 'CPS-DOMAIN' LIMIT 1 ", false);
+        if (!$domain) {
+            lc_campaign_ensure_domain_cps(array('activate' => true));
+        }
+    }
+    if (lc_db_installed() && function_exists('lc_cps_enabled') && lc_cps_enabled()
+        && function_exists('lc_campaign_ensure_seo_geo_cps')) {
+        $cp_table = lc_table('campaigns');
+        $seo = lc_sql_fetch(" SELECT cp_id FROM `{$cp_table}` WHERE cp_code = 'CPS-SEO-GEO' LIMIT 1 ", false);
+        if (!$seo) {
+            lc_campaign_ensure_seo_geo_cps(array('activate' => true));
+        }
+    }
+    if (lc_db_installed() && function_exists('lc_cps_enabled') && lc_cps_enabled()
+        && function_exists('lc_campaign_ensure_traffic_cps')) {
+        $cp_table = lc_table('campaigns');
+        $traffic = lc_sql_fetch(" SELECT cp_id FROM `{$cp_table}` WHERE cp_code = 'CPS-TRAFFIC' LIMIT 1 ", false);
+        if (!$traffic) {
+            lc_campaign_ensure_traffic_cps(array('activate' => true));
+        }
+    }
+    if (lc_db_installed() && function_exists('lc_cps_enabled') && lc_cps_enabled()
+        && function_exists('lc_campaign_ensure_backlink_cps')) {
+        $cp_table = lc_table('campaigns');
+        $backlink = lc_sql_fetch(" SELECT cp_id FROM `{$cp_table}` WHERE cp_code = 'CPS-BACKLINK' LIMIT 1 ", false);
+        if (!$backlink) {
+            lc_campaign_ensure_backlink_cps(array('activate' => true));
+        }
+    }
 
     $filters = array(
         'status'   => isset($_GET['status']) ? (string) $_GET['status'] : '',

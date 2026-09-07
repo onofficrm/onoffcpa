@@ -42,7 +42,13 @@ if ($method === 'GET') {
         foreach (lc_call_logs_list($filters) as $row) {
             $rows[] = lc_call_log_to_api($row, true, false);
         }
-        lc_api_success(array('items' => $rows, 'dbReady' => lc_db_installed()));
+        lc_api_success(array(
+            'items' => $rows,
+            'dbReady' => lc_db_installed(),
+            'canViewUnmaskedUnmatchedCaller' => function_exists('lc_call_can_view_unmasked_unmatched_caller')
+                ? lc_call_can_view_unmasked_unmatched_caller()
+                : false,
+        ));
     }
 
     if ($view === 'settings') {
@@ -256,12 +262,21 @@ if ($method === 'POST') {
 
         $dry_run = !empty($body['dryRun']) || (isset($body['dryRun']) && (string) $body['dryRun'] === '1');
         if ($dry_run) {
+            $preview = array_slice($parsed['rows'] ?? array(), 0, 5);
+            // 미리보기는 아직 미매칭 상태 → onoffcpa 최고관리자 외 발신번호 뒷4자리 마스킹
+            if (!function_exists('lc_call_can_view_unmasked_unmatched_caller') || !lc_call_can_view_unmasked_unmatched_caller()) {
+                foreach ($preview as $idx => $prow) {
+                    if (isset($prow['caller']) && function_exists('lc_call_mask_caller_last4')) {
+                        $preview[$idx]['caller'] = lc_call_mask_caller_last4($prow['caller']);
+                    }
+                }
+            }
             lc_api_success(array(
                 'message' => $parsed['message'],
                 'dryRun'  => true,
                 'total'   => count($parsed['rows'] ?? array()),
                 'headers' => $parsed['headers'] ?? array(),
-                'preview' => array_slice($parsed['rows'] ?? array(), 0, 5),
+                'preview' => $preview,
             ));
         }
 

@@ -803,7 +803,7 @@ if (!function_exists('lc_ui_admin_status_badge')) {
         $map = array(
             '신규접수' => 'default', '확인중' => 'blue', '승인완료' => 'emerald', '취소요청' => 'orange',
             '취소/무효' => 'red', '정상' => 'cyan', 'API오류' => 'red', 'API 오류' => 'red', '지연' => 'yellow',
-            '광고비부족' => 'red', '광고비 부족' => 'red', '운영중' => 'cyan', '일시중지' => 'yellow',
+            '광고비부족' => 'red', '광고비 부족' => 'red', '운영중' => 'cyan', '운영중(자체상품)' => 'cyan', '일시중지' => 'yellow',
             '종료' => 'default', '진행중' => 'cyan', '검수대기' => 'blue', '검수완료' => 'emerald',
             '검수반려' => 'red', '승인대기' => 'yellow', '보류' => 'yellow', '반려' => 'red',
             '지급완료' => 'dark', '충전대기' => 'blue', '충전완료' => 'cyan', '차감완료' => 'default',

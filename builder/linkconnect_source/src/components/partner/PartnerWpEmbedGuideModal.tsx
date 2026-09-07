@@ -298,8 +298,19 @@ export function PartnerWpEmbedGuideModal({
     if (!base) return '';
     return `${base}${base.includes('?') ? '&' : '?'}_=${previewTick}`;
   }, [sampleCode, mode, widgetKey, previewTick]);
+  // Must stay above early return — opening the modal must not change hook order.
+  const previewOptions = useMemo(() => {
+    if (!ab.enabled || previewAbVariant !== 'B') return options;
+    return { ...options, ...(ab.b || {}) };
+  }, [options, ab, previewAbVariant]);
   const pluginUrl = leadEmbedPluginDownloadUrl();
   const presetId = normalizeEmbedPreset(options.preset);
+
+  const productTitle = (productContext?.campaignTitle || '').trim();
+  const productChannel = (productContext?.channel || '').trim();
+  const productLinkName = (productContext?.linkName || '').trim();
+  const productLabel = productTitle || undefined;
+  const contextBits = [productChannel, productLinkName].filter(Boolean);
 
   if (!open) return null;
 
@@ -455,17 +466,6 @@ export function PartnerWpEmbedGuideModal({
   const selectPreset = (id: EmbedPresetId) => {
     setOptions((prev) => withEmbedPreset(prev, id, { applyAccentHint: true }));
   };
-
-  const previewOptions = useMemo(() => {
-    if (!ab.enabled || previewAbVariant !== 'B') return options;
-    return { ...options, ...(ab.b || {}) };
-  }, [options, ab, previewAbVariant]);
-
-  const productTitle = (productContext?.campaignTitle || '').trim();
-  const productChannel = (productContext?.channel || '').trim();
-  const productLinkName = (productContext?.linkName || '').trim();
-  const productLabel = productTitle || undefined;
-  const contextBits = [productChannel, productLinkName].filter(Boolean);
 
   return (
     <div

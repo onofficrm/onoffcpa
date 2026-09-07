@@ -6,6 +6,7 @@ import {
   fetchPartnerSettlements,
   PartnerSettlementItem,
   PartnerSettlementSummary,
+  PartnerCoreEarnings,
   requestPartnerSettlement,
 } from '../../lib/api';
 
@@ -24,11 +25,13 @@ const emptySummary: PartnerSettlementSummary = {
 export function PartnerSettlement() {
   const [summary, setSummary] = useState<PartnerSettlementSummary>(emptySummary);
   const [history, setHistory] = useState<PartnerSettlementItem[]>([]);
+  const [core, setCore] = useState<PartnerCoreEarnings | null>(null);
   const [amount, setAmount] = useState<number | ''>('');
   const [memo, setMemo] = useState('');
   const [bankName, setBankName] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [bankHolder, setBankHolder] = useState('');
+  const [source, setSource] = useState<'cpa' | 'core'>('cpa');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -41,9 +44,13 @@ export function PartnerSettlement() {
       const data = await fetchPartnerSettlements();
       setSummary(data.summary);
       setHistory(data.items);
+      setCore(data.core ?? null);
       setBankName(data.summary.bankName);
       setBankAccount(data.summary.bankAccount);
       setBankHolder(data.summary.bankHolder);
+      if (data.core?.settlementPayoutEnabled) {
+        setSource('core');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '정산 정보를 불러오지 못했습니다.');
     } finally {
@@ -55,9 +62,21 @@ export function PartnerSettlement() {
     load();
   }, []);
 
+  const coreSettleable = core
+    ? core.pendingEarnings + core.availableEarnings
+    : 0;
+  const maxForSource =
+    source === 'core'
+      ? coreSettleable
+      : (summary.cpaAvailableAmount ?? summary.availableAmount);
+
   const handleSubmit = async () => {
     if (!amount || Number(amount) < summary.minAmount) {
       setError(`최소 ${summary.minAmount.toLocaleString()}원 이상 신청 가능합니다.`);
+      return;
+    }
+    if (Number(amount) > maxForSource) {
+      setError(`선택한 소스의 정산 가능 금액(${maxForSource.toLocaleString()}원)을 초과했습니다.`);
       return;
     }
 
@@ -71,6 +90,7 @@ export function PartnerSettlement() {
         bankName,
         bankAccount,
         bankHolder,
+        source,
       });
       setMessage(result.message);
       setAmount('');
@@ -86,6 +106,41 @@ export function PartnerSettlement() {
 
   return (
     <PartnerLayout activeMenu="settlement" title="정산 신청">
+      {core ? (
+        <div className="mb-6 rounded-2xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-white p-5">
+          <h3 className="text-sm font-bold text-cyan-900 mb-1">ONOFF Core CPS 수익</h3>
+          <p className="text-xs text-cyan-800/80 mb-4">낙장도메인·트래픽·백링크·SEO GEO 등 플랫폼 CPS 결제 수수료(Core SoT)</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="rounded-xl bg-white border border-cyan-100 p-3">
+              <p className="text-[11px] text-slate-500">대기</p>
+              <p className="text-lg font-bold text-slate-900">{core.pendingEarnings.toLocaleString()}원</p>
+            </div>
+            <div className="rounded-xl bg-white border border-cyan-100 p-3">
+              <p className="text-[11px] text-slate-500">정산가능</p>
+              <p className="text-lg font-bold text-emerald-600">{core.availableEarnings.toLocaleString()}원</p>
+            </div>
+            <div className="rounded-xl bg-white border border-cyan-100 p-3">
+              <p className="text-[11px] text-slate-500">지급완료</p>
+              <p className="text-lg font-bold text-slate-900">{core.paidEarnings.toLocaleString()}원</p>
+            </div>
+            <div className="rounded-xl bg-white border border-cyan-100 p-3">
+              <p className="text-[11px] text-slate-500">추천 회원</p>
+              <p className="text-lg font-bold text-slate-900">{core.referredMemberCount.toLocaleString()}명</p>
+            </div>
+          </div>
+          {!core.settlementPayoutEnabled ? (
+            <p className="mt-3 text-xs text-amber-700">Core 실지급은 아직 비활성입니다. 수익 조회만 가능합니다.</p>
+          ) : (
+            <p className="mt-3 text-xs text-emerald-700">
+              Core CPS 정산 신청이 가능합니다. 신청 시 소스에서 &quot;Core CPS&quot;를 선택하세요. (최소 5만원)
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          플랫폼 CPS Core 수익 연동이 아직 활성화되지 않았습니다. CPA 정산 잔액만 표시됩니다.
+        </div>
+      )}
       <div className="flex flex-col mb-8 -mt-2">
         <p className="text-slate-500">확정수익을 기준으로 정산 가능 금액을 확인하고 정산을 신청하세요.</p>
       </div>
@@ -107,6 +162,41 @@ export function PartnerSettlement() {
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8">
           <h2 className="text-lg font-bold text-slate-900 mb-6">정산 신청 정보</h2>
           <div className="space-y-6">
+            {core?.settlementPayoutEnabled ? (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">정산 소스</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSource('core')}
+                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
+                      source === 'core'
+                        ? 'border-cyan-500 bg-cyan-50 text-cyan-900'
+                        : 'border-slate-200 bg-white text-slate-600'
+                    }`}
+                  >
+                    Core CPS
+                    <span className="mt-1 block text-xs font-normal text-slate-500">
+                      {coreSettleable.toLocaleString()}원
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSource('cpa')}
+                    className={`rounded-xl border px-4 py-3 text-sm font-semibold transition-colors ${
+                      source === 'cpa'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-900'
+                        : 'border-slate-200 bg-white text-slate-600'
+                    }`}
+                  >
+                    CPA 잔액
+                    <span className="mt-1 block text-xs font-normal text-slate-500">
+                      {(summary.cpaAvailableAmount ?? summary.availableAmount).toLocaleString()}원
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">정산 신청 금액 <span className="text-red-500">*</span></label>
               <div className="relative">
@@ -120,7 +210,7 @@ export function PartnerSettlement() {
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <p className="text-xs text-slate-500">최소 정산 가능 금액: {summary.minAmount.toLocaleString()}원</p>
-                <button type="button" onClick={() => setAmount(summary.availableAmount)} className="text-xs font-medium text-emerald-600 hover:text-emerald-700">전액 입력</button>
+                <button type="button" onClick={() => setAmount(maxForSource)} className="text-xs font-medium text-emerald-600 hover:text-emerald-700">전액 입력</button>
               </div>
             </div>
 

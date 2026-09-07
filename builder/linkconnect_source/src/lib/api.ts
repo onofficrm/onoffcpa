@@ -194,10 +194,11 @@ export function fetchPartnerMe() {
   return partnerApiGet<PartnerMeResponse>('me.php');
 }
 
-export function fetchPartnerCampaigns(filters?: { category?: string; q?: string }) {
+export function fetchPartnerCampaigns(filters?: { category?: string; q?: string; type?: 'cpa' | 'cps' | 'all' }) {
   return partnerApiGet<PartnerCampaignsResponse>('campaigns.php', {
     category: filters?.category ?? '',
     q: filters?.q ?? '',
+    type: filters?.type ?? 'all',
   });
 }
 
@@ -210,6 +211,10 @@ export type PartnerLink = {
   subId: string;
   url: string;
   landingUrl?: string;
+  referralUrl?: string;
+  referralCode?: string;
+  referralSource?: string;
+  referralWarning?: string;
   trackingBaseUrl?: string;
   clicks: number;
   received: number;
@@ -939,6 +944,7 @@ export type AdminCampaign = {
   category: string;
   type: string;
   partnerPrice: number;
+  partnerPriceLabel?: string;
   advertiserPrice: number;
   margin: number;
   totalDb: number;
@@ -950,6 +956,9 @@ export type AdminCampaign = {
   status: string;
   statusCode: string;
   lowBalance: boolean;
+  platformOwned?: boolean;
+  settlementMode?: string;
+  platformService?: string;
   description: string;
   approvalRate: string;
   avgTime: string;
@@ -1162,6 +1171,7 @@ export type AdminCampaignSummary = {
   active: number;
   paused: number;
   lowBalance: number;
+  platformOwned?: number;
   avgPrice: number;
   avgApproval: number;
 };
@@ -1484,6 +1494,22 @@ export type PartnerSettlementSummary = {
   bankName: string;
   bankAccount: string;
   bankHolder: string;
+  coreSettleableAmount?: number;
+  cpaAvailableAmount?: number;
+  combinedSettleableAmount?: number;
+};
+
+export type PartnerCoreEarnings = {
+  source: string;
+  referredMemberCount: number;
+  successfulPaymentTotal: number;
+  pendingEarnings: number;
+  availableEarnings: number;
+  paidEarnings: number;
+  totalEarnings: number;
+  settlementPayoutEnabled?: boolean;
+  commissionHistory?: Array<Record<string, unknown>>;
+  referredMembers?: Array<Record<string, unknown>>;
 };
 
 export type PartnerSettlementItem = {
@@ -1499,11 +1525,30 @@ export type PartnerSettlementItem = {
 };
 
 export function fetchPartnerSettlements() {
-  return partnerApiGet<{ summary: PartnerSettlementSummary; items: PartnerSettlementItem[]; dbReady: boolean }>('settlements.php');
+  return partnerApiGet<{
+    summary: PartnerSettlementSummary;
+    items: PartnerSettlementItem[];
+    dbReady: boolean;
+    core?: PartnerCoreEarnings | null;
+  }>('settlements.php');
 }
 
-export function requestPartnerSettlement(payload: { amount: number; memo?: string; bankName?: string; bankAccount?: string; bankHolder?: string }) {
-  return partnerApiPost<{ message: string; settlement: PartnerSettlementItem | null; summary: PartnerSettlementSummary }>('settlements.php', payload);
+export function requestPartnerSettlement(payload: {
+  amount: number;
+  memo?: string;
+  bankName?: string;
+  bankAccount?: string;
+  bankHolder?: string;
+  source?: 'core' | 'cpa';
+  commissionIds?: string[];
+}) {
+  return partnerApiPost<{
+    message: string;
+    settlement?: PartnerSettlementItem | null;
+    draft?: Record<string, unknown>;
+    summary: PartnerSettlementSummary;
+    core?: PartnerCoreEarnings | null;
+  }>('settlements.php', payload);
 }
 
 export type PartnerAnalyticsSource = 'cpa' | 'cps' | 'embed';
@@ -2531,6 +2576,8 @@ export type CallLog = {
   clogId: number;
   virtualNumber: string;
   caller: string;
+  callerMasked?: boolean;
+  unmatched?: boolean;
   campaign: string;
   partner: string;
   startedAt: string;
@@ -2600,7 +2647,7 @@ export function fetchAdminCallRequests(status?: string) {
 }
 
 export function fetchAdminCallLogs(filters?: { result?: string; unmatched?: boolean }) {
-  return adminApiGet<{ items: CallLog[]; dbReady: boolean }>('call.php', {
+  return adminApiGet<{ items: CallLog[]; dbReady: boolean; canViewUnmaskedUnmatchedCaller?: boolean }>('call.php', {
     view: 'logs',
     result: filters?.result ?? '',
     unmatched: filters?.unmatched ? '1' : '',

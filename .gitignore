@@ -29,6 +29,12 @@ _BUILDER_INPUT/
 # CI deploy staging
 .deploy/
 
+# Content S2S machine credentials (never commit secrets)
+plugin/linkconnect/content-api/clients.local.php
+plugin/linkconnect/domain-api/clients.local.php
+plugin/linkconnect/platform-api/clients.local.php
+
+
 # Node·환경
 node_modules/
 .env

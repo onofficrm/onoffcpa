@@ -161,13 +161,28 @@ if (!defined('LC_ONOFFCPA_LEGACY_URL')) {
     define('LC_ONOFFCPA_LEGACY_URL', 'https://onoffcpa.iwinv.net');
 }
 
-/* ── 링크프라이스 CPS (외부 네트워크, CPA와 분리) ── */
+/* ── CPS (플랫폼 DOMAIN/CONTENT 등 + 링크프라이스) ── */
 /**
- * CPS 취급 여부. 온오프CPA는 CPA 전용이므로 false.
- * true 로 바꾸면 메뉴·페이지·링크프라이스 연동이 다시 활성화됩니다.
+ * CPS 취급 여부.
+ * true 이면 공개 메뉴·/cps·파트너 검색·플랫폼 CPS 캠페인·링크프라이스 연동이 활성화됩니다.
  */
 if (!defined('LC_CPS_ENABLED')) {
-    define('LC_CPS_ENABLED', false);
+    define('LC_CPS_ENABLED', true);
+}
+
+/* ── ONOFF Core integration (commission/referral SoT = Core) ── */
+if (!defined('LC_ONOFF_CORE_INTEGRATION_ENABLED')) {
+    define('LC_ONOFF_CORE_INTEGRATION_ENABLED', true);
+}
+if (!defined('LC_ONOFF_CORE_SETTLEMENT_PAYOUT_ENABLED')) {
+    define('LC_ONOFF_CORE_SETTLEMENT_PAYOUT_ENABLED', true);
+}
+/** Core referral / commission feature flags (consumed by modules/onoff_core) */
+if (!defined('ONOFF_REFERRAL_CORE_ENABLED')) {
+    define('ONOFF_REFERRAL_CORE_ENABLED', true);
+}
+if (!defined('ONOFF_COMMISSION_ENABLED')) {
+    define('ONOFF_COMMISSION_ENABLED', true);
 }
 define('LC_LP_NETWORK_CODE', 'LINKPRICE');
 /** 내부 실적 상태 (공식 status와 별도 매핑) */

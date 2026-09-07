@@ -575,7 +575,13 @@ if (!function_exists('lc_conversion_update_status')) {
         if ($new_status === LC_STATUS_APPROVED) {
             // 원격 ACK(원본/상대 플랫폼): 광고주 지갑 차감은 승인을 시작한 플랫폼에서만 수행.
             // 여기서 다시 차감하면 이중 과금이 되므로 건너뛰고, 파트너 적립만 수행.
-            if (!$mp_remote_ack) {
+            $cp_row = function_exists('lc_campaign_get_by_id')
+                ? lc_campaign_get_by_id((int) ($conversion['cp_id'] ?? 0))
+                : null;
+            $platform_owned = is_array($cp_row)
+                && function_exists('lc_campaign_is_platform_owned')
+                && lc_campaign_is_platform_owned($cp_row);
+            if (!$mp_remote_ack && !$platform_owned) {
                 $deduct = lc_wallet_deduct_for_conversion(
                     $mt_id,
                     $cv_id,
@@ -731,7 +737,13 @@ if (!function_exists('lc_conversion_admin_final_status')) {
             }
         } elseif ($action === 'approve') {
             // 취소/무효 → 승인: 광고비 차감 + 파트너 적립
-            if ($mt_id > 0) {
+            $cp_row = function_exists('lc_campaign_get_by_id')
+                ? lc_campaign_get_by_id((int) ($conversion['cp_id'] ?? 0))
+                : null;
+            $platform_owned = is_array($cp_row)
+                && function_exists('lc_campaign_is_platform_owned')
+                && lc_campaign_is_platform_owned($cp_row);
+            if ($mt_id > 0 && !$platform_owned) {
                 $deduct = lc_wallet_deduct_for_conversion($mt_id, $cv_id, $price, $conversion['cv_code'] . ' 관리자 최종승인 차감');
                 if (!$deduct['ok']) {
                     return $deduct;
@@ -744,7 +756,13 @@ if (!function_exists('lc_conversion_admin_final_status')) {
         } else {
             // 승인 → 취소/무효: 광고비 환급 + 파트너 적립 회수
             if ($current === LC_STATUS_APPROVED) {
-                if ($mt_id > 0 && function_exists('lc_wallet_record')) {
+                $cp_row = function_exists('lc_campaign_get_by_id')
+                    ? lc_campaign_get_by_id((int) ($conversion['cp_id'] ?? 0))
+                    : null;
+                $platform_owned = is_array($cp_row)
+                    && function_exists('lc_campaign_is_platform_owned')
+                    && lc_campaign_is_platform_owned($cp_row);
+                if ($mt_id > 0 && !$platform_owned && function_exists('lc_wallet_record')) {
                     lc_wallet_record($mt_id, 'refund', abs($price), $conversion['cv_code'] . ' 관리자 최종취소 환급', 'conversion', $cv_id);
                 }
                 if (function_exists('lc_partner_debit_for_conversion')) {
@@ -1611,6 +1629,9 @@ if (!function_exists('lc_partner_dashboard_for_api')) {
             'chart7d'          => $chart,
             'channels'         => $channels,
             'recent'           => $recent,
+            'core'             => function_exists('lc_onoff_core_partner_dashboard')
+                ? lc_onoff_core_partner_dashboard($pt_id)
+                : null,
         );
     }
 }

@@ -110,6 +110,18 @@ if (is_file(LC_PLUGIN_PATH . '/inc/campaign_dasibom.php')) {
 if (is_file(LC_PLUGIN_PATH . '/inc/campaign_hasugu_cpa.php')) {
     require_once LC_PLUGIN_PATH . '/inc/campaign_hasugu_cpa.php';
 }
+if (is_file(LC_PLUGIN_PATH . '/inc/campaign_domain_cps.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/campaign_domain_cps.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/campaign_seo_geo_cps.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/campaign_seo_geo_cps.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/campaign_traffic_cps.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/campaign_traffic_cps.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/campaign_backlink_cps.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/campaign_backlink_cps.php';
+}
 if (is_file(LC_PLUGIN_PATH . '/inc/campaign_modemo.php')) {
     require_once LC_PLUGIN_PATH . '/inc/campaign_modemo.php';
 }
@@ -151,6 +163,18 @@ if (is_file(LC_PLUGIN_PATH . '/inc/api.php')) {
 }
 if (is_file(LC_PLUGIN_PATH . '/inc/content_s2s.php')) {
     require_once LC_PLUGIN_PATH . '/inc/content_s2s.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/domain_s2s.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/domain_s2s.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/platform_s2s.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/platform_s2s.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/onoff_core_bridge.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/onoff_core_bridge.php';
+}
+if (is_file(LC_PLUGIN_PATH . '/inc/onoff_core_settlement.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/onoff_core_settlement.php';
 }
 if (is_file(LC_PLUGIN_PATH . '/inc/ui.php')) {
     require_once LC_PLUGIN_PATH . '/inc/ui.php';

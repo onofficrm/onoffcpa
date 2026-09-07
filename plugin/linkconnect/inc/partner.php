@@ -165,6 +165,10 @@ if (!function_exists('lc_partner_create')) {
 
         $partner = lc_get_partner_by_id($pt_id);
 
+        if (is_array($partner) && function_exists('lc_onoff_core_sync_partner_enrollment')) {
+            lc_onoff_core_sync_partner_enrollment($partner);
+        }
+
         return array('ok' => true, 'message' => '파트너가 등록되었습니다.', 'partner' => $partner);
     }
 }
@@ -189,6 +193,13 @@ if (!function_exists('lc_partner_update_status')) {
         $status_esc = lc_sql_escape($status);
 
         lc_sql_query(" UPDATE `{$table}` SET pt_status = '{$status_esc}', pt_updated_at = NOW() WHERE pt_id = '{$pt_id}' ", false);
+
+        if ($status === LC_PARTNER_STATUS_ACTIVE && function_exists('lc_onoff_core_sync_partner_enrollment')) {
+            $partner = lc_get_partner_by_id($pt_id);
+            if (is_array($partner)) {
+                lc_onoff_core_sync_partner_enrollment($partner);
+            }
+        }
 
         return array('ok' => true, 'message' => '파트너 상태가 변경되었습니다.');
     }

@@ -129,6 +129,101 @@ if ($method === 'POST') {
         lc_api_success($result);
     }
 
+    if ($action === 'apply_domain_cps_campaign') {
+        if (!function_exists('lc_campaign_ensure_domain_cps')) {
+            lc_api_error('낙장도메인 CPS 모듈을 찾을 수 없습니다.', 'NOT_FOUND', 500);
+        }
+        $opts = array('activate' => true);
+        if (isset($body['mtId']) && (int) $body['mtId'] > 0) {
+            $opts['mt_id'] = (int) $body['mtId'];
+        }
+        $result = lc_campaign_ensure_domain_cps($opts);
+        if (!$result['ok']) {
+            lc_api_error($result['message'], 'APPLY_FAILED', 400);
+        }
+        lc_api_success($result);
+    }
+
+    if ($action === 'apply_seo_geo_cps_campaign') {
+        if (!function_exists('lc_campaign_ensure_seo_geo_cps')) {
+            lc_api_error('SEO GEO CPS 모듈을 찾을 수 없습니다.', 'NOT_FOUND', 500);
+        }
+        $opts = array('activate' => true);
+        if (isset($body['mtId']) && (int) $body['mtId'] > 0) {
+            $opts['mt_id'] = (int) $body['mtId'];
+        }
+        $result = lc_campaign_ensure_seo_geo_cps($opts);
+        if (!$result['ok']) {
+            lc_api_error($result['message'], 'APPLY_FAILED', 400);
+        }
+        lc_api_success($result);
+    }
+
+    if ($action === 'apply_traffic_cps_campaign') {
+        if (!function_exists('lc_campaign_ensure_traffic_cps')) {
+            lc_api_error('트래픽 CPS 모듈을 찾을 수 없습니다.', 'NOT_FOUND', 500);
+        }
+        $opts = array('activate' => true);
+        if (isset($body['mtId']) && (int) $body['mtId'] > 0) {
+            $opts['mt_id'] = (int) $body['mtId'];
+        }
+        $result = lc_campaign_ensure_traffic_cps($opts);
+        if (!$result['ok']) {
+            lc_api_error($result['message'], 'APPLY_FAILED', 400);
+        }
+        lc_api_success($result);
+    }
+
+    if ($action === 'apply_backlink_cps_campaign') {
+        if (!function_exists('lc_campaign_ensure_backlink_cps')) {
+            lc_api_error('백링크 CPS 모듈을 찾을 수 없습니다.', 'NOT_FOUND', 500);
+        }
+        $opts = array('activate' => true);
+        if (isset($body['mtId']) && (int) $body['mtId'] > 0) {
+            $opts['mt_id'] = (int) $body['mtId'];
+        }
+        $result = lc_campaign_ensure_backlink_cps($opts);
+        if (!$result['ok']) {
+            lc_api_error($result['message'], 'APPLY_FAILED', 400);
+        }
+        lc_api_success($result);
+    }
+
+    // Kakao/manual SEO GEO enrollment → Core fixed ₩300,000 commission
+    if ($action === 'report_seo_geo_payment') {
+        if (!function_exists('lc_onoff_core_bind_customer') || !function_exists('lc_onoff_core_record_purchased_point_payment')) {
+            lc_api_error('Core bridge unavailable', 'NOT_READY', 500);
+        }
+        $customer = trim((string) ($body['customerMbId'] ?? $body['customer_mb_id'] ?? ''));
+        $payment_id = trim((string) ($body['paymentId'] ?? $body['payment_id'] ?? ''));
+        $referral_code = strtoupper(trim((string) ($body['referralCode'] ?? $body['referral_code'] ?? '')));
+        if ($customer === '' || $payment_id === '') {
+            lc_api_error('customerMbId and paymentId required', 'INVALID_ARGS', 400);
+        }
+        $bind = null;
+        if ($referral_code !== '') {
+            $bind = lc_onoff_core_bind_customer($customer, $referral_code, array(
+                'source_service'   => 'CONTENT',
+                'source_reference' => 'admin.ops.report_seo_geo_payment',
+            ));
+        }
+        $pay = lc_onoff_core_record_purchased_point_payment(array(
+            'payment_id'     => $payment_id,
+            'customer_mb_id' => $customer,
+            'amount'         => 300000,
+            'source_service' => 'CONTENT',
+            'approved_at'    => date('Y-m-d H:i:s'),
+        ));
+        if (empty($pay['ok'])) {
+            lc_api_error((string) ($pay['message'] ?? 'payment_failed'), 'PAYMENT_REPORT_FAILED', 400);
+        }
+        lc_api_success(array(
+            'bind'    => $bind,
+            'payment' => $pay,
+            'amount'  => 300000,
+        ));
+    }
+
     lc_api_error('유효하지 않은 action입니다.', 'INVALID_ACTION', 400);
 }
 
