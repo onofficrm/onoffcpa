@@ -282,6 +282,14 @@ if ($method === 'POST') {
 
         $skip_conversion = !empty($body['skipConversion']) || (isset($body['skipConversion']) && (string) $body['skipConversion'] === '1');
         $result = lc_call_logs_import_bulk($parsed['rows'] ?? array(), $skip_conversion);
+        if ($result['ok'] && function_exists('lc_call_logs_sync_to_peers')) {
+            $peer_sync = lc_call_logs_sync_to_peers($parsed['rows'] ?? array(), $skip_conversion);
+            $result['peerSync'] = $peer_sync;
+            if (!empty($peer_sync['enabled']) && !empty($peer_sync['message'])) {
+                $result['message'] = rtrim((string) ($result['message'] ?? ''), '.')
+                    . ' · 동기화: ' . $peer_sync['message'];
+            }
+        }
         if ($result['ok'] && function_exists('lc_admin_log_write')) {
             lc_admin_log_write('call_import_logs', 'call_log', 0, (string) ($result['message'] ?? '통화내역 업로드'), array(
                 'total'     => (int) ($result['total'] ?? 0),
@@ -291,6 +299,7 @@ if ($method === 'POST') {
                 'unmatched' => (int) ($result['unmatched'] ?? 0),
                 'skipConversion' => $skip_conversion,
                 'viaPaste'  => $paste_text !== '',
+                'peerSync'  => isset($peer_sync) ? $peer_sync : null,
             ));
         }
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'IMPORT_FAILED', 400);

@@ -2358,6 +2358,180 @@ if (!function_exists('lc_call_logs_import_bulk')) {
     }
 }
 
+if (!function_exists('lc_call_log_sync_peers')) {
+    /**
+     * @return array<int,string>
+     */
+    function lc_call_log_sync_peers()
+    {
+        if (!defined('LC_CALL_LOG_SYNC_PEERS')) {
+            return array();
+        }
+        $raw = trim((string) LC_CALL_LOG_SYNC_PEERS);
+        if ($raw === '') {
+            return array();
+        }
+        $parts = preg_split('/\s*,\s*/', $raw);
+        $out = array();
+        foreach ($parts as $p) {
+            $p = rtrim(trim((string) $p), '/');
+            if ($p !== '' && preg_match('#^https?://#i', $p)) {
+                $out[] = $p;
+            }
+        }
+
+        return array_values(array_unique($out));
+    }
+}
+
+if (!function_exists('lc_call_log_sync_secret_ok')) {
+    function lc_call_log_sync_secret_ok($given)
+    {
+        if (!defined('LC_CALL_LOG_SYNC_SECRET') || LC_CALL_LOG_SYNC_SECRET === '') {
+            return false;
+        }
+
+        return is_string($given) && $given !== '' && hash_equals((string) LC_CALL_LOG_SYNC_SECRET, $given);
+    }
+}
+
+if (!function_exists('lc_call_logs_sync_to_peers')) {
+    /**
+     * onoffcpa에서 통화내역 import 성공 시 자매 사이트(링크커넥트·트렌드허브)로 동일 rows 전송.
+     *
+     * @param array<int,array<string,mixed>> $rows
+     * @return array{ok:bool,enabled:bool,message?:string,peers:array<int,array<string,mixed>>}
+     */
+    function lc_call_logs_sync_to_peers(array $rows, $skip_conversion = false)
+    {
+        $out = array(
+            'ok'      => true,
+            'enabled' => false,
+            'peers'   => array(),
+            'message' => '',
+        );
+
+        if (!defined('LC_CALL_LOG_SYNC_ENABLED') || !LC_CALL_LOG_SYNC_ENABLED) {
+            return $out;
+        }
+        if (!function_exists('lc_call_is_onoffcpa_host') || !lc_call_is_onoffcpa_host()) {
+            return $out;
+        }
+        if (!$rows) {
+            return $out;
+        }
+
+        $peers = lc_call_log_sync_peers();
+        if (!$peers) {
+            return $out;
+        }
+
+        $secret = defined('LC_CALL_LOG_SYNC_SECRET') ? (string) LC_CALL_LOG_SYNC_SECRET : '';
+        if ($secret === '') {
+            return array(
+                'ok'      => false,
+                'enabled' => true,
+                'peers'   => array(),
+                'message' => 'LC_CALL_LOG_SYNC_SECRET 미설정',
+            );
+        }
+
+        $out['enabled'] = true;
+        $all_ok = true;
+        $chunks = array_chunk($rows, 150);
+        foreach ($peers as $base) {
+            $peer = array(
+                'url'       => $base,
+                'ok'        => true,
+                'message'   => '',
+                'total'     => 0,
+                'imported'  => 0,
+                'duplicate' => 0,
+                'failed'    => 0,
+                'unmatched' => 0,
+            );
+            foreach ($chunks as $chunk) {
+                $url = $base . '/plugin/linkconnect/api/call_logs_inbound.php';
+                $body = json_encode(array(
+                    'skipConversion' => $skip_conversion ? 1 : 0,
+                    'source'         => 'ONOFFCPA',
+                    'rows'           => array_values($chunk),
+                ), JSON_UNESCAPED_UNICODE);
+
+                if (!function_exists('curl_init')) {
+                    $peer['ok'] = false;
+                    $peer['message'] = 'curl 미지원';
+                    $all_ok = false;
+                    break;
+                }
+
+                $ch = curl_init($url);
+                if ($ch === false) {
+                    $peer['ok'] = false;
+                    $peer['message'] = 'curl init 실패';
+                    $all_ok = false;
+                    break;
+                }
+                curl_setopt_array($ch, array(
+                    CURLOPT_POST           => true,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_HTTPHEADER     => array(
+                        'Content-Type: application/json',
+                        'Accept: application/json',
+                        'X-LC-Call-Sync-Secret: ' . $secret,
+                    ),
+                    CURLOPT_POSTFIELDS     => $body,
+                    CURLOPT_TIMEOUT        => 90,
+                    CURLOPT_CONNECTTIMEOUT => 8,
+                ));
+                $resp = curl_exec($ch);
+                $errno = curl_errno($ch);
+                $err = curl_error($ch);
+                $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if ($errno) {
+                    $peer['ok'] = false;
+                    $peer['message'] = 'curl: ' . $err;
+                    $all_ok = false;
+                    break;
+                }
+                $decoded = json_decode((string) $resp, true);
+                if ($http < 200 || $http >= 300 || !is_array($decoded) || empty($decoded['ok'])) {
+                    $peer['ok'] = false;
+                    $msg = is_array($decoded) ? (string) ($decoded['error'] ?? $decoded['message'] ?? '') : '';
+                    $peer['message'] = $msg !== '' ? $msg : ('HTTP ' . $http);
+                    $all_ok = false;
+                    break;
+                }
+                $data = isset($decoded['data']) && is_array($decoded['data']) ? $decoded['data'] : $decoded;
+                $peer['total'] += (int) ($data['total'] ?? count($chunk));
+                $peer['imported'] += (int) ($data['imported'] ?? 0);
+                $peer['duplicate'] += (int) ($data['duplicate'] ?? 0);
+                $peer['failed'] += (int) ($data['failed'] ?? 0);
+                $peer['unmatched'] += (int) ($data['unmatched'] ?? 0);
+                $peer['message'] = sprintf(
+                    '신규 %d · 중복 %d · 실패 %d',
+                    $peer['imported'],
+                    $peer['duplicate'],
+                    $peer['failed']
+                );
+            }
+            $out['peers'][] = $peer;
+        }
+
+        $out['ok'] = $all_ok;
+        $bits = array();
+        foreach ($out['peers'] as $p) {
+            $host = (string) (parse_url((string) $p['url'], PHP_URL_HOST) ?: $p['url']);
+            $bits[] = $host . ($p['ok'] ? (' ' . $p['message']) : (' 실패:' . $p['message']));
+        }
+        $out['message'] = $bits ? implode(' / ', $bits) : '';
+
+        return $out;
+    }
+}
+
 /* ───────────────────────────── 통화로그 조회 ───────────────────────────── */
 
 if (!function_exists('lc_call_logs_list')) {
