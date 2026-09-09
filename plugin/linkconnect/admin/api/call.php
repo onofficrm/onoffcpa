@@ -341,6 +341,8 @@ if ($method === 'POST') {
             'limit' => isset($body['limit']) ? (int) $body['limit'] : 5000,
             'cpId'  => isset($body['cpId']) ? (int) $body['cpId'] : 0,
             'mtId'  => isset($body['mtId']) ? (int) $body['mtId'] : 0,
+            'virtualNumber' => isset($body['virtualNumber']) ? (string) $body['virtualNumber'] : '',
+            'force' => !empty($body['force']),
         ));
         if ($result['ok'] && function_exists('lc_admin_log_write')) {
             lc_admin_log_write('call_backfill_conversions', 'call_log', 0, (string) ($result['message'] ?? '콜디비 생성'), $result);

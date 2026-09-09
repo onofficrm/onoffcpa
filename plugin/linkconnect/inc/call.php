@@ -1515,8 +1515,8 @@ if (!function_exists('lc_call_logs_backfill_conversions')) {
      * 매칭됐지만 전환(cv_id)이 없는 통화로그에 콜디비 전환 생성.
      * (붙여넣기 시 skipConversion / 재매칭만 한 경우 복구용)
      *
-     * @param array{limit?:int,cpId?:int,mtId?:int} $opts
-     * @return array{ok:bool,message:string,scanned:int,created:int,skipped:int,failed:int}
+     * @param array{limit?:int,cpId?:int,mtId?:int,virtualNumber?:string,force?:bool,dryRun?:bool} $opts
+     * @return array{ok:bool,message:string,scanned:int,created:int,skipped:int,failed:int,reasons?:array}
      */
     function lc_call_logs_backfill_conversions(array $opts = array())
     {
@@ -1527,6 +1527,8 @@ if (!function_exists('lc_call_logs_backfill_conversions')) {
             'created' => 0,
             'skipped' => 0,
             'failed' => 0,
+            'reasons' => array(),
+            'samples' => array(),
         );
 
         if (!lc_db_installed() || !lc_db_table_exists(lc_table('call_logs'))) {
@@ -1535,6 +1537,8 @@ if (!function_exists('lc_call_logs_backfill_conversions')) {
 
         $clog = lc_table('call_logs');
         $limit = isset($opts['limit']) ? max(1, (int) $opts['limit']) : 3000;
+        $force = !empty($opts['force']);
+        $dry_run = !empty($opts['dryRun']);
         $where = " cv_id = '0' AND cp_id > '0' AND pt_id > '0' ";
         if (!empty($opts['cpId'])) {
             $where .= " AND cp_id = '" . (int) $opts['cpId'] . "' ";
@@ -1542,8 +1546,14 @@ if (!function_exists('lc_call_logs_backfill_conversions')) {
         if (!empty($opts['mtId'])) {
             $where .= " AND mt_id = '" . (int) $opts['mtId'] . "' ";
         }
+        if (!empty($opts['virtualNumber'])) {
+            $vn = lc_call_number_normalize((string) $opts['virtualNumber']);
+            if ($vn !== '') {
+                $where .= " AND clog_virtual_number = '" . lc_sql_escape($vn) . "' ";
+            }
+        }
 
-        $result = lc_sql_query(" SELECT clog_id, clog_caller, clog_duration, clog_result, clog_started_at, pt_id, cp_id, mt_id
+        $result = lc_sql_query(" SELECT clog_id, clog_caller, clog_duration, clog_result, clog_started_at, clog_virtual_number, pt_id, cp_id, mt_id
             FROM `{$clog}`
             WHERE {$where}
             ORDER BY clog_id ASC
@@ -1552,6 +1562,8 @@ if (!function_exists('lc_call_logs_backfill_conversions')) {
             return array('ok' => false, 'message' => '조회 실패', 'scanned' => 0, 'created' => 0, 'skipped' => 0, 'failed' => 0);
         }
 
+        $check_opts = $force ? array('ignoreEnabled' => true) : array();
+
         while ($row = sql_fetch_array($result)) {
             $summary['scanned']++;
             $clog_id = (int) ($row['clog_id'] ?? 0);
@@ -1559,19 +1571,44 @@ if (!function_exists('lc_call_logs_backfill_conversions')) {
             $pt_id = (int) ($row['pt_id'] ?? 0);
             $duration = (int) ($row['clog_duration'] ?? 0);
             $call_result = (string) ($row['clog_result'] ?? '');
-            $check = lc_call_should_create_conversion($cp_id, $call_result, $duration);
+            $check = lc_call_should_create_conversion($cp_id, $call_result, $duration, $check_opts);
             if (empty($check['create'])) {
                 $summary['skipped']++;
+                $reason = (string) ($check['reason'] ?? 'unknown');
+                if (!isset($summary['reasons'][$reason])) {
+                    $summary['reasons'][$reason] = 0;
+                }
+                $summary['reasons'][$reason]++;
+                if (count($summary['samples']) < 12) {
+                    $summary['samples'][] = array(
+                        'clogId' => $clog_id,
+                        'cpId' => $cp_id,
+                        'mtId' => (int) ($row['mt_id'] ?? 0),
+                        'result' => $call_result,
+                        'duration' => $duration,
+                        'reason' => $reason,
+                        'startedAt' => (string) ($row['clog_started_at'] ?? ''),
+                        'virtualNumber' => (string) ($row['clog_virtual_number'] ?? ''),
+                    );
+                }
                 continue;
             }
 
+            if ($dry_run) {
+                $summary['created']++;
+                continue;
+            }
+
+            $normalized = function_exists('lc_call_normalize_result')
+                ? lc_call_normalize_result($call_result, $duration)
+                : $call_result;
             $conv = lc_call_conversion_create(array(
                 'clog_id'   => $clog_id,
                 'pt_id'     => $pt_id,
                 'cp_id'     => $cp_id,
                 'caller'    => (string) ($row['clog_caller'] ?? ''),
                 'duration'  => $duration,
-                'result'    => $call_result,
+                'result'    => $normalized,
                 'started_at'=> (string) ($row['clog_started_at'] ?? date('Y-m-d H:i:s')),
                 'price'     => (int) ($check['advertiserPrice'] ?? $check['price'] ?? 0),
                 'partnerPrice' => (int) ($check['partnerPrice'] ?? $check['price'] ?? 0),
@@ -1582,15 +1619,21 @@ if (!function_exists('lc_call_logs_backfill_conversions')) {
                 $summary['created']++;
             } else {
                 $summary['failed']++;
+                $fail_reason = '생성실패:' . (string) ($conv['message'] ?? '');
+                if (!isset($summary['reasons'][$fail_reason])) {
+                    $summary['reasons'][$fail_reason] = 0;
+                }
+                $summary['reasons'][$fail_reason]++;
             }
         }
 
         $summary['message'] = sprintf(
-            '콜디비 생성 스캔 %d · 신규 %d · 조건제외 %d · 실패 %d',
+            '콜디비 생성 스캔 %d · 신규 %d · 조건제외 %d · 실패 %d%s',
             $summary['scanned'],
             $summary['created'],
             $summary['skipped'],
-            $summary['failed']
+            $summary['failed'],
+            $force ? ' · force' : ''
         );
 
         return $summary;
@@ -1814,17 +1857,21 @@ if (!function_exists('lc_call_ingest_log')) {
 
 if (!function_exists('lc_call_should_create_conversion')) {
     /**
-     * @return array{create:bool,reason:string,price:int}
+     * @param array{ignoreEnabled?:bool} $opts
+     * @return array{create:bool,reason:string,price:int,partnerPrice?:int,advertiserPrice?:int}
      */
-    function lc_call_should_create_conversion($cp_id, $result, $duration)
+    function lc_call_should_create_conversion($cp_id, $result, $duration, array $opts = array())
     {
         $settings = lc_call_settings_get((int) $cp_id);
+        $result = lc_call_normalize_result($result, $duration);
 
-        if (empty($settings['cs_admin_enabled'])) {
-            return array('create' => false, 'reason' => '관리자 콜설정 비활성', 'price' => 0);
-        }
-        if (empty($settings['cs_enabled'])) {
-            return array('create' => false, 'reason' => '광고주 콜디비 수신 OFF', 'price' => 0);
+        if (empty($opts['ignoreEnabled'])) {
+            if (empty($settings['cs_admin_enabled'])) {
+                return array('create' => false, 'reason' => '관리자 콜설정 비활성', 'price' => 0);
+            }
+            if (empty($settings['cs_enabled'])) {
+                return array('create' => false, 'reason' => '광고주 콜디비 수신 OFF', 'price' => 0);
+            }
         }
 
         $min = (int) ($settings['cs_min_duration'] ?? 0);
