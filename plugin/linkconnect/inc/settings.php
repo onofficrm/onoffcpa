@@ -77,7 +77,7 @@ if (!function_exists('lc_settings_defaults')) {
             'callWebhookToken'      => '',
             'callDefaultPrice'      => 0,
             'callMinDuration'       => 0,
-            'callCreateOnMissed'    => '0',
+            'callCreateOnMissed'    => '1',
             'callRecordingMode'     => 'normal',
             // 링크프라이스 CPS (외부 네트워크 — CPA와 분리)
             'lpEnabled'             => '0',

@@ -46,7 +46,7 @@ const defaultRaw: RawSettings = {
   callWebhookTokenSet: '0',
   callDefaultPrice: '0',
   callMinDuration: '0',
-  callCreateOnMissed: '0',
+  callCreateOnMissed: '1',
   callRecordingMode: 'normal',
 };
 

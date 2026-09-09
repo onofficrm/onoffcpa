@@ -1875,7 +1875,8 @@ if (!function_exists('lc_call_should_create_conversion')) {
         }
 
         $min = (int) ($settings['cs_min_duration'] ?? 0);
-        $create_on_missed = lc_settings_get_bool('callCreateOnMissed', false);
+        // 부재중도 우선 콜디비(과금) 생성 후 광고주가 취소하는 흐름이 기본
+        $create_on_missed = lc_settings_get_bool('callCreateOnMissed', true);
 
         if ($result === LC_CALL_RESULT_SUCCESS) {
             if ($min > 0 && (int) $duration < $min) {

@@ -312,7 +312,7 @@ export function AdvertiserCall() {
                 통화 내역
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                연결된 콜디비가 신규접수이면 「취소」로 CPA와 동일하게 처리할 수 있습니다.
+                통화성공·부재중 모두 콜디비가 먼저 생성(과금)되며, 신규접수이면 「취소」로 CPA와 동일하게 처리할 수 있습니다.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
