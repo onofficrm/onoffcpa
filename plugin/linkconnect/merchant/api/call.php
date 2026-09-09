@@ -7,6 +7,7 @@ $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHO
  * 광고주 콜디비 설정 API
  * - 광고주는 캠페인별 콜디비 수신 on/off, 착신번호1/2, 상품 별칭만 편집
  * - 녹음방식·업무시간·휴무·단가 등은 관리자 전용
+ * - 통화로그의 pending 콜디비 전환은 CPA와 동일하게 취소 가능
  */
 
 function lc_merchant_call_current_mt()
@@ -30,6 +31,43 @@ function lc_merchant_call_owns_campaign($mt_id, $cp_id)
     $row = lc_sql_fetch(" SELECT cp_id FROM `{$cp_table}` WHERE cp_id = '" . (int) $cp_id . "' AND mt_id = '" . (int) $mt_id . "' LIMIT 1 ");
 
     return (bool) $row;
+}
+
+/**
+ * 광고주 통화로그 API 필드에 전환 취소 가능 여부 보강.
+ *
+ * @param array<string,mixed> $api
+ * @param array<string,mixed> $row
+ * @return array<string,mixed>
+ */
+function lc_merchant_call_enrich_log_api(array $api, array $row)
+{
+    $cv_id = (int) ($row['cv_id'] ?? ($api['cvId'] ?? 0));
+    $api['cvId'] = $cv_id;
+    $api['cvStatus'] = '';
+    $api['cvStatusLabel'] = '';
+    $api['finalLocked'] = false;
+    $api['canCancel'] = false;
+
+    if ($cv_id <= 0 || !function_exists('lc_conversion_get_by_id')) {
+        return $api;
+    }
+
+    $cv = lc_conversion_get_by_id($cv_id);
+    if (!$cv) {
+        return $api;
+    }
+
+    $status = (string) ($cv['cv_status'] ?? '');
+    $locked = !empty($cv['cv_final_locked']);
+    $api['cvStatus'] = $status;
+    $api['cvStatusLabel'] = function_exists('lc_conversion_status_label')
+        ? (string) lc_conversion_status_label($status)
+        : $status;
+    $api['finalLocked'] = $locked;
+    $api['canCancel'] = ($status === LC_STATUS_PENDING && !$locked);
+
+    return $api;
 }
 
 if ($method === 'GET') {
@@ -90,7 +128,7 @@ if ($method === 'GET') {
             if (function_exists('lc_call_recording_request_meta_for_log')) {
                 $api['recordingRequest'] = lc_call_recording_request_meta_for_log((int) $row['clog_id'], 'merchant', $mt_id);
             }
-            $rows[] = $api;
+            $rows[] = lc_merchant_call_enrich_log_api($api, $row);
         }
         lc_api_success(array('items' => $rows, 'dbReady' => lc_db_installed()));
     }
@@ -106,8 +144,11 @@ if ($method === 'POST') {
     $action = isset($body['action']) ? (string) $body['action'] : '';
     $cp_id = isset($body['cpId']) ? (int) $body['cpId'] : 0;
 
-    if (!lc_merchant_call_owns_campaign($mt_id, $cp_id)) {
-        lc_api_error('권한이 없습니다.', 'FORBIDDEN', 403);
+    $clog_actions = array('request_recording', 'cancel_conversion');
+    if (!in_array($action, $clog_actions, true)) {
+        if (!lc_merchant_call_owns_campaign($mt_id, $cp_id)) {
+            lc_api_error('권한이 없습니다.', 'FORBIDDEN', 403);
+        }
     }
 
     if ($action === 'save_settings') {
@@ -128,6 +169,49 @@ if ($method === 'POST') {
     if ($action === 'request_recording') {
         $result = lc_call_recording_request_create((int) ($body['clogId'] ?? 0), 'merchant', $mt_id, (string) ($body['memo'] ?? ''));
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'REQUEST_FAILED', 400);
+    }
+
+    if ($action === 'cancel_conversion') {
+        $clog_id = isset($body['clogId']) ? (int) $body['clogId'] : 0;
+        $log = function_exists('lc_call_log_get') ? lc_call_log_get($clog_id) : null;
+        if (!$log || (int) ($log['mt_id'] ?? 0) !== $mt_id) {
+            lc_api_error('권한이 없거나 통화 기록을 찾을 수 없습니다.', 'FORBIDDEN', 403);
+        }
+
+        $cv_id = (int) ($log['cv_id'] ?? 0);
+        if ($cv_id <= 0) {
+            lc_api_error('연결된 콜디비가 없어 취소할 수 없습니다.', 'NO_CONVERSION', 400);
+        }
+
+        $reason = isset($body['reason']) ? trim((string) $body['reason']) : '';
+        $comment = isset($body['comment']) ? trim((string) $body['comment']) : '';
+        if ($reason === '') {
+            lc_api_error('취소 사유를 선택해 주세요.', 'REASON_REQUIRED', 400);
+        }
+
+        $full_comment = $reason;
+        if ($comment !== '') {
+            $full_comment = $reason . ' - ' . $comment;
+        }
+
+        $opts = array();
+        if (isset($body['partnerVisible'])) {
+            $opts['partnerVisible'] = !empty($body['partnerVisible']);
+        }
+
+        $result = lc_conversion_update_status($cv_id, $mt_id, LC_STATUS_REJECTED, $full_comment, $opts);
+        if (empty($result['ok'])) {
+            lc_api_error((string) ($result['message'] ?? '취소 실패'), 'UPDATE_FAILED', 400);
+        }
+
+        lc_api_success(array(
+            'message'    => (string) ($result['message'] ?? '콜디비를 취소했습니다.'),
+            'clogId'     => $clog_id,
+            'cvId'       => $cv_id,
+            'conversion' => isset($result['conversion']) && is_array($result['conversion']) && function_exists('lc_conversion_to_api_merchant')
+                ? lc_conversion_to_api_merchant($result['conversion'], false)
+                : null,
+        ));
     }
 
     lc_api_error('유효하지 않은 action입니다.', 'INVALID_ACTION', 400);

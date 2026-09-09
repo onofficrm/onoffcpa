@@ -2584,6 +2584,10 @@ export type CallLog = {
   duration: number;
   result: string;
   cvId: number;
+  cvStatus?: string;
+  cvStatusLabel?: string;
+  finalLocked?: boolean;
+  canCancel?: boolean;
   hasRecording: boolean;
   recordingUrl?: string;
   recordingRequest?: CallRecordingRequestMeta;
@@ -2825,12 +2829,32 @@ export function fetchMerchantCallCampaigns() {
   return merchantApiGet<{ items: MerchantCallCampaign[]; dbReady: boolean }>('call.php', { view: 'campaigns' });
 }
 
+export function fetchMerchantCallLogs(filters?: { cpId?: number; virtualNumber?: string }) {
+  return merchantApiGet<{ items: CallLog[]; dbReady: boolean }>('call.php', {
+    view: 'logs',
+    cpId: filters?.cpId != null ? String(filters.cpId) : '',
+    virtualNumber: filters?.virtualNumber ?? '',
+  });
+}
+
 export function saveMerchantCallSettings(payload: { cpId: number; enabled: boolean; alias?: string; forward1?: string; forward2?: string }) {
   return merchantApiPost<{ message: string }>('call.php', { action: 'save_settings', ...payload });
 }
 
 export function requestMerchantCallRecording(payload: { clogId: number; memo?: string }) {
   return merchantApiPost<{ message: string; crrId?: number }>('call.php', { action: 'request_recording', ...payload });
+}
+
+export function cancelMerchantCallConversion(payload: {
+  clogId: number;
+  reason: string;
+  comment?: string;
+  partnerVisible?: boolean;
+}) {
+  return merchantApiPost<{ message: string; clogId: number; cvId: number }>('call.php', {
+    action: 'cancel_conversion',
+    ...payload,
+  });
 }
 
 export function toggleMerchantCall(payload: { cpId: number; enabled: boolean }) {
