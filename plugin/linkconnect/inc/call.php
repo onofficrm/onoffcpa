@@ -1510,6 +1510,93 @@ if (!function_exists('lc_call_logs_rematch_unmatched')) {
     }
 }
 
+if (!function_exists('lc_call_logs_backfill_conversions')) {
+    /**
+     * 매칭됐지만 전환(cv_id)이 없는 통화로그에 콜디비 전환 생성.
+     * (붙여넣기 시 skipConversion / 재매칭만 한 경우 복구용)
+     *
+     * @param array{limit?:int,cpId?:int,mtId?:int} $opts
+     * @return array{ok:bool,message:string,scanned:int,created:int,skipped:int,failed:int}
+     */
+    function lc_call_logs_backfill_conversions(array $opts = array())
+    {
+        $summary = array(
+            'ok' => true,
+            'message' => '',
+            'scanned' => 0,
+            'created' => 0,
+            'skipped' => 0,
+            'failed' => 0,
+        );
+
+        if (!lc_db_installed() || !lc_db_table_exists(lc_table('call_logs'))) {
+            return array('ok' => false, 'message' => '통화로그 테이블 없음', 'scanned' => 0, 'created' => 0, 'skipped' => 0, 'failed' => 0);
+        }
+
+        $clog = lc_table('call_logs');
+        $limit = isset($opts['limit']) ? max(1, (int) $opts['limit']) : 3000;
+        $where = " cv_id = '0' AND cp_id > '0' AND pt_id > '0' ";
+        if (!empty($opts['cpId'])) {
+            $where .= " AND cp_id = '" . (int) $opts['cpId'] . "' ";
+        }
+        if (!empty($opts['mtId'])) {
+            $where .= " AND mt_id = '" . (int) $opts['mtId'] . "' ";
+        }
+
+        $result = lc_sql_query(" SELECT clog_id, clog_caller, clog_duration, clog_result, clog_started_at, pt_id, cp_id, mt_id
+            FROM `{$clog}`
+            WHERE {$where}
+            ORDER BY clog_id ASC
+            LIMIT {$limit} ", false);
+        if (!$result) {
+            return array('ok' => false, 'message' => '조회 실패', 'scanned' => 0, 'created' => 0, 'skipped' => 0, 'failed' => 0);
+        }
+
+        while ($row = sql_fetch_array($result)) {
+            $summary['scanned']++;
+            $clog_id = (int) ($row['clog_id'] ?? 0);
+            $cp_id = (int) ($row['cp_id'] ?? 0);
+            $pt_id = (int) ($row['pt_id'] ?? 0);
+            $duration = (int) ($row['clog_duration'] ?? 0);
+            $call_result = (string) ($row['clog_result'] ?? '');
+            $check = lc_call_should_create_conversion($cp_id, $call_result, $duration);
+            if (empty($check['create'])) {
+                $summary['skipped']++;
+                continue;
+            }
+
+            $conv = lc_call_conversion_create(array(
+                'clog_id'   => $clog_id,
+                'pt_id'     => $pt_id,
+                'cp_id'     => $cp_id,
+                'caller'    => (string) ($row['clog_caller'] ?? ''),
+                'duration'  => $duration,
+                'result'    => $call_result,
+                'started_at'=> (string) ($row['clog_started_at'] ?? date('Y-m-d H:i:s')),
+                'price'     => (int) ($check['advertiserPrice'] ?? $check['price'] ?? 0),
+                'partnerPrice' => (int) ($check['partnerPrice'] ?? $check['price'] ?? 0),
+            ));
+
+            if (!empty($conv['ok']) && !empty($conv['cvId'])) {
+                lc_sql_query(" UPDATE `{$clog}` SET cv_id = '" . (int) $conv['cvId'] . "' WHERE clog_id = '{$clog_id}' AND cv_id = '0' ", false);
+                $summary['created']++;
+            } else {
+                $summary['failed']++;
+            }
+        }
+
+        $summary['message'] = sprintf(
+            '콜디비 생성 스캔 %d · 신규 %d · 조건제외 %d · 실패 %d',
+            $summary['scanned'],
+            $summary['created'],
+            $summary['skipped'],
+            $summary['failed']
+        );
+
+        return $summary;
+    }
+}
+
 if (!function_exists('lc_call_numbers_ensure_from_logs')) {
     /**
      * 미매칭 로그의 가상번호를 풀에 없으면 등록(available).

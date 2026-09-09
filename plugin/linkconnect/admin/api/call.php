@@ -315,11 +315,37 @@ if ($method === 'POST') {
             'onlyUnmatched' => !isset($body['onlyUnmatched']) || !empty($body['onlyUnmatched']) || (string) ($body['onlyUnmatched'] ?? '1') === '1',
             'limit' => isset($body['limit']) ? (int) $body['limit'] : 5000,
         ));
+        $backfill = array('ok' => true, 'created' => 0, 'message' => '');
+        $do_backfill = !isset($body['createConversions']) || !empty($body['createConversions']) || (string) ($body['createConversions'] ?? '1') === '1';
+        if ($do_backfill && function_exists('lc_call_logs_backfill_conversions')) {
+            $backfill = lc_call_logs_backfill_conversions(array(
+                'limit' => isset($body['limit']) ? (int) $body['limit'] : 5000,
+            ));
+        }
         if ($result['ok'] && function_exists('lc_admin_log_write')) {
-            lc_admin_log_write('call_rematch_logs', 'call_log', 0, (string) ($result['message'] ?? '가상번호 재매칭'), $result);
+            lc_admin_log_write('call_rematch_logs', 'call_log', 0, (string) ($result['message'] ?? '가상번호 재매칭'), array(
+                'rematch' => $result,
+                'backfill' => $backfill,
+            ));
         }
         $result['pool'] = $pool;
+        $result['conversions'] = $backfill;
+        if (!empty($backfill['message'])) {
+            $result['message'] = rtrim((string) ($result['message'] ?? ''), '.') . ' · ' . $backfill['message'];
+        }
         $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'REMATCH_FAILED', 400);
+    }
+
+    if ($action === 'backfill_conversions') {
+        $result = lc_call_logs_backfill_conversions(array(
+            'limit' => isset($body['limit']) ? (int) $body['limit'] : 5000,
+            'cpId'  => isset($body['cpId']) ? (int) $body['cpId'] : 0,
+            'mtId'  => isset($body['mtId']) ? (int) $body['mtId'] : 0,
+        ));
+        if ($result['ok'] && function_exists('lc_admin_log_write')) {
+            lc_admin_log_write('call_backfill_conversions', 'call_log', 0, (string) ($result['message'] ?? '콜디비 생성'), $result);
+        }
+        $result['ok'] ? lc_api_success($result) : lc_api_error($result['message'], 'BACKFILL_FAILED', 400);
     }
 
     if ($action === 'reject_request') {

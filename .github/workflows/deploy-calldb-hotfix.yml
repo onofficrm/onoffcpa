@@ -12,6 +12,7 @@ on:
       - 'plugin/linkconnect/config.php'
       - 'plugin/linkconnect/inc/call_recording_request.php'
       - 'plugin/linkconnect/install/rematch_call_logs.php'
+      - 'plugin/linkconnect/install/backfill_call_conversions.php'
       - 'plugin/linkconnect/admin/api/call.php'
       - 'plugin/linkconnect/partner/api/call.php'
       - 'plugin/linkconnect/merchant/api/call.php'
@@ -48,6 +49,7 @@ jobs:
             "plugin/linkconnect/partner/api/call.php"
             "plugin/linkconnect/merchant/api/call.php"
             "plugin/linkconnect/install/rematch_call_logs.php"
+            "plugin/linkconnect/install/backfill_call_conversions.php"
           )
           for file in "${FILES[@]}"; do
             mkdir -p "$ROOT/$(dirname "$file")"

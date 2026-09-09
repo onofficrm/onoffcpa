@@ -377,7 +377,9 @@ export function AdvertiserCall() {
                             {l.finalLocked ? ' · 잠금' : ''}
                           </span>
                         ) : (
-                          <span className="text-slate-400">DB 없음</span>
+                          <span className="text-slate-400" title="통화만 있고 콜디비 전환이 아직 없습니다. 관리자 재매칭·콜디비 생성 후 취소할 수 있습니다.">
+                            DB 없음
+                          </span>
                         )}
                       </td>
                       <td className="px-5 py-4 text-center">
