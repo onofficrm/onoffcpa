@@ -65,7 +65,8 @@ function lc_merchant_call_enrich_log_api(array $api, array $row)
         ? (string) lc_conversion_status_label($status)
         : $status;
     $api['finalLocked'] = $locked;
-    $api['canCancel'] = ($status === LC_STATUS_PENDING && !$locked);
+    // 신규접수·승인완료(잠금 전)는 통화내역에서 바로 취소 가능
+    $api['canCancel'] = !$locked && in_array($status, array(LC_STATUS_PENDING, LC_STATUS_APPROVED), true);
 
     return $api;
 }
@@ -199,7 +200,53 @@ if ($method === 'POST') {
             $opts['partnerVisible'] = !empty($body['partnerVisible']);
         }
 
-        $result = lc_conversion_update_status($cv_id, $mt_id, LC_STATUS_REJECTED, $full_comment, $opts);
+        $conversion = function_exists('lc_conversion_get_by_id') ? lc_conversion_get_by_id($cv_id) : null;
+        if (!$conversion || !lc_conversion_belongs_to_merchant($conversion, $mt_id)) {
+            lc_api_error('권한이 없거나 디비를 찾을 수 없습니다.', 'FORBIDDEN', 403);
+        }
+        if (!empty($conversion['cv_final_locked'])) {
+            lc_api_error('관리자 최종확정으로 잠긴 디비입니다.', 'LOCKED', 400);
+        }
+
+        $status = (string) ($conversion['cv_status'] ?? '');
+        if ($status === LC_STATUS_PENDING) {
+            $result = lc_conversion_update_status($cv_id, $mt_id, LC_STATUS_REJECTED, $full_comment, $opts);
+        } elseif ($status === LC_STATUS_APPROVED) {
+            // 승인완료(잠금 전): 환급 + 파트너 회수 후 취소/무효
+            $price = (int) ($conversion['cv_price'] ?? 0);
+            if ($price > 0 && function_exists('lc_wallet_record')) {
+                $refund = lc_wallet_record($mt_id, 'refund', abs($price), ($conversion['cv_code'] ?? '') . ' 콜디비 취소 환급', 'conversion', $cv_id);
+                if (empty($refund['ok'])) {
+                    lc_api_error((string) ($refund['message'] ?? '환급 실패'), 'REFUND_FAILED', 400);
+                }
+            }
+            if (function_exists('lc_partner_debit_for_conversion')) {
+                lc_partner_debit_for_conversion($conversion);
+            }
+            $cv_table = lc_table('conversions');
+            lc_sql_query(" UPDATE `{$cv_table}` SET
+                cv_status = '" . lc_sql_escape(LC_STATUS_REJECTED) . "',
+                cv_comment = '" . lc_sql_escape($full_comment) . "',
+                cv_review_status = 'pending',
+                cv_reject_reason = '" . lc_sql_escape($full_comment) . "',
+                cv_updated_at = NOW()
+                WHERE cv_id = '{$cv_id}' ", false);
+            $updated = lc_conversion_get_by_id($cv_id);
+            if (function_exists('lc_notification_emit_conversion') && is_array($updated)) {
+                lc_notification_emit_conversion($updated, 'rejected');
+            }
+            if (function_exists('lc_mp_on_local_conversion_status_changed')) {
+                lc_mp_on_local_conversion_status_changed($cv_id, $mt_id, LC_STATUS_REJECTED, $full_comment);
+            }
+            $result = array(
+                'ok' => true,
+                'message' => '콜디비를 취소했습니다.',
+                'conversion' => $updated,
+            );
+        } else {
+            lc_api_error('이미 처리된 디비입니다.', 'ALREADY_PROCESSED', 400);
+        }
+
         if (empty($result['ok'])) {
             lc_api_error((string) ($result['message'] ?? '취소 실패'), 'UPDATE_FAILED', 400);
         }

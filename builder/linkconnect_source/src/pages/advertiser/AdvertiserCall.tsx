@@ -176,7 +176,7 @@ export function AdvertiserCall() {
         <InsightBanner
           accent="cyan"
           message={<>콜디비 수신 상품 <strong>{summary.enabled}개</strong>, 최근 통화 <strong>{summary.totalCalls}건</strong>이 집계되었습니다.</>}
-          subMessage="연결된 콜디비(신규접수)는 이 화면에서 CPA와 동일하게 취소할 수 있습니다. 상세 검수는 디비 확인에서도 가능합니다."
+          subMessage="통화내역 처리 열의 「취소」로 바로 취소할 수 있습니다. 신규접수·승인완료(잠금 전) 모두 가능합니다."
           actions={[{ label: '디비 확인', to: '/advertiser/db?source=call', variant: 'secondary' }]}
         />
 
@@ -185,7 +185,7 @@ export function AdvertiserCall() {
           <SummaryCard title="관리자 활성" value={summary.adminReady} suffix="개" icon={<CheckCircle2 className="text-cyan-500" />} highlight color="cyan" caption="가상번호 배정 가능" />
           <SummaryCard title="수신 ON" value={summary.enabled} suffix="개" icon={<PhoneForwarded className="text-emerald-500" />} highlight color="emerald" caption="착신 운영 중" />
           <SummaryCard title="통화 성공" value={summary.success} suffix="건" icon={<PhoneIncoming className="text-blue-500" />} caption={`부재중 ${summary.missed}건`} />
-          <SummaryCard title="취소 가능" value={summary.cancellable} suffix="건" icon={<XCircle className="text-rose-500" />} caption="신규접수 콜디비" />
+          <SummaryCard title="취소 가능" value={summary.cancellable} suffix="건" icon={<XCircle className="text-rose-500" />} caption="처리 열에서 취소" />
         </div>
 
         {message && (
@@ -312,7 +312,7 @@ export function AdvertiserCall() {
                 통화 내역
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                통화성공·부재중 모두 콜디비가 먼저 생성(과금)되며, 신규접수이면 「취소」로 CPA와 동일하게 처리할 수 있습니다.
+                통화성공·부재중 모두 콜디비가 먼저 생성(과금)됩니다. 처리 열의 「취소」로 바로 취소하세요.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -398,6 +398,8 @@ export function AdvertiserCall() {
                           >
                             <XCircle size={13} /> 취소
                           </button>
+                        ) : l.cvId > 0 && (l.cvStatus === 'rejected' || l.cvStatusLabel === '취소/무효') ? (
+                          <span className="text-xs text-slate-400">취소됨</span>
                         ) : l.cvId > 0 ? (
                           <Link
                             to={`/advertiser/db?source=call&q=${encodeURIComponent(String(l.cvId))}`}
