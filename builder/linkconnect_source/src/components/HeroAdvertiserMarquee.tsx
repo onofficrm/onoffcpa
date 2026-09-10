@@ -116,7 +116,6 @@ function SlideContent({ item, rank }: { item: PublicCampaign; rank: number }) {
 
 export function HeroAdvertiserMarquee() {
   const [items, setItems] = useState<PublicCampaign[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -129,15 +128,11 @@ export function HeroAdvertiserMarquee() {
       .then((data) => {
         if (cancelled) return;
         const sorted = sortCampaigns(data.items || []);
-        setTotal(sorted.length);
         setItems(sorted.slice(0, SLIDE_LIMIT));
         setIndex(0);
       })
       .catch(() => {
-        if (!cancelled) {
-          setItems([]);
-          setTotal(0);
-        }
+        if (!cancelled) setItems([]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -167,32 +162,10 @@ export function HeroAdvertiserMarquee() {
     return () => window.clearInterval(timer);
   }, [paused, loading, items.length, animating, go]);
 
-  const active = items[index];
-
   return (
     <div className="relative mx-auto w-[88%] max-w-[30.8rem] lg:ml-auto lg:mr-0">
       <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/25 to-cyan-500/20 blur-2xl rounded-3xl" />
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 shadow-2xl backdrop-blur-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3.5 py-2.5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-white">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-2 py-0.5 text-[11px] font-bold text-rose-300">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-rose-400" />
-              </span>
-              LIVE
-            </span>
-            입점 CPA
-            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-300">
-              {loading ? '…' : `${total}개`}
-            </span>
-          </div>
-          <span className="text-[10px] text-slate-500">
-            {active?.approvalRate ? `승인율 ${active.approvalRate} · ` : ''}
-            자동 넘김
-          </span>
-        </div>
-
         <div
           className="relative aspect-[4/3] overflow-hidden bg-slate-900"
           onMouseEnter={() => setPaused(true)}
