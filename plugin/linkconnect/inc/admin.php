@@ -255,11 +255,16 @@ if (!function_exists('lc_admin_list_conversions')) {
 
         $limit = max(1, min(5000, (int) $limit));
 
-        $sql = " SELECT cv.*, c.cp_name, p.pt_code, m.mt_company
+        $click_meta = function_exists('lc_conversion_click_meta_select_sql')
+            ? lc_conversion_click_meta_select_sql()
+            : " '' AS cl_referer, '' AS cl_user_agent, '' AS cl_ip ";
+        $sql = " SELECT cv.*, c.cp_name, c.cp_landing_url, c.cp_tracking_base_url, p.pt_code, m.mt_company, lk.lk_code,
+            {$click_meta}
             FROM `{$cv_table}` cv
             INNER JOIN `{$cp_table}` c ON c.cp_id = cv.cp_id
             LEFT JOIN `{$pt_table}` p ON p.pt_id = cv.pt_id
             LEFT JOIN `{$mt_table}` m ON m.mt_id = c.mt_id
+            LEFT JOIN `" . lc_table('links') . "` lk ON lk.lk_id = cv.lk_id
             WHERE {$where}
             ORDER BY cv.cv_id DESC
             LIMIT {$limit} ";
@@ -281,6 +286,9 @@ if (!function_exists('lc_admin_conversion_to_api')) {
     {
         $page_url = function_exists('lc_conversion_page_url') ? lc_conversion_page_url($row) : trim((string) ($row['cv_page_url'] ?? ''));
         $page_host = function_exists('lc_conversion_page_host') ? lc_conversion_page_host($page_url) : '';
+        $inflow = function_exists('lc_conversion_resolve_inflow_meta')
+            ? lc_conversion_resolve_inflow_meta($row, 'full')
+            : array();
 
         return array(
             'id'          => (string) $row['cv_code'],
@@ -292,9 +300,17 @@ if (!function_exists('lc_admin_conversion_to_api')) {
             'customer'    => (string) $row['cv_name'],
             'channel'     => (string) ($row['cv_channel'] ?? ''),
             'source'      => (string) ($row['cv_source'] ?? 'form'),
+            'subId'       => (string) ($inflow['subId'] ?? $row['cv_sub_id'] ?? ''),
             'pageUrl'     => $page_url,
             'pageHost'    => $page_host,
-            'referer'     => (string) ($row['cv_referer'] ?? ''),
+            'landingUrl'  => (string) ($inflow['landingUrl'] ?? ''),
+            'referer'     => (string) ($inflow['referer'] ?? ''),
+            'ip'          => (string) ($inflow['ip'] ?? ''),
+            'device'      => (string) ($inflow['device'] ?? ''),
+            'linkCode'    => (string) ($inflow['linkCode'] ?? ''),
+            'userAgent'   => (string) ($inflow['userAgent'] ?? ''),
+            'abuseScore'  => (int) ($inflow['abuseScore'] ?? 0),
+            'isDuplicate' => !empty($inflow['isDuplicate']),
             'utmSource'   => (string) ($row['cv_utm_source'] ?? ''),
             'utmMedium'   => (string) ($row['cv_utm_medium'] ?? ''),
             'utmCampaign' => (string) ($row['cv_utm_campaign'] ?? ''),

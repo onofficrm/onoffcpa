@@ -4,15 +4,9 @@ import { AdminLayout } from '../../layouts/AdminLayout';
 import { SummaryCard, StatusBadge } from '../../components/admin/AdminShared';
 import { Database, Download } from 'lucide-react';
 import { AdminConversion, downloadAdminConversionsCsv, fetchAdminConversions } from '../../lib/api';
-import { formatEmbedSourceLabel } from '../../lib/partnerEmbed';
 import { HelpTipButton } from '../../components/HelpTipButton';
 import { EMBED_HELP } from '../../lib/embedHelpTips';
-
-function isExternalWidget(source?: string, channel?: string) {
-  const s = (source || '').toLowerCase();
-  const c = (channel || '').toLowerCase();
-  return s === 'embed' || ['embed', 'wordpress', 'widget', 'external'].includes(c);
-}
+import { ConversionInflowCell } from '../../components/ConversionInflowPath';
 
 type SourceFilter = '' | 'embed' | 'call' | 'form';
 
@@ -123,7 +117,7 @@ export function AdminConversions() {
                 <th className="px-4 py-3 text-left">접수일</th>
                 <th className="px-4 py-3 text-left">고객</th>
                 <th className="px-4 py-3 text-left">파트너</th>
-                <th className="px-4 py-3 text-left">출처</th>
+                <th className="px-4 py-3 text-left">유입경로</th>
                 <th className="px-4 py-3 text-left">광고주</th>
                 <th className="px-4 py-3 text-left">상품</th>
                 <th className="px-4 py-3 text-left">상태</th>
@@ -140,33 +134,14 @@ export function AdminConversions() {
                   <td colSpan={9} className="px-4 py-10 text-center text-slate-500">등록된 디비가 없습니다.</td>
                 </tr>
               ) : (
-                rows.map((row) => {
-                  const sourceLabel = formatEmbedSourceLabel(row.source, row.channel);
-                  const embed = isExternalWidget(row.source, row.channel);
-                  return (
+                rows.map((row) => (
                     <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/80">
                       <td className="px-4 py-3 font-mono text-xs text-slate-700">{row.id}</td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{row.date}</td>
                       <td className="px-4 py-3 font-medium text-slate-900">{row.customer}</td>
                       <td className="px-4 py-3 font-mono text-xs">{row.partner}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-slate-700 text-xs">{sourceLabel}</span>
-                          {embed ? (
-                            <span className="inline-flex w-fit px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-bold">외부위젯</span>
-                          ) : null}
-                          {embed && (row.pageHost || row.pageUrl) ? (
-                            <a
-                              href={row.pageUrl || undefined}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[10px] text-cyan-700/80 hover:underline max-w-[140px] truncate"
-                              title={row.pageUrl || row.pageHost}
-                            >
-                              {row.pageHost || row.pageUrl}
-                            </a>
-                          ) : null}
-                        </div>
+                      <td className="px-4 py-3">
+                        <ConversionInflowCell data={row} showAbuse />
                       </td>
                       <td className="px-4 py-3 text-slate-700">{row.advertiser}</td>
                       <td className="px-4 py-3 text-slate-700">{row.campaign}</td>
@@ -175,8 +150,7 @@ export function AdminConversions() {
                         {row.price > 0 ? `${row.price.toLocaleString()}원` : '-'}
                       </td>
                     </tr>
-                  );
-                })
+                  ))
               )}
             </tbody>
           </table>

@@ -29,6 +29,126 @@ if (!function_exists('lc_conversion_mask_phone')) {
     }
 }
 
+if (!function_exists('lc_conversion_mask_ip')) {
+    /** 광고주/파트너용 IP 마스킹 */
+    function lc_conversion_mask_ip($ip)
+    {
+        $ip = trim((string) $ip);
+        if ($ip === '') {
+            return '';
+        }
+        if (strpos($ip, ':') !== false) {
+            $parts = explode(':', $ip);
+            $keep = array_slice($parts, 0, min(4, count($parts)));
+            return implode(':', $keep) . ':*';
+        }
+        $parts = explode('.', $ip);
+        if (count($parts) === 4) {
+            return $parts[0] . '.' . $parts[1] . '.*.*';
+        }
+        return $ip;
+    }
+}
+
+if (!function_exists('lc_conversion_device_label')) {
+    function lc_conversion_device_label($user_agent)
+    {
+        if (function_exists('lc_partner_analytics_device_type')) {
+            $type = lc_partner_analytics_device_type($user_agent);
+        } else {
+            $ua = (string) $user_agent;
+            if ($ua === '') {
+                $type = 'unknown';
+            } elseif (preg_match('/Mobile|Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i', $ua)) {
+                $type = 'mobile';
+            } else {
+                $type = 'desktop';
+            }
+        }
+        if ($type === 'mobile') {
+            return '모바일';
+        }
+        if ($type === 'desktop') {
+            return 'PC';
+        }
+        return '';
+    }
+}
+
+if (!function_exists('lc_conversion_click_meta_select_sql')) {
+    /** 같은 링크의 최근 클릭 메타 (referer/UA/IP) */
+    function lc_conversion_click_meta_select_sql()
+    {
+        $clicks = lc_table('clicks');
+        return "
+            (SELECT cl.cl_referer FROM `{$clicks}` cl
+                WHERE cl.lk_id = cv.lk_id AND cl.lk_id > 0
+                ORDER BY cl.cl_id DESC LIMIT 1) AS cl_referer,
+            (SELECT cl.cl_user_agent FROM `{$clicks}` cl
+                WHERE cl.lk_id = cv.lk_id AND cl.lk_id > 0
+                ORDER BY cl.cl_id DESC LIMIT 1) AS cl_user_agent,
+            (SELECT cl.cl_ip FROM `{$clicks}` cl
+                WHERE cl.lk_id = cv.lk_id AND cl.lk_id > 0
+                ORDER BY cl.cl_id DESC LIMIT 1) AS cl_ip
+        ";
+    }
+}
+
+if (!function_exists('lc_conversion_resolve_inflow_meta')) {
+    /**
+     * @param string $ip_mode mask|full|omit
+     */
+    function lc_conversion_resolve_inflow_meta(array $row, $ip_mode = 'mask')
+    {
+        $referer = trim((string) ($row['cv_referer'] ?? ''));
+        if ($referer === '') {
+            $referer = trim((string) ($row['cl_referer'] ?? ''));
+        }
+
+        $ip = trim((string) ($row['cv_ip'] ?? ''));
+        if ($ip === '') {
+            $ip = trim((string) ($row['cl_ip'] ?? ''));
+        }
+        if ($ip_mode === 'mask') {
+            $ip = lc_conversion_mask_ip($ip);
+        } elseif ($ip_mode === 'omit') {
+            $ip = '';
+        }
+
+        $ua = trim((string) ($row['cl_user_agent'] ?? ''));
+        $device = lc_conversion_device_label($ua);
+
+        $landing_url = trim((string) ($row['cp_landing_url'] ?? ''));
+        if ($landing_url !== '' && function_exists('lc_link_apply_tracking_host')) {
+            $landing_url = lc_link_apply_tracking_host(
+                $landing_url,
+                (string) ($row['cp_tracking_base_url'] ?? '')
+            );
+        }
+        $lk_code = trim((string) ($row['lk_code'] ?? ''));
+        if ($landing_url === '' && $lk_code !== '' && function_exists('lc_landing_public_url')) {
+            $landing_url = lc_landing_public_url($lk_code, (string) ($row['cp_tracking_base_url'] ?? ''));
+        }
+
+        $out = array(
+            'referer'    => $referer,
+            'ip'         => $ip,
+            'device'     => $device,
+            'landingUrl' => $landing_url,
+            'linkCode'   => $lk_code,
+            'subId'      => trim((string) ($row['cv_sub_id'] ?? '')),
+        );
+
+        if ($ip_mode === 'full') {
+            $out['abuseScore'] = (int) ($row['cv_abuse_score'] ?? 0);
+            $out['isDuplicate'] = !empty($row['cv_is_duplicate']);
+            $out['userAgent'] = $ua !== '' ? (function_exists('mb_substr') ? mb_substr($ua, 0, 180) : substr($ua, 0, 180)) : '';
+        }
+
+        return $out;
+    }
+}
+
 if (!function_exists('lc_conversion_format_phone')) {
     function lc_conversion_format_phone($phone)
     {
@@ -277,10 +397,11 @@ if (!function_exists('lc_conversion_list_for_merchant')) {
         $limit = isset($filters['limit']) ? (int) $filters['limit'] : 200;
         $limit = max(1, min(5000, $limit));
 
+        $click_meta = function_exists('lc_conversion_click_meta_select_sql')
+            ? lc_conversion_click_meta_select_sql()
+            : " '' AS cl_referer, '' AS cl_user_agent, '' AS cl_ip ";
         $sql = " SELECT cv.*, c.cp_name, c.cp_landing_url, c.cp_tracking_base_url, p.pt_code, lk.lk_code,
-            (SELECT cl.cl_referer FROM `" . lc_table('clicks') . "` cl
-                WHERE cl.lk_id = cv.lk_id AND cl.lk_id > 0
-                ORDER BY cl.cl_id DESC LIMIT 1) AS cl_referer
+            {$click_meta}
             FROM `{$cv_table}` cv
             INNER JOIN `{$cp_table}` c ON c.cp_id = cv.cp_id
             LEFT JOIN `{$pt_table}` p ON p.pt_id = cv.pt_id
@@ -307,24 +428,15 @@ if (!function_exists('lc_conversion_to_api_merchant')) {
         $status = (string) $row['cv_status'];
         $raw_phone = (string) ($row['cv_phone'] ?? '');
         $phone = $mask_phone ? lc_conversion_mask_phone($raw_phone) : lc_conversion_format_phone($raw_phone);
-        $lk_code = trim((string) ($row['lk_code'] ?? ''));
-        $landing_url = trim((string) ($row['cp_landing_url'] ?? ''));
-        if ($landing_url !== '' && function_exists('lc_link_apply_tracking_host')) {
-            $landing_url = lc_link_apply_tracking_host(
-                $landing_url,
-                (string) ($row['cp_tracking_base_url'] ?? '')
-            );
-        }
-        if ($landing_url === '' && $lk_code !== '' && function_exists('lc_landing_public_url')) {
-            $landing_url = lc_landing_public_url($lk_code, (string) ($row['cp_tracking_base_url'] ?? ''));
-        }
-
         $pt_code = trim((string) ($row['pt_code'] ?? ''));
         $channel = trim((string) ($row['cv_channel'] ?? ''));
         if ($pt_code === '' && strtoupper($channel) === 'SEO') {
             $pt_code = 'SEO';
         }
         $page_url = lc_conversion_page_url($row);
+        $inflow = function_exists('lc_conversion_resolve_inflow_meta')
+            ? lc_conversion_resolve_inflow_meta($row, 'mask')
+            : array();
 
         return array(
             'id'          => (string) $row['cv_code'],
@@ -344,16 +456,17 @@ if (!function_exists('lc_conversion_to_api_merchant')) {
             'needsAction' => lc_conversion_needs_action($status),
             'channel'     => $channel,
             'source'      => (string) ($row['cv_source'] ?? 'form'),
-            'subId'       => (string) $row['cv_sub_id'],
+            'subId'       => (string) ($inflow['subId'] ?? $row['cv_sub_id'] ?? ''),
             'pageUrl'     => $page_url,
             'pageHost'    => lc_conversion_page_host($page_url),
             'qualityScore'=> (int) ($row['cv_quality_score'] ?? 0),
             'qualityTags' => lc_conversion_decode_quality_tags($row['cv_quality_tags'] ?? ''),
             'partnerVisible' => !isset($row['cv_partner_visible']) || (int) $row['cv_partner_visible'] === 1,
-            'landingUrl'  => $landing_url,
-            'referer'     => trim((string) ($row['cv_referer'] ?? '')) !== ''
-                ? (string) $row['cv_referer']
-                : (string) ($row['cl_referer'] ?? ''),
+            'landingUrl'  => (string) ($inflow['landingUrl'] ?? ''),
+            'referer'     => (string) ($inflow['referer'] ?? ''),
+            'ip'          => (string) ($inflow['ip'] ?? ''),
+            'device'      => (string) ($inflow['device'] ?? ''),
+            'linkCode'    => (string) ($inflow['linkCode'] ?? ''),
             'utmSource'   => (string) ($row['cv_utm_source'] ?? ''),
             'utmMedium'   => (string) ($row['cv_utm_medium'] ?? ''),
             'utmCampaign' => trim((string) ($row['cv_utm_campaign'] ?? '')) !== ''
@@ -1123,9 +1236,14 @@ if (!function_exists('lc_conversion_list_for_partner')) {
         $limit = isset($filters['limit']) ? (int) $filters['limit'] : 200;
         $limit = max(1, min(5000, $limit));
 
-        $sql = " SELECT cv.*, c.cp_name
+        $click_meta = function_exists('lc_conversion_click_meta_select_sql')
+            ? lc_conversion_click_meta_select_sql()
+            : " '' AS cl_referer, '' AS cl_user_agent, '' AS cl_ip ";
+        $sql = " SELECT cv.*, c.cp_name, c.cp_landing_url, c.cp_tracking_base_url, lk.lk_code,
+            {$click_meta}
             FROM `{$cv_table}` cv
             INNER JOIN `{$cp_table}` c ON c.cp_id = cv.cp_id
+            LEFT JOIN `" . lc_table('links') . "` lk ON lk.lk_id = cv.lk_id
             WHERE {$where}
             ORDER BY cv.cv_id DESC
             LIMIT {$limit} ";
@@ -1262,6 +1380,9 @@ if (!function_exists('lc_conversion_to_api_partner')) {
         $quality_score = (int) ($row['cv_quality_score'] ?? 0);
 
         $page_url = lc_conversion_page_url($row);
+        $inflow = function_exists('lc_conversion_resolve_inflow_meta')
+            ? lc_conversion_resolve_inflow_meta($row, 'mask')
+            : array();
 
         return array(
             'id'          => (string) $row['cv_code'],
@@ -1272,9 +1393,14 @@ if (!function_exists('lc_conversion_to_api_partner')) {
             'phone'       => lc_conversion_mask_phone($row['cv_phone']),
             'channel'     => (string) $row['cv_channel'],
             'source'      => (string) ($row['cv_source'] ?? 'form'),
-            'subId'       => (string) $row['cv_sub_id'],
+            'subId'       => (string) ($inflow['subId'] ?? $row['cv_sub_id'] ?? ''),
             'pageUrl'     => $page_url,
             'pageHost'    => lc_conversion_page_host($page_url),
+            'landingUrl'  => (string) ($inflow['landingUrl'] ?? ''),
+            'referer'     => (string) ($inflow['referer'] ?? ''),
+            'ip'          => (string) ($inflow['ip'] ?? ''),
+            'device'      => (string) ($inflow['device'] ?? ''),
+            'linkCode'    => (string) ($inflow['linkCode'] ?? ''),
             'utmSource'   => (string) ($row['cv_utm_source'] ?? ''),
             'utmMedium'   => (string) ($row['cv_utm_medium'] ?? ''),
             'utmCampaign' => (string) ($row['cv_utm_campaign'] ?? ''),

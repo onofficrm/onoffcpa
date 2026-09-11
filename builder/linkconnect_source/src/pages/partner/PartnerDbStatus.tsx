@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { downloadPartnerConversionsCsv, fetchPartnerConversions, PartnerConversion } from '../../lib/api';
 import { HelpTipButton } from '../../components/HelpTipButton';
 import { EMBED_HELP } from '../../lib/embedHelpTips';
+import { ConversionInflowCell } from '../../components/ConversionInflowPath';
 
 type SourceFilter = '' | 'embed' | 'call' | 'form';
 
@@ -148,32 +149,8 @@ export function PartnerDbStatus() {
                   <td className="px-4 py-4 font-medium text-slate-900 min-w-[140px]">{db.campaign}</td>
                   <td className="px-4 py-4 text-slate-700 whitespace-nowrap">{db.name}</td>
                   <td className="px-4 py-4 font-mono text-slate-600 whitespace-nowrap">{db.phone}</td>
-                  <td className="px-4 py-4 text-slate-600 whitespace-nowrap">
-                    <div className="flex flex-col gap-0.5">
-                      <span>{db.channel || '-'}</span>
-                      {db.source === 'embed' || ['embed', 'wordpress', 'widget', 'external'].includes((db.channel || '').toLowerCase()) ? (
-                        <span className="inline-flex w-fit px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-bold">외부위젯</span>
-                      ) : null}
-                      {(db.pageHost || db.pageUrl) ? (
-                        <a
-                          href={db.pageUrl || undefined}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[10px] text-cyan-700/80 hover:underline max-w-[140px] truncate"
-                          title={db.pageUrl || db.pageHost}
-                        >
-                          {db.pageHost || db.pageUrl}
-                        </a>
-                      ) : null}
-                      {(db.utmSource || db.utmMedium || db.utmCampaign) ? (
-                        <span
-                          className="text-[10px] text-slate-400 max-w-[140px] truncate"
-                          title={[db.utmSource, db.utmMedium, db.utmCampaign].filter(Boolean).join(' / ')}
-                        >
-                          {[db.utmSource, db.utmMedium, db.utmCampaign].filter(Boolean).join(' · ')}
-                        </span>
-                      ) : null}
-                    </div>
+                  <td className="px-4 py-4 text-slate-600">
+                    <ConversionInflowCell data={db} />
                   </td>
                   <td className="px-4 py-4 text-center whitespace-nowrap">
                     <StatusBadge status={db.status} />

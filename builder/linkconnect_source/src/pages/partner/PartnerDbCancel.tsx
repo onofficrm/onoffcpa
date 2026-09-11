@@ -6,6 +6,7 @@ import { PartnerLayout } from '../../layouts/PartnerLayout';
 import { fetchPartnerCanceledDbs, PartnerConversion, submitPartnerAppeal } from '../../lib/api';
 import { HelpTipButton } from '../../components/HelpTipButton';
 import { EMBED_HELP } from '../../lib/embedHelpTips';
+import { ConversionInflowCell, ConversionInflowDetails } from '../../components/ConversionInflowPath';
 
 type SourceFilter = '' | 'embed' | 'call' | 'form';
 
@@ -16,10 +17,6 @@ function parseSourceFilter(value: string | null): SourceFilter {
     return value;
   }
   return '';
-}
-
-function isEmbedRow(db: PartnerConversion) {
-  return db.source === 'embed' || ['embed', 'wordpress', 'widget', 'external'].includes((db.channel || '').toLowerCase());
 }
 
 export function PartnerDbCancel() {
@@ -167,21 +164,9 @@ export function PartnerDbCancel() {
                     <tr key={db.id} className="hover:bg-slate-50 transition-colors bg-red-50/10">
                       <td className="px-4 py-4 text-slate-500 whitespace-nowrap">{db.date}</td>
                       <td className="px-4 py-4">
-                        <div className="flex flex-col min-w-[140px] gap-0.5">
+                        <div className="flex flex-col min-w-[160px] gap-1.5">
                           <span className="font-bold text-slate-900">{db.campaign}</span>
-                          <span className="text-xs text-slate-500 inline-flex flex-wrap items-center gap-1">
-                            <span>{db.channel || '-'}</span>
-                            {isEmbedRow(db) ? (
-                              <span className="inline-flex px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-bold">
-                                외부위젯{db.pageHost ? ` · ${db.pageHost}` : ''}
-                              </span>
-                            ) : null}
-                          </span>
-                          {(db.utmSource || db.utmMedium || db.utmCampaign) ? (
-                            <span className="text-[10px] text-slate-400">
-                              UTM {[db.utmSource, db.utmMedium, db.utmCampaign].filter(Boolean).join(' · ')}
-                            </span>
-                          ) : null}
+                          <ConversionInflowCell data={db} />
                         </div>
                       </td>
                       <td className="px-4 py-4">
@@ -285,33 +270,12 @@ export function PartnerDbCancel() {
                   <span className="text-slate-500 shrink-0">캠페인</span>
                   <span className="font-medium text-slate-900 text-right">{selectedDb.campaign}</span>
                 </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-slate-500 shrink-0">출처</span>
-                  <span className="font-medium text-slate-900 text-right">
-                    {isEmbedRow(selectedDb) ? `외부위젯${selectedDb.pageHost ? ` · ${selectedDb.pageHost}` : ''}` : (selectedDb.channel || selectedDb.source || '-')}
-                  </span>
+                <div className="flex justify-between items-start gap-3">
+                  <span className="text-slate-500 shrink-0 pt-1">유입경로</span>
+                  <div className="flex-1 max-w-[75%]">
+                    <ConversionInflowDetails data={selectedDb} />
+                  </div>
                 </div>
-                {(selectedDb.pageUrl || selectedDb.pageHost) ? (
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-500 shrink-0">설치 페이지</span>
-                    <a
-                      href={selectedDb.pageUrl || undefined}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-medium text-cyan-700 text-right text-xs break-all hover:underline"
-                    >
-                      {selectedDb.pageUrl || selectedDb.pageHost}
-                    </a>
-                  </div>
-                ) : null}
-                {(selectedDb.utmSource || selectedDb.utmMedium || selectedDb.utmCampaign) ? (
-                  <div className="flex justify-between gap-3">
-                    <span className="text-slate-500 shrink-0">UTM</span>
-                    <span className="font-medium text-slate-700 text-right text-xs">
-                      {[selectedDb.utmSource, selectedDb.utmMedium, selectedDb.utmCampaign].filter(Boolean).join(' · ')}
-                    </span>
-                  </div>
-                ) : null}
                 <div className="flex justify-between gap-3">
                   <span className="text-slate-500 shrink-0">광고주 코멘트</span>
                   <span className="font-medium text-red-500 text-right">{selectedDb.comment || '-'}</span>

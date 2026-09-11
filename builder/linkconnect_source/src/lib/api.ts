@@ -239,6 +239,11 @@ export type PartnerConversion = {
   subId: string;
   pageUrl?: string;
   pageHost?: string;
+  landingUrl?: string;
+  referer?: string;
+  ip?: string;
+  device?: string;
+  linkCode?: string;
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;
@@ -481,6 +486,25 @@ export type MerchantConversion = {
   qualityScore?: number;
   qualityTags?: string[];
   partnerVisible?: boolean;
+  landingUrl?: string;
+  referer?: string;
+  ip?: string;
+  device?: string;
+  linkCode?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  approvalCriteria?: string;
+  cancelCriteria?: string;
+  adminComment?: string;
+  partnerPublic?: boolean;
+  history?: Array<{ time: string; text: string }>;
+  attachmentName?: string;
+  attachmentMime?: string;
+  attachmentUrl?: string;
+  attachmentDownloadUrl?: string;
+  attachmentPreviewable?: boolean;
+  attachmentStored?: boolean;
 };
 
 export type MerchantDashboardResponse = {
@@ -706,9 +730,17 @@ export type AdminConversion = {
   customer: string;
   channel?: string;
   source?: string;
+  subId?: string;
   pageUrl?: string;
   pageHost?: string;
+  landingUrl?: string;
   referer?: string;
+  ip?: string;
+  device?: string;
+  linkCode?: string;
+  userAgent?: string;
+  abuseScore?: number;
+  isDuplicate?: boolean;
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;

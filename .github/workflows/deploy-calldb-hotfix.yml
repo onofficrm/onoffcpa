@@ -16,6 +16,8 @@ on:
       - 'plugin/linkconnect/install/enable_call_receive_tmp.php'
       - 'plugin/linkconnect/install/apply_missed_call_billing.php'
       - 'plugin/linkconnect/inc/settings.php'
+      - 'plugin/linkconnect/inc/conversion.php'
+      - 'plugin/linkconnect/inc/admin.php'
       - 'plugin/linkconnect/admin/api/call.php'
       - 'plugin/linkconnect/partner/api/call.php'
       - 'plugin/linkconnect/merchant/api/call.php'
@@ -56,6 +58,8 @@ jobs:
             "plugin/linkconnect/install/enable_call_receive_tmp.php"
             "plugin/linkconnect/install/apply_missed_call_billing.php"
             "plugin/linkconnect/inc/settings.php"
+            "plugin/linkconnect/inc/conversion.php"
+            "plugin/linkconnect/inc/admin.php"
           )
           for file in "${FILES[@]}"; do
             mkdir -p "$ROOT/$(dirname "$file")"
