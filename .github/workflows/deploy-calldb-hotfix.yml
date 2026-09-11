@@ -25,6 +25,7 @@ on:
       - 'plugin/linkconnect/_common.php'
       - 'plugin/linkconnect/admin/api/settings.php'
       - 'builder/linkconnect_source/src/pages/admin/AdminSettings.tsx'
+      - 'builder/linkconnect_source/src/components/ConversionInflowPath.tsx'
       - 'builder/linkconnect_source/src/pages/partner/PartnerAnalytics.tsx'
       - 'plugin/linkconnect/admin/api/call.php'
       - 'plugin/linkconnect/partner/api/call.php'

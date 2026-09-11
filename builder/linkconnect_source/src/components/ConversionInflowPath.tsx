@@ -1,5 +1,6 @@
-import { useState, type MouseEvent, type ReactNode } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useEffect, useId, useState, type MouseEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { ChevronRight, X } from 'lucide-react';
 
 export type ConversionInflowData = {
   partner?: string;
@@ -156,6 +157,84 @@ export function ConversionInflowDetails({
   );
 }
 
+function InflowDetailModal({
+  open,
+  onClose,
+  data,
+  showPartner,
+  showAbuse,
+  titleId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  data: ConversionInflowData;
+  showPartner: boolean;
+  showAbuse: boolean;
+  titleId: string;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open, onClose]);
+
+  if (!open || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-sm"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="w-full sm:max-w-lg max-h-[85vh] overflow-hidden rounded-t-2xl sm:rounded-2xl bg-white shadow-xl border border-slate-200 flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 shrink-0">
+          <div className="min-w-0">
+            <h3 id={titleId} className="text-base font-bold text-slate-900">
+              유입경로 상세
+            </h3>
+            <p className="text-xs text-slate-500 truncate mt-0.5">{buildInflowSummary(data)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+            aria-label="닫기"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="px-5 py-4 overflow-y-auto">
+          <ConversionInflowDetails data={data} showPartner={showPartner} showAbuse={showAbuse} />
+        </div>
+        <div className="px-5 py-3 border-t border-slate-100 shrink-0 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800"
+          >
+            닫기
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export function ConversionInflowCell({
   data,
   showPartner = false,
@@ -166,26 +245,27 @@ export function ConversionInflowCell({
   showAbuse?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const titleId = useId();
   const embed = isEmbed(data.source, data.channel);
   const summary = buildInflowSummary(data);
 
-  const toggle = (e: MouseEvent) => {
+  const openModal = (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setOpen((v) => !v);
+    setOpen(true);
   };
 
   return (
     <div className="min-w-[160px] max-w-[260px]" onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
-        onClick={toggle}
+        onClick={openModal}
         className="w-full text-left group"
         title="클릭하여 유입 상세 보기"
       >
         <div className="flex items-start gap-1">
           <div className="min-w-0 flex-1 space-y-0.5">
-            <div className="text-slate-700 text-xs font-medium truncate">{summary}</div>
+            <div className="text-slate-700 text-xs font-medium truncate group-hover:text-cyan-700">{summary}</div>
             <div className="flex flex-wrap gap-1">
               {embed ? (
                 <span className="inline-flex px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-700 text-[10px] font-bold">외부위젯</span>
@@ -203,16 +283,19 @@ export function ConversionInflowCell({
               ) : null}
             </div>
           </div>
-          <span className="shrink-0 text-slate-400 mt-0.5">
-            {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          <span className="shrink-0 text-slate-400 mt-0.5 group-hover:text-cyan-600">
+            <ChevronRight size={14} />
           </span>
         </div>
       </button>
-      {open ? (
-        <div className="mt-2 p-2.5 rounded-xl border border-slate-200 bg-white shadow-sm">
-          <ConversionInflowDetails data={data} showPartner={showPartner} showAbuse={showAbuse} />
-        </div>
-      ) : null}
+      <InflowDetailModal
+        open={open}
+        onClose={() => setOpen(false)}
+        data={data}
+        showPartner={showPartner}
+        showAbuse={showAbuse}
+        titleId={titleId}
+      />
     </div>
   );
 }
