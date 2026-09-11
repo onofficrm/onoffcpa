@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '../../layouts/AdminLayout';
 import { Settings, Save, RotateCcw, Check, Sparkles, PhoneCall, Mail, Send } from 'lucide-react';
-import { fetchAdminSettings, resetAdminSettings, saveAdminSettings, sendAdminTestEmail } from '../../lib/api';
+import { fetchAdminSettings, resetAdminSettings, saveAdminSettings, sendAdminTestEmail, sendAdminTestAlimtalk } from '../../lib/api';
 import type { AdminSettingsResponse } from '../../lib/api';
 
 type RawSettings = Record<string, string>;
@@ -38,6 +38,22 @@ const defaultRaw: RawSettings = {
   notifyLowBalanceEmailTpl: '[{site}] {company}님, 광고비 잔액이 {balance}원입니다. (기준 {threshold}원) 충전을 진행해 주세요.',
   notifyLowBalanceSmsTpl: '[{site}] 광고비 잔액 {balance}원. 충전 필요.',
   notifyLowBalanceKakaoTpl: '{company}님, 광고비 잔액 {balance}원입니다. 충전해 주세요.',
+  alimtalkEnabled: '0',
+  alimtalkNotifyMerchant: '1',
+  alimtalkNotifyPartner: '1',
+  alimtalkNotifyAdmin: '1',
+  alimtalkAdminPhones: '',
+  alimtalkPfId: '',
+  alimtalkDbTemplateId: '',
+  alimtalkSmsFrom: '',
+  alimtalkDisableSms: '1',
+  alimtalkVarName: '#{이름}',
+  alimtalkVarCampaign: '#{캠페인}',
+  alimtalkVarSite: '#{사이트}',
+  alimtalkVarRole: '#{역할}',
+  solapiApiKeySet: '0',
+  solapiApiSecretSet: '0',
+  alimtalkReady: '0',
   callEnabled: '0',
   callProvider: '',
   callApiBaseUrl: '',
@@ -64,9 +80,13 @@ export function AdminSettings() {
   const [callApiKeyInput, setCallApiKeyInput] = useState('');
   const [callApiSecretInput, setCallApiSecretInput] = useState('');
   const [callWebhookTokenInput, setCallWebhookTokenInput] = useState('');
+  const [solapiKeyInput, setSolapiKeyInput] = useState('');
+  const [solapiSecretInput, setSolapiSecretInput] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [testMailStatus, setTestMailStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
   const [testMailMessage, setTestMailMessage] = useState('');
+  const [testAlimtalkStatus, setTestAlimtalkStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [testAlimtalkMessage, setTestAlimtalkMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -174,12 +194,31 @@ export function AdminSettings() {
           callCreateOnMissed: boolVal(raw, 'callCreateOnMissed'),
           callRecordingMode: raw.callRecordingMode || 'normal',
         },
+        alimtalk: {
+          alimtalkEnabled: boolVal(raw, 'alimtalkEnabled'),
+          alimtalkNotifyMerchant: boolVal(raw, 'alimtalkNotifyMerchant'),
+          alimtalkNotifyPartner: boolVal(raw, 'alimtalkNotifyPartner'),
+          alimtalkNotifyAdmin: boolVal(raw, 'alimtalkNotifyAdmin'),
+          alimtalkAdminPhones: raw.alimtalkAdminPhones || '',
+          alimtalkPfId: raw.alimtalkPfId || '',
+          alimtalkDbTemplateId: raw.alimtalkDbTemplateId || '',
+          alimtalkSmsFrom: raw.alimtalkSmsFrom || '',
+          alimtalkDisableSms: boolVal(raw, 'alimtalkDisableSms'),
+          alimtalkVarName: raw.alimtalkVarName || '#{이름}',
+          alimtalkVarCampaign: raw.alimtalkVarCampaign || '#{캠페인}',
+          alimtalkVarSite: raw.alimtalkVarSite || '#{사이트}',
+          alimtalkVarRole: raw.alimtalkVarRole || '#{역할}',
+          solapiApiKey: solapiKeyInput.trim(),
+          solapiApiSecret: solapiSecretInput.trim(),
+        },
       });
       applySettingsResponse(data);
       setGeminiKeyInput('');
       setCallApiKeyInput('');
       setCallApiSecretInput('');
       setCallWebhookTokenInput('');
+      setSolapiKeyInput('');
+      setSolapiSecretInput('');
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
@@ -211,6 +250,22 @@ export function AdminSettings() {
     } catch (err) {
       setError(err instanceof Error ? err.message : '테스트 메일 발송에 실패했습니다.');
       setTestMailStatus('idle');
+    }
+  };
+
+  const handleTestAlimtalk = async () => {
+    setTestAlimtalkStatus('sending');
+    setTestAlimtalkMessage('');
+    setError('');
+    try {
+      const data = await sendAdminTestAlimtalk(raw.alimtalkAdminPhones || '');
+      applySettingsResponse(data);
+      setTestAlimtalkMessage(data.message || '테스트 알림톡을 발송했습니다.');
+      setTestAlimtalkStatus('sent');
+      setTimeout(() => setTestAlimtalkStatus('idle'), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '테스트 알림톡 발송에 실패했습니다.');
+      setTestAlimtalkStatus('idle');
     }
   };
 
@@ -330,6 +385,69 @@ export function AdminSettings() {
               <Field label="챗봇 일일 한도" value={raw.aiChatDailyLimit} onChange={(v) => update('aiChatDailyLimit', v)} type="number" />
               <Field label="홍보문구 일일 한도" value={raw.aiPromoDailyLimit} onChange={(v) => update('aiPromoDailyLimit', v)} type="number" />
               <Field label="리포트요약 일일 한도" value={raw.aiSummaryDailyLimit} onChange={(v) => update('aiSummaryDailyLimit', v)} type="number" />
+            </div>
+          </div>
+        </section>
+
+        <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-yellow-500 to-amber-500 flex items-center gap-2">
+            <Send className="w-5 h-5 text-white" />
+            <h3 className="font-bold text-white">카카오 알림톡 · DB 유입</h3>
+          </div>
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-slate-500">
+              DB가 접수되면 광고주·파트너·최고관리자 휴대폰으로 알림톡을 보냅니다. Solapi + 카카오 비즈니스 채널 연동과
+              검수 완료된 템플릿이 필요합니다.
+            </p>
+            <Toggle label="DB 유입 알림톡 사용" checked={boolVal(raw, 'alimtalkEnabled')} onChange={(v) => setRaw((prev) => setBool(prev, 'alimtalkEnabled', v))} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Toggle label="광고주 발송" checked={boolVal(raw, 'alimtalkNotifyMerchant')} onChange={(v) => setRaw((prev) => setBool(prev, 'alimtalkNotifyMerchant', v))} />
+              <Toggle label="파트너 발송" checked={boolVal(raw, 'alimtalkNotifyPartner')} onChange={(v) => setRaw((prev) => setBool(prev, 'alimtalkNotifyPartner', v))} />
+              <Toggle label="최고관리자 발송" checked={boolVal(raw, 'alimtalkNotifyAdmin')} onChange={(v) => setRaw((prev) => setBool(prev, 'alimtalkNotifyAdmin', v))} />
+            </div>
+            <Field label="최고관리자 수신번호 (쉼표 구분)" value={raw.alimtalkAdminPhones || ''} onChange={(v) => update('alimtalkAdminPhones', v)} />
+            <p className="text-xs text-slate-400 -mt-2">광고주/파트너는 회원정보의 휴대폰(mb_hp)으로 발송됩니다.</p>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Solapi API Key</label>
+              {raw.solapiApiKeySet === '1' ? <p className="text-xs text-emerald-600 mb-2">등록됨 (********)</p> : <p className="text-xs text-amber-600 mb-2">미등록</p>}
+              <input type="password" value={solapiKeyInput} onChange={(e) => setSolapiKeyInput(e.target.value)} placeholder="새 API Key 입력 (변경 시에만)"
+                className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:border-amber-500 outline-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Solapi API Secret</label>
+              {raw.solapiApiSecretSet === '1' ? <p className="text-xs text-emerald-600 mb-2">등록됨 (********)</p> : <p className="text-xs text-amber-600 mb-2">미등록</p>}
+              <input type="password" value={solapiSecretInput} onChange={(e) => setSolapiSecretInput(e.target.value)} placeholder="새 API Secret 입력 (변경 시에만)"
+                className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:border-amber-500 outline-none" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Field label="카카오 채널 pfId" value={raw.alimtalkPfId || ''} onChange={(v) => update('alimtalkPfId', v)} />
+              <Field label="DB 유입 템플릿 ID" value={raw.alimtalkDbTemplateId || ''} onChange={(v) => update('alimtalkDbTemplateId', v)} />
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-900 space-y-1">
+              <p className="font-semibold">권장 템플릿 문구 (카카오/Solapi에 등록)</p>
+              <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed">{`[#{사이트}]
+#{이름}님이 상담신청하였습니다. - #{캠페인}`}</pre>
+              <p>버튼 예: 웹링크 · 광고주센터/파트너센터 URL</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Field label="변수키 · 이름" value={raw.alimtalkVarName || '#{이름}'} onChange={(v) => update('alimtalkVarName', v)} />
+              <Field label="변수키 · 캠페인" value={raw.alimtalkVarCampaign || '#{캠페인}'} onChange={(v) => update('alimtalkVarCampaign', v)} />
+              <Field label="변수키 · 사이트" value={raw.alimtalkVarSite || '#{사이트}'} onChange={(v) => update('alimtalkVarSite', v)} />
+              <Field label="변수키 · 역할(선택)" value={raw.alimtalkVarRole || '#{역할}'} onChange={(v) => update('alimtalkVarRole', v)} />
+            </div>
+            <Toggle label="문자 대체발송 비활성" checked={boolVal(raw, 'alimtalkDisableSms')} onChange={(v) => setRaw((prev) => setBool(prev, 'alimtalkDisableSms', v))} />
+            <Field label="문자 대체 발신번호 (선택)" value={raw.alimtalkSmsFrom || ''} onChange={(v) => update('alimtalkSmsFrom', v)} />
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={testAlimtalkStatus === 'sending'}
+                onClick={handleTestAlimtalk}
+                className="px-4 py-2 rounded-xl text-sm font-bold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-60"
+              >
+                {testAlimtalkStatus === 'sending' ? '발송 중...' : testAlimtalkStatus === 'sent' ? '발송 완료' : '테스트 알림톡 보내기'}
+              </button>
+              {testAlimtalkMessage ? <span className="text-sm text-emerald-700">{testAlimtalkMessage}</span> : null}
+              {raw.alimtalkReady === '1' ? <span className="text-xs text-emerald-600 font-medium">발송 준비됨</span> : <span className="text-xs text-slate-400">설정 저장 후 사용</span>}
             </div>
           </div>
         </section>

@@ -69,6 +69,22 @@ if (!function_exists('lc_settings_defaults')) {
             'notifyLowBalanceEmailTpl' => '[{site}] {company}님, 광고비 잔액이 {balance}원입니다. (기준 {threshold}원) 충전을 진행해 주세요.',
             'notifyLowBalanceSmsTpl'   => '[{site}] 광고비 잔액 {balance}원. 충전 필요.',
             'notifyLowBalanceKakaoTpl' => '{company}님, 광고비 잔액 {balance}원입니다. 충전해 주세요.',
+            'alimtalkEnabled'          => '0',
+            'alimtalkNotifyMerchant'   => '1',
+            'alimtalkNotifyPartner'    => '1',
+            'alimtalkNotifyAdmin'      => '1',
+            'alimtalkAdminPhones'      => '',
+            'solapiApiKey'             => '',
+            'solapiApiSecret'          => '',
+            'alimtalkPfId'             => '',
+            'alimtalkDbTemplateId'     => '',
+            'alimtalkSmsFrom'          => '',
+            'alimtalkDisableSms'       => '1',
+            'alimtalkVarName'          => '#{이름}',
+            'alimtalkVarCampaign'      => '#{캠페인}',
+            'alimtalkVarSite'          => '#{사이트}',
+            'alimtalkVarRole'          => '#{역할}',
+            'alimtalkDbTemplateGuide'  => "[#{사이트}]\n#{이름}님이 상담신청하였습니다. - #{캠페인}",
             'callEnabled'           => '0',
             'callProvider'          => '',
             'callApiBaseUrl'        => '',
@@ -150,7 +166,18 @@ if (!function_exists('lc_settings_get_bool')) {
 if (!function_exists('lc_settings_secret_keys')) {
     function lc_settings_secret_keys()
     {
-        return array('geminiApiKey', 'openaiApiKey', 'callApiKey', 'callApiSecret', 'callWebhookToken', 'lpAuthKey', 'lpPostbackSecret', 'mpCronToken');
+        return array(
+            'geminiApiKey',
+            'openaiApiKey',
+            'callApiKey',
+            'callApiSecret',
+            'callWebhookToken',
+            'lpAuthKey',
+            'lpPostbackSecret',
+            'mpCronToken',
+            'solapiApiKey',
+            'solapiApiSecret',
+        );
     }
 }
 
@@ -359,7 +386,9 @@ if (!function_exists('lc_settings_raw_for_admin')) {
             $raw['callApiSecret'],
             $raw['callWebhookToken'],
             $raw['lpAuthKey'],
-            $raw['lpPostbackSecret']
+            $raw['lpPostbackSecret'],
+            $raw['solapiApiKey'],
+            $raw['solapiApiSecret']
         );
 
         $raw['geminiApiKeySet'] = trim((string) ($settings['geminiApiKey'] ?? '')) !== '' ? '1' : '0';
@@ -373,6 +402,15 @@ if (!function_exists('lc_settings_raw_for_admin')) {
         $raw['callApiKeySet'] = trim((string) ($settings['callApiKey'] ?? '')) !== '' ? '1' : '0';
         $raw['callApiSecretSet'] = trim((string) ($settings['callApiSecret'] ?? '')) !== '' ? '1' : '0';
         $raw['callWebhookTokenSet'] = trim((string) ($settings['callWebhookToken'] ?? '')) !== '' ? '1' : '0';
+        $raw['solapiApiKeySet'] = trim((string) ($settings['solapiApiKey'] ?? '')) !== '' ? '1' : '0';
+        $raw['solapiApiSecretSet'] = trim((string) ($settings['solapiApiSecret'] ?? '')) !== '' ? '1' : '0';
+        $raw['alimtalkReady'] = (
+            trim((string) ($settings['alimtalkEnabled'] ?? '')) === '1'
+            && trim((string) ($settings['solapiApiKey'] ?? '')) !== ''
+            && trim((string) ($settings['solapiApiSecret'] ?? '')) !== ''
+            && trim((string) ($settings['alimtalkPfId'] ?? '')) !== ''
+            && trim((string) ($settings['alimtalkDbTemplateId'] ?? '')) !== ''
+        ) ? '1' : '0';
 
         if (function_exists('lc_board_mail_settings_get')) {
             $mail = lc_board_mail_settings_get();
@@ -445,6 +483,24 @@ if (!function_exists('lc_settings_to_api')) {
                 'notifyLowBalanceEmailTpl' => (string) ($settings['notifyLowBalanceEmailTpl'] ?? ''),
                 'notifyLowBalanceSmsTpl'   => (string) ($settings['notifyLowBalanceSmsTpl'] ?? ''),
                 'notifyLowBalanceKakaoTpl' => (string) ($settings['notifyLowBalanceKakaoTpl'] ?? ''),
+            ),
+            'alimtalk' => array(
+                'alimtalkEnabled'        => lc_settings_get_bool('alimtalkEnabled'),
+                'alimtalkNotifyMerchant' => lc_settings_get_bool('alimtalkNotifyMerchant', true),
+                'alimtalkNotifyPartner'  => lc_settings_get_bool('alimtalkNotifyPartner', true),
+                'alimtalkNotifyAdmin'    => lc_settings_get_bool('alimtalkNotifyAdmin', true),
+                'alimtalkAdminPhones'    => (string) ($settings['alimtalkAdminPhones'] ?? ''),
+                'alimtalkPfId'           => (string) ($settings['alimtalkPfId'] ?? ''),
+                'alimtalkDbTemplateId'   => (string) ($settings['alimtalkDbTemplateId'] ?? ''),
+                'alimtalkSmsFrom'        => (string) ($settings['alimtalkSmsFrom'] ?? ''),
+                'alimtalkDisableSms'     => lc_settings_get_bool('alimtalkDisableSms', true),
+                'alimtalkVarName'        => (string) ($settings['alimtalkVarName'] ?? '#{이름}'),
+                'alimtalkVarCampaign'    => (string) ($settings['alimtalkVarCampaign'] ?? '#{캠페인}'),
+                'alimtalkVarSite'        => (string) ($settings['alimtalkVarSite'] ?? '#{사이트}'),
+                'alimtalkVarRole'        => (string) ($settings['alimtalkVarRole'] ?? '#{역할}'),
+                'solapiApiKeySet'        => trim((string) ($settings['solapiApiKey'] ?? '')) !== '',
+                'solapiApiSecretSet'     => trim((string) ($settings['solapiApiSecret'] ?? '')) !== '',
+                'ready'                  => function_exists('lc_alimtalk_enabled') ? lc_alimtalk_enabled() : false,
             ),
             'partner' => array(
                 'showEstRevenue'      => lc_settings_get_bool('showEstRevenue'),

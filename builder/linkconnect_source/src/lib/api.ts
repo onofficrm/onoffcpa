@@ -1936,6 +1936,10 @@ export function sendAdminTestEmail(to?: string) {
   return adminApiPost<AdminSettingsResponse>('settings.php', { action: 'test_email', to: to || '' });
 }
 
+export function sendAdminTestAlimtalk(to?: string) {
+  return adminApiPost<AdminSettingsResponse>('settings.php', { action: 'test_alimtalk', to: to || '' });
+}
+
 export type ApiLogItem = {
   id: string;
   alId: number;

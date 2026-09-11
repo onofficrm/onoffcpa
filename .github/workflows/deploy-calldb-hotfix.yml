@@ -19,6 +19,12 @@ on:
       - 'plugin/linkconnect/inc/conversion.php'
       - 'plugin/linkconnect/inc/admin.php'
       - 'plugin/linkconnect/inc/partner_analytics.php'
+      - 'plugin/linkconnect/inc/alimtalk.php'
+      - 'plugin/linkconnect/inc/notification.php'
+      - 'plugin/linkconnect/inc/settings.php'
+      - 'plugin/linkconnect/_common.php'
+      - 'plugin/linkconnect/admin/api/settings.php'
+      - 'builder/linkconnect_source/src/pages/admin/AdminSettings.tsx'
       - 'builder/linkconnect_source/src/pages/partner/PartnerAnalytics.tsx'
       - 'plugin/linkconnect/admin/api/call.php'
       - 'plugin/linkconnect/partner/api/call.php'
@@ -63,6 +69,11 @@ jobs:
             "plugin/linkconnect/inc/conversion.php"
             "plugin/linkconnect/inc/admin.php"
             "plugin/linkconnect/inc/partner_analytics.php"
+            "plugin/linkconnect/inc/alimtalk.php"
+            "plugin/linkconnect/inc/notification.php"
+            "plugin/linkconnect/inc/settings.php"
+            "plugin/linkconnect/_common.php"
+            "plugin/linkconnect/admin/api/settings.php"
           )
           for file in "${FILES[@]}"; do
             mkdir -p "$ROOT/$(dirname "$file")"

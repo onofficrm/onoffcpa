@@ -106,6 +106,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         lc_api_success($payload);
     }
 
+    if (isset($body['action']) && $body['action'] === 'test_alimtalk') {
+        if (!function_exists('lc_alimtalk_send_one')) {
+            lc_api_error('알림톡 모듈을 사용할 수 없습니다.', 'ALIMTALK_UNAVAILABLE', 500);
+        }
+        $to = isset($body['to']) ? trim((string) $body['to']) : '';
+        if ($to === '') {
+            $raw_phones = (string) lc_settings_get('alimtalkAdminPhones', '');
+            $parts = preg_split('/[,;\s]+/', $raw_phones) ?: array();
+            $to = isset($parts[0]) ? (string) $parts[0] : '';
+        }
+        $vars = function_exists('lc_alimtalk_build_db_variables')
+            ? lc_alimtalk_build_db_variables(array(
+                'cv_name' => '테스트',
+                'cp_name' => '테스트캠페인',
+            ), '관리자')
+            : array();
+        $test = lc_alimtalk_send_one($to, $vars);
+        if (empty($test['ok'])) {
+            lc_api_error(
+                isset($test['message']) ? (string) $test['message'] : '테스트 알림톡 발송에 실패했습니다.',
+                'ALIMTALK_TEST_FAILED',
+                400
+            );
+        }
+        $payload = lc_settings_api_success_payload($test['message']);
+        $payload['test'] = $test;
+        lc_api_success($payload);
+    }
+
     $flat = array();
     if (isset($values['general']) && is_array($values['general'])) {
         $flat = array_merge($flat, $values['general']);
@@ -166,6 +195,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 continue;
             }
             if (in_array($key, array('callApiKeySet', 'callApiSecretSet', 'callWebhookTokenSet'), true)) {
+                continue;
+            }
+            $flat[$key] = is_bool($value) ? ($value ? '1' : '0') : $value;
+        }
+    }
+
+    if (isset($values['alimtalk']) && is_array($values['alimtalk'])) {
+        foreach ($values['alimtalk'] as $key => $value) {
+            if (in_array($key, array('solapiApiKey', 'solapiApiSecret'), true)) {
+                $key_val = lc_settings_normalize_secret_value($value);
+                if ($key_val !== '') {
+                    $flat[$key] = $key_val;
+                }
+                continue;
+            }
+            if (in_array($key, array('solapiApiKeySet', 'solapiApiSecretSet', 'ready', 'alimtalkReady'), true)) {
                 continue;
             }
             $flat[$key] = is_bool($value) ? ($value ? '1' : '0') : $value;

@@ -290,6 +290,10 @@ if (!function_exists('lc_notification_emit_conversion')) {
         if (function_exists('lc_email_notify_on_conversion')) {
             lc_email_notify_on_conversion($conversion, $event);
         }
+
+        if ($event === 'received' && function_exists('lc_alimtalk_notify_conversion_received')) {
+            lc_alimtalk_notify_conversion_received($conversion);
+        }
     }
 }
 

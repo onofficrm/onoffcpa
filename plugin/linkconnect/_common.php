@@ -137,6 +137,9 @@ if (is_file(LC_PLUGIN_PATH . '/inc/email_notify.php')) {
 if (is_file(LC_PLUGIN_PATH . '/inc/settings.php')) {
     require_once LC_PLUGIN_PATH . '/inc/settings.php';
 }
+if (is_file(LC_PLUGIN_PATH . '/inc/alimtalk.php')) {
+    require_once LC_PLUGIN_PATH . '/inc/alimtalk.php';
+}
 if (is_file(LC_PLUGIN_PATH . '/inc/api_client.php')) {
     require_once LC_PLUGIN_PATH . '/inc/api_client.php';
 }
