@@ -599,6 +599,235 @@ if (!function_exists('lc_partner_analytics_devices')) {
     }
 }
 
+if (!function_exists('lc_partner_analytics_top_ips')) {
+    /** 클릭 IP TOP (마스킹) */
+    function lc_partner_analytics_top_ips($pt_id, array $filters, $limit = 8)
+    {
+        if (!lc_db_installed()) {
+            return array();
+        }
+
+        $pt_id = (int) $pt_id;
+        $limit = max(1, min(20, (int) $limit));
+        list($dateFrom, $dateTo) = lc_partner_analytics_resolve_range($filters);
+        $cl_table = lc_table('clicks');
+        $lk_table = lc_table('links');
+        $link_sql = lc_partner_analytics_link_sql($filters, 'lk');
+
+        $counts = array();
+        $result = lc_sql_query(" SELECT cl.cl_ip
+            FROM `{$cl_table}` cl
+            INNER JOIN `{$lk_table}` lk ON lk.lk_id = cl.lk_id
+            WHERE cl.pt_id = '{$pt_id}'
+              AND cl.cl_ip <> ''
+              AND DATE(cl.cl_created_at) BETWEEN '" . lc_sql_escape($dateFrom) . "' AND '" . lc_sql_escape($dateTo) . "'
+              {$link_sql} ", false);
+        if ($result) {
+            while ($row = sql_fetch_array($result)) {
+                $ip = trim((string) ($row['cl_ip'] ?? ''));
+                if ($ip === '') {
+                    continue;
+                }
+                if (!isset($counts[$ip])) {
+                    $counts[$ip] = 0;
+                }
+                $counts[$ip]++;
+            }
+        }
+
+        arsort($counts);
+        $total = array_sum($counts);
+        $items = array();
+        foreach (array_slice($counts, 0, $limit, true) as $ip => $clicks) {
+            $masked = function_exists('lc_conversion_mask_ip') ? lc_conversion_mask_ip($ip) : $ip;
+            $items[] = array(
+                'ip'         => $masked,
+                'clicks'     => (int) $clicks,
+                'percentage' => $total > 0 ? (int) round(($clicks / $total) * 100) : 0,
+            );
+        }
+
+        return $items;
+    }
+}
+
+if (!function_exists('lc_partner_analytics_utm_sources')) {
+    /** DB UTM Source TOP */
+    function lc_partner_analytics_utm_sources($pt_id, array $filters, $limit = 8)
+    {
+        if (!lc_db_installed()) {
+            return array();
+        }
+
+        $pt_id = (int) $pt_id;
+        $limit = max(1, min(20, (int) $limit));
+        list($dateFrom, $dateTo) = lc_partner_analytics_resolve_range($filters);
+        $cv_table = lc_table('conversions');
+        $lk_table = lc_table('links');
+        $link_sql = lc_partner_analytics_link_sql($filters, 'lk');
+
+        $counts = array();
+        $result = lc_sql_query(" SELECT cv.cv_utm_source, cv.cv_utm_medium, cv.cv_utm_campaign
+            FROM `{$cv_table}` cv
+            LEFT JOIN `{$lk_table}` lk ON lk.lk_id = cv.lk_id
+            WHERE cv.pt_id = '{$pt_id}'
+              AND DATE(cv.cv_created_at) BETWEEN '" . lc_sql_escape($dateFrom) . "' AND '" . lc_sql_escape($dateTo) . "'
+              {$link_sql} ", false);
+        if ($result) {
+            while ($row = sql_fetch_array($result)) {
+                $source = trim((string) ($row['cv_utm_source'] ?? ''));
+                if ($source === '') {
+                    $source = '(미기록)';
+                }
+                if (!isset($counts[$source])) {
+                    $counts[$source] = 0;
+                }
+                $counts[$source]++;
+            }
+        }
+
+        arsort($counts);
+        $total = array_sum($counts);
+        $items = array();
+        foreach (array_slice($counts, 0, $limit, true) as $source => $cnt) {
+            $items[] = array(
+                'source'     => (string) $source,
+                'count'      => (int) $cnt,
+                'percentage' => $total > 0 ? (int) round(($cnt / $total) * 100) : 0,
+            );
+        }
+
+        return $items;
+    }
+}
+
+if (!function_exists('lc_partner_analytics_conversion_channels')) {
+    /** DB 접수 기준 매체(cv_channel) TOP */
+    function lc_partner_analytics_conversion_channels($pt_id, array $filters, $limit = 8)
+    {
+        if (!lc_db_installed()) {
+            return array();
+        }
+
+        $pt_id = (int) $pt_id;
+        $limit = max(1, min(20, (int) $limit));
+        list($dateFrom, $dateTo) = lc_partner_analytics_resolve_range($filters);
+        $cv_table = lc_table('conversions');
+        $lk_table = lc_table('links');
+        $link_sql = lc_partner_analytics_link_sql($filters, 'lk');
+
+        $tmp = array();
+        $total = 0;
+        $result = lc_sql_query(" SELECT
+            COALESCE(NULLIF(TRIM(cv.cv_channel), ''), '(미지정)') AS channel,
+            COUNT(*) AS dbs,
+            SUM(CASE WHEN cv.cv_status = '" . lc_sql_escape(LC_STATUS_APPROVED) . "' THEN 1 ELSE 0 END) AS approved
+            FROM `{$cv_table}` cv
+            LEFT JOIN `{$lk_table}` lk ON lk.lk_id = cv.lk_id
+            WHERE cv.pt_id = '{$pt_id}'
+              AND DATE(cv.cv_created_at) BETWEEN '" . lc_sql_escape($dateFrom) . "' AND '" . lc_sql_escape($dateTo) . "'
+              {$link_sql}
+            GROUP BY channel
+            ORDER BY dbs DESC ", false);
+        if ($result) {
+            while ($row = sql_fetch_array($result)) {
+                $dbs = (int) ($row['dbs'] ?? 0);
+                $total += $dbs;
+                $tmp[] = $row;
+            }
+        }
+
+        $rows = array();
+        foreach (array_slice($tmp, 0, $limit) as $row) {
+            $dbs = (int) ($row['dbs'] ?? 0);
+            $rows[] = array(
+                'channel'    => (string) ($row['channel'] ?? ''),
+                'dbs'        => $dbs,
+                'approved'   => (int) ($row['approved'] ?? 0),
+                'percentage' => $total > 0 ? (int) round(($dbs / $total) * 100) : 0,
+            );
+        }
+
+        return $rows;
+    }
+}
+
+if (!function_exists('lc_partner_analytics_embed_top_ips')) {
+    function lc_partner_analytics_embed_top_ips($pt_id, $dateFrom, $dateTo, $embed_sql, $limit = 8)
+    {
+        $cv_table = lc_table('conversions');
+        $limit = max(1, min(20, (int) $limit));
+        $counts = array();
+        $result = lc_sql_query(" SELECT cv.cv_ip
+            FROM `{$cv_table}` cv
+            WHERE cv.pt_id = '" . (int) $pt_id . "'
+              AND {$embed_sql}
+              AND cv.cv_ip <> ''
+              AND DATE(cv.cv_created_at) BETWEEN '" . lc_sql_escape($dateFrom) . "' AND '" . lc_sql_escape($dateTo) . "' ", false);
+        if ($result) {
+            while ($row = sql_fetch_array($result)) {
+                $ip = trim((string) ($row['cv_ip'] ?? ''));
+                if ($ip === '') {
+                    continue;
+                }
+                if (!isset($counts[$ip])) {
+                    $counts[$ip] = 0;
+                }
+                $counts[$ip]++;
+            }
+        }
+        arsort($counts);
+        $total = array_sum($counts);
+        $items = array();
+        foreach (array_slice($counts, 0, $limit, true) as $ip => $cnt) {
+            $masked = function_exists('lc_conversion_mask_ip') ? lc_conversion_mask_ip($ip) : $ip;
+            $items[] = array(
+                'ip'         => $masked,
+                'clicks'     => (int) $cnt,
+                'percentage' => $total > 0 ? (int) round(($cnt / $total) * 100) : 0,
+            );
+        }
+        return $items;
+    }
+}
+
+if (!function_exists('lc_partner_analytics_embed_utm_sources')) {
+    function lc_partner_analytics_embed_utm_sources($pt_id, $dateFrom, $dateTo, $embed_sql, $limit = 8)
+    {
+        $cv_table = lc_table('conversions');
+        $limit = max(1, min(20, (int) $limit));
+        $counts = array();
+        $result = lc_sql_query(" SELECT cv.cv_utm_source
+            FROM `{$cv_table}` cv
+            WHERE cv.pt_id = '" . (int) $pt_id . "'
+              AND {$embed_sql}
+              AND DATE(cv.cv_created_at) BETWEEN '" . lc_sql_escape($dateFrom) . "' AND '" . lc_sql_escape($dateTo) . "' ", false);
+        if ($result) {
+            while ($row = sql_fetch_array($result)) {
+                $source = trim((string) ($row['cv_utm_source'] ?? ''));
+                if ($source === '') {
+                    $source = '(미기록)';
+                }
+                if (!isset($counts[$source])) {
+                    $counts[$source] = 0;
+                }
+                $counts[$source]++;
+            }
+        }
+        arsort($counts);
+        $total = array_sum($counts);
+        $items = array();
+        foreach (array_slice($counts, 0, $limit, true) as $source => $cnt) {
+            $items[] = array(
+                'source'     => (string) $source,
+                'count'      => (int) $cnt,
+                'percentage' => $total > 0 ? (int) round(($cnt / $total) * 100) : 0,
+            );
+        }
+        return $items;
+    }
+}
+
 if (!function_exists('lc_partner_analytics_campaigns')) {
     function lc_partner_analytics_campaigns($pt_id, array $filters, $limit = 10)
     {
@@ -1060,10 +1289,13 @@ if (!function_exists('lc_partner_analytics_cps_for_api')) {
             'compareLinks'  => !empty($filters['compareLpmIds'])
                 ? lc_partner_analytics_cps_links($pt_id, $filters, 5)
                 : array(),
-            'referrers'     => lc_partner_analytics_cps_referrers($pt_id, $filters),
-            'devices'       => lc_partner_analytics_cps_devices($pt_id, $filters),
-            'campaigns'     => array(),
-            'filterOptions' => array_merge(
+            'referrers'          => lc_partner_analytics_cps_referrers($pt_id, $filters),
+            'devices'            => lc_partner_analytics_cps_devices($pt_id, $filters),
+            'topIps'             => array(),
+            'utmSources'         => array(),
+            'conversionChannels' => array(),
+            'campaigns'          => array(),
+            'filterOptions'      => array_merge(
                 array('links' => array(), 'channels' => array(), 'linkNames' => array()),
                 $cps_options
             ),
@@ -1346,10 +1578,13 @@ if (!function_exists('lc_partner_analytics_embed_for_api')) {
             'linkNames'     => array(),
             'links'         => $link_rows,
             'compareLinks'  => array(),
-            'referrers'     => $referrers,
-            'devices'       => array(),
-            'campaigns'     => $campaign_rows,
-            'filterOptions' => array(
+            'referrers'          => $referrers,
+            'devices'            => array(),
+            'topIps'             => lc_partner_analytics_embed_top_ips($pt_id, $dateFrom, $dateTo, $embed_sql),
+            'utmSources'         => lc_partner_analytics_embed_utm_sources($pt_id, $dateFrom, $dateTo, $embed_sql),
+            'conversionChannels' => array(),
+            'campaigns'          => $campaign_rows,
+            'filterOptions'      => array(
                 'links'     => array(),
                 'channels'  => array_values(array_map(static function ($row) {
                     return (string) ($row['channel'] ?? '');
@@ -1357,10 +1592,10 @@ if (!function_exists('lc_partner_analytics_embed_for_api')) {
                 'linkNames' => array(),
                 'cpsLinks'  => array(),
             ),
-            'cro'           => function_exists('lc_embed_events_stats_for_partner')
+            'cro'                => function_exists('lc_embed_events_stats_for_partner')
                 ? lc_embed_events_stats_for_partner($pt_id, $dateFrom, $dateTo, $total_db, $approved_cnt)
                 : array('ready' => false),
-            'dbReady'       => true,
+            'dbReady'            => true,
         );
     }
 }
@@ -1403,10 +1638,13 @@ if (!function_exists('lc_partner_analytics_for_api')) {
             'compareLinks'  => !empty($filters['compareIds'])
                 ? lc_partner_analytics_links($pt_id, $filters, 5)
                 : array(),
-            'referrers'     => lc_partner_analytics_referrers($pt_id, $filters),
-            'devices'       => lc_partner_analytics_devices($pt_id, $filters),
-            'campaigns'     => lc_partner_analytics_campaigns($pt_id, $filters),
-            'filterOptions' => lc_partner_analytics_filter_options($pt_id),
+            'referrers'            => lc_partner_analytics_referrers($pt_id, $filters),
+            'devices'              => lc_partner_analytics_devices($pt_id, $filters),
+            'topIps'               => lc_partner_analytics_top_ips($pt_id, $filters),
+            'utmSources'           => lc_partner_analytics_utm_sources($pt_id, $filters),
+            'conversionChannels'   => lc_partner_analytics_conversion_channels($pt_id, $filters),
+            'campaigns'            => lc_partner_analytics_campaigns($pt_id, $filters),
+            'filterOptions'        => lc_partner_analytics_filter_options($pt_id),
         );
     }
 }

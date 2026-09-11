@@ -1696,6 +1696,9 @@ export type PartnerAnalyticsResponse = {
   compareLinks: PartnerAnalyticsLinkRow[];
   referrers: Array<{ domain: string; clicks: number; percentage: number }>;
   devices: Array<{ device: string; deviceCode: string; clicks: number; percentage: number }>;
+  topIps?: Array<{ ip: string; clicks: number; percentage: number }>;
+  utmSources?: Array<{ source: string; count: number; percentage: number }>;
+  conversionChannels?: Array<{ channel: string; dbs: number; approved: number; percentage: number }>;
   campaigns: Array<{ campaign: string; clicks: number; received: number; approved: number; appRate: string; confRev: number }>;
   filterOptions: {
     links: Array<{ id: number; code: string; campaign: string; channel: string; linkName: string }>;

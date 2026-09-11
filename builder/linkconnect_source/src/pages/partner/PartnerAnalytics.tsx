@@ -17,6 +17,9 @@ import {
   ShoppingBag,
   Link2,
   ExternalLink,
+  Network,
+  Tag,
+  Radio,
 } from 'lucide-react';
 import { SummaryCard } from '../../components/partner/PartnerShared';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -63,6 +66,9 @@ const emptyData: PartnerAnalyticsResponse = {
   compareLinks: [],
   referrers: [],
   devices: [],
+  topIps: [],
+  utmSources: [],
+  conversionChannels: [],
   campaigns: [],
   filterOptions: { links: [], channels: [], linkNames: [], cpsLinks: [] },
   cro: undefined,
@@ -101,6 +107,9 @@ function normalizeAnalyticsResponse(result: PartnerAnalyticsResponse): PartnerAn
     compareLinks: result.compareLinks ?? [],
     referrers: result.referrers ?? [],
     devices: result.devices ?? [],
+    topIps: result.topIps ?? [],
+    utmSources: result.utmSources ?? [],
+    conversionChannels: result.conversionChannels ?? [],
     campaigns: result.campaigns ?? [],
     cro: result.cro ?? emptyData.cro,
     filterOptions: {
@@ -620,6 +629,80 @@ export function PartnerAnalytics() {
               </div>
             </div>
           )}
+
+          {!isCps && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Network size={18} className="text-amber-500" />
+                IP TOP
+              </h2>
+              <div className="space-y-3">
+                {(data.topIps ?? []).length === 0 ? (
+                  <p className="text-sm text-slate-500">IP 데이터가 없습니다.</p>
+                ) : (data.topIps ?? []).map((item) => (
+                  <div key={item.ip}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-mono text-slate-700 truncate pr-2">{item.ip}</span>
+                      <span className="text-slate-500 shrink-0">{item.clicks}{isEmbed ? '건' : '회'}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!isCps && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Tag size={18} className="text-rose-500" />
+                UTM Source
+              </h2>
+              <div className="space-y-3">
+                {(data.utmSources ?? []).length === 0 ? (
+                  <p className="text-sm text-slate-500">UTM 데이터가 없습니다.</p>
+                ) : (data.utmSources ?? []).map((item) => (
+                  <div key={item.source}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium text-slate-700 truncate pr-2">{item.source}</span>
+                      <span className="text-slate-500 shrink-0">{item.count}건</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-rose-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isCpa && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Radio size={18} className="text-emerald-500" />
+                DB 매체 (cv_channel)
+              </h2>
+              <div className="space-y-3">
+                {(data.conversionChannels ?? []).length === 0 ? (
+                  <p className="text-sm text-slate-500">매체 데이터가 없습니다.</p>
+                ) : (data.conversionChannels ?? []).map((item) => (
+                  <div key={item.channel}>
+                    <div className="flex justify-between text-sm mb-1 gap-2">
+                      <span className="font-medium text-slate-700 truncate">{item.channel}</span>
+                      <span className="text-slate-500 shrink-0">{item.dbs}건</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-1">
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+                    </div>
+                    <div className="text-xs text-slate-400">승인 {item.approved} · {item.percentage}%</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
