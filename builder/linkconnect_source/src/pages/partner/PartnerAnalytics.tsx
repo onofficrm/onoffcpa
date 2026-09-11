@@ -533,177 +533,174 @@ export function PartnerAnalytics() {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8 mb-8">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col">
-          <h2 className="text-lg font-bold text-slate-900 mb-6">일별 성과 추이</h2>
-          <div className="h-72 w-full">
-            {loading ? (
-              <div className="h-full flex items-center justify-center"><Skeleton className="h-full w-full rounded-xl" /></div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorClick" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient>
-                    <linearGradient id="colorDb" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#06b6d4" stopOpacity={0.2}/><stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/></linearGradient>
-                    <linearGradient id="colorApproval" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                  <Tooltip />
-                  {!isEmbed && (
-                    <Area type="monotone" dataKey="click" stroke="#3b82f6" fill="url(#colorClick)" strokeWidth={2} name="클릭" />
-                  )}
-                  <Area type="monotone" dataKey="db" stroke="#06b6d4" fill="url(#colorDb)" strokeWidth={2} name={isCps ? '주문' : 'DB'} />
-                  <Area type="monotone" dataKey="approval" stroke="#10b981" fill="url(#colorApproval)" strokeWidth={2} name={isCps ? '확정' : '승인'} />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm mb-6">
+        <h2 className="text-lg font-bold text-slate-900 mb-4">일별 성과 추이</h2>
+        <div className="h-72 w-full">
+          {loading ? (
+            <div className="h-full flex items-center justify-center"><Skeleton className="h-full w-full rounded-xl" /></div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorClick" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="colorDb" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#06b6d4" stopOpacity={0.2}/><stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/></linearGradient>
+                  <linearGradient id="colorApproval" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
+                </defs>
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                <Tooltip />
+                {!isEmbed && (
+                  <Area type="monotone" dataKey="click" stroke="#3b82f6" fill="url(#colorClick)" strokeWidth={2} name="클릭" />
+                )}
+                <Area type="monotone" dataKey="db" stroke="#06b6d4" fill="url(#colorDb)" strokeWidth={2} name={isCps ? '주문' : 'DB'} />
+                <Area type="monotone" dataKey="approval" stroke="#10b981" fill="url(#colorApproval)" strokeWidth={2} name={isCps ? '확정' : '승인'} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+            <Globe size={16} className="text-cyan-500" />
+            {isEmbed ? '설치 도메인' : '유입 도메인'}
+          </h2>
+          <div className="space-y-2.5">
+            {data.referrers.length === 0 ? (
+              <p className="text-sm text-slate-500">{isEmbed ? '설치 도메인 데이터가 없습니다.' : '유입 도메인 데이터가 없습니다.'}</p>
+            ) : data.referrers.slice(0, 6).map((item) => (
+              <div key={item.domain}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="font-medium text-slate-700 truncate pr-2">{item.domain}</span>
+                  <span className="text-slate-500 shrink-0">{item.clicks}{isEmbed ? '건' : '회'}</span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="space-y-8">
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <Globe size={18} className="text-cyan-500" />
-              {isEmbed ? '설치 도메인' : '유입 도메인'}
+        {!isEmbed ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <Smartphone size={16} className="text-violet-500" />
+              기기별 클릭
             </h2>
-            <div className="space-y-3">
-              {data.referrers.length === 0 ? (
-                <p className="text-sm text-slate-500">{isEmbed ? '설치 도메인 데이터가 없습니다.' : '유입 도메인 데이터가 없습니다.'}</p>
-              ) : data.referrers.map((item) => (
-                <div key={item.domain}>
+            <div className="space-y-2.5">
+              {data.devices.length === 0 ? (
+                <p className="text-sm text-slate-500">기기 데이터가 없습니다.</p>
+              ) : data.devices.map((item) => (
+                <div key={item.deviceCode}>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-slate-700 truncate pr-2">{item.domain}</span>
-                    <span className="text-slate-500 shrink-0">{item.clicks}{isEmbed ? '건' : '회'}</span>
+                    <span className="font-medium text-slate-700">{item.device}</span>
+                    <span className="text-slate-500">{item.percentage}%</span>
                   </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-violet-500 rounded-full" style={{ width: `${item.percentage}%` }} />
                   </div>
                 </div>
               ))}
             </div>
           </div>
-
-          {!isEmbed ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <Smartphone size={18} className="text-violet-500" />
-                기기별 클릭
-              </h2>
-              <div className="space-y-3">
-                {data.devices.length === 0 ? (
-                  <p className="text-sm text-slate-500">기기 데이터가 없습니다.</p>
-                ) : data.devices.map((item) => (
-                  <div key={item.deviceCode}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-slate-700">{item.device}</span>
-                      <span className="text-slate-500">{item.percentage}%</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-violet-500 rounded-full" style={{ width: `${item.percentage}%` }} />
-                    </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <BarChart3 size={16} className="text-violet-500" />
+              캠페인별 접수
+            </h2>
+            <div className="space-y-2.5">
+              {data.campaigns.length === 0 ? (
+                <p className="text-sm text-slate-500">캠페인 데이터가 없습니다.</p>
+              ) : data.campaigns.slice(0, 6).map((item) => (
+                <div key={item.campaign}>
+                  <div className="flex justify-between text-sm mb-1 gap-2">
+                    <span className="font-medium text-slate-700 truncate">{item.campaign}</span>
+                    <span className="text-slate-500 shrink-0">{item.received}건</span>
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <BarChart3 size={18} className="text-violet-500" />
-                캠페인별 접수
-              </h2>
-              <div className="space-y-3">
-                {data.campaigns.length === 0 ? (
-                  <p className="text-sm text-slate-500">캠페인 데이터가 없습니다.</p>
-                ) : data.campaigns.slice(0, 8).map((item) => (
-                  <div key={item.campaign}>
-                    <div className="flex justify-between text-sm mb-1 gap-2">
-                      <span className="font-medium text-slate-700 truncate">{item.campaign}</span>
-                      <span className="text-slate-500 shrink-0">{item.received}건</span>
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      승인 {item.approved} · {item.appRate} · {(item.confRev || 0).toLocaleString()}원
-                    </div>
+                  <div className="text-xs text-slate-400">
+                    승인 {item.approved} · {item.appRate} · {(item.confRev || 0).toLocaleString()}원
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {!isCps && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <Network size={18} className="text-amber-500" />
-                IP TOP
-              </h2>
-              <div className="space-y-3">
-                {(data.topIps ?? []).length === 0 ? (
-                  <p className="text-sm text-slate-500">IP 데이터가 없습니다.</p>
-                ) : (data.topIps ?? []).map((item) => (
-                  <div key={item.ip}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-mono text-slate-700 truncate pr-2">{item.ip}</span>
-                      <span className="text-slate-500 shrink-0">{item.clicks}{isEmbed ? '건' : '회'}</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-amber-500 rounded-full" style={{ width: `${item.percentage}%` }} />
-                    </div>
+        {!isCps && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <Network size={16} className="text-amber-500" />
+              IP TOP
+            </h2>
+            <div className="space-y-2.5">
+              {(data.topIps ?? []).length === 0 ? (
+                <p className="text-sm text-slate-500">IP 데이터가 없습니다.</p>
+              ) : (data.topIps ?? []).slice(0, 6).map((item) => (
+                <div key={item.ip}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-mono text-slate-700 truncate pr-2">{item.ip}</span>
+                    <span className="text-slate-500 shrink-0">{item.clicks}{isEmbed ? '건' : '회'}</span>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {!isCps && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <Tag size={18} className="text-rose-500" />
-                UTM Source
-              </h2>
-              <div className="space-y-3">
-                {(data.utmSources ?? []).length === 0 ? (
-                  <p className="text-sm text-slate-500">UTM 데이터가 없습니다.</p>
-                ) : (data.utmSources ?? []).map((item) => (
-                  <div key={item.source}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-slate-700 truncate pr-2">{item.source}</span>
-                      <span className="text-slate-500 shrink-0">{item.count}건</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-rose-500 rounded-full" style={{ width: `${item.percentage}%` }} />
-                    </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${item.percentage}%` }} />
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {isCpa && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                <Radio size={18} className="text-emerald-500" />
-                DB 매체 (cv_channel)
-              </h2>
-              <div className="space-y-3">
-                {(data.conversionChannels ?? []).length === 0 ? (
-                  <p className="text-sm text-slate-500">매체 데이터가 없습니다.</p>
-                ) : (data.conversionChannels ?? []).map((item) => (
-                  <div key={item.channel}>
-                    <div className="flex justify-between text-sm mb-1 gap-2">
-                      <span className="font-medium text-slate-700 truncate">{item.channel}</span>
-                      <span className="text-slate-500 shrink-0">{item.dbs}건</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-1">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${item.percentage}%` }} />
-                    </div>
-                    <div className="text-xs text-slate-400">승인 {item.approved} · {item.percentage}%</div>
+        {!isCps && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <Tag size={16} className="text-rose-500" />
+              UTM Source
+            </h2>
+            <div className="space-y-2.5">
+              {(data.utmSources ?? []).length === 0 ? (
+                <p className="text-sm text-slate-500">UTM 데이터가 없습니다.</p>
+              ) : (data.utmSources ?? []).slice(0, 6).map((item) => (
+                <div key={item.source}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium text-slate-700 truncate pr-2">{item.source}</span>
+                    <span className="text-slate-500 shrink-0">{item.count}건</span>
                   </div>
-                ))}
-              </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-rose-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-        </div>
+        {isCpa && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+              <Radio size={16} className="text-emerald-500" />
+              DB 매체
+            </h2>
+            <div className="space-y-2.5">
+              {(data.conversionChannels ?? []).length === 0 ? (
+                <p className="text-sm text-slate-500">매체 데이터가 없습니다.</p>
+              ) : (data.conversionChannels ?? []).slice(0, 6).map((item) => (
+                <div key={item.channel}>
+                  <div className="flex justify-between text-sm mb-1 gap-2">
+                    <span className="font-medium text-slate-700 truncate">{item.channel}</span>
+                    <span className="text-slate-500 shrink-0">{item.dbs}건</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-1">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+                  </div>
+                  <div className="text-xs text-slate-400">승인 {item.approved} · {item.percentage}%</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {compareRows.length > 0 && (
