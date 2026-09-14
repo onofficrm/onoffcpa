@@ -644,6 +644,13 @@ export type AdminPartner = {
   name: string;
   memberId: string;
   date: string;
+  phone?: string;
+  email?: string;
+  channels?: string;
+  bankName?: string;
+  bankAccount?: string;
+  bankHolder?: string;
+  bankLabel?: string;
   totalDb: number;
   approvedDb: number;
   canceledDb: number;

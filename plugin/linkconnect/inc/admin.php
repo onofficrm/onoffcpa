@@ -72,12 +72,89 @@ if (!function_exists('lc_admin_list_partners')) {
     }
 }
 
+if (!function_exists('lc_admin_partner_member_contact')) {
+    /**
+     * 최고관리자용 파트너 연락처 (마스킹 없음)
+     *
+     * @return array{phone:string,email:string}
+     */
+    function lc_admin_partner_member_contact($mb_id)
+    {
+        global $g5;
+        $mb_id = trim((string) $mb_id);
+        if ($mb_id === '' || empty($g5['member_table'])) {
+            return array('phone' => '', 'email' => '');
+        }
+
+        $row = lc_sql_fetch(" SELECT mb_hp, mb_tel, mb_email FROM `{$g5['member_table']}` WHERE mb_id = '" . lc_sql_escape($mb_id) . "' LIMIT 1 ");
+        if (!is_array($row)) {
+            return array('phone' => '', 'email' => '');
+        }
+
+        $raw_phone = trim((string) (($row['mb_hp'] ?? '') !== '' ? $row['mb_hp'] : ($row['mb_tel'] ?? '')));
+        $phone = $raw_phone;
+        if ($phone !== '' && function_exists('lc_conversion_format_phone')) {
+            $phone = lc_conversion_format_phone($phone);
+        }
+
+        return array(
+            'phone' => $phone,
+            'email' => trim((string) ($row['mb_email'] ?? '')),
+        );
+    }
+}
+
+if (!function_exists('lc_admin_partner_primary_channels')) {
+    /**
+     * 파트너 홍보링크에 사용된 주요 채널
+     *
+     * @return string
+     */
+    function lc_admin_partner_primary_channels($pt_id, $limit = 8)
+    {
+        $pt_id = (int) $pt_id;
+        if ($pt_id <= 0 || !lc_db_installed()) {
+            return '';
+        }
+
+        $lk = lc_table('links');
+        $channels = array();
+        $result = lc_sql_query(" SELECT lk_channel, COUNT(*) AS cnt
+            FROM `{$lk}`
+            WHERE pt_id = '{$pt_id}' AND lk_channel <> ''
+            GROUP BY lk_channel
+            ORDER BY cnt DESC
+            LIMIT " . max(1, min(20, (int) $limit)), false);
+        if ($result) {
+            while ($row = sql_fetch_array($result)) {
+                $ch = trim((string) ($row['lk_channel'] ?? ''));
+                if ($ch !== '') {
+                    $channels[] = $ch;
+                }
+            }
+        }
+
+        return implode(', ', $channels);
+    }
+}
+
 if (!function_exists('lc_admin_partner_to_api')) {
     function lc_admin_partner_to_api(array $row)
     {
         $total = (int) ($row['total_db'] ?? 0);
         $approved = (int) ($row['approved_db'] ?? 0);
         $rate = $total > 0 ? round(($approved / $total) * 100, 1) . '%' : '-';
+        $contact = lc_admin_partner_member_contact((string) ($row['mb_id'] ?? ''));
+        $bank_name = trim((string) ($row['pt_bank_name'] ?? ''));
+        $bank_account = trim((string) ($row['pt_bank_account'] ?? ''));
+        $bank_holder = trim((string) ($row['pt_bank_holder'] ?? ''));
+        $bank_label = '';
+        if ($bank_name !== '' || $bank_account !== '') {
+            $bank_label = trim($bank_name . ' ' . $bank_account);
+            if ($bank_holder !== '') {
+                $bank_label .= ' (' . $bank_holder . ')';
+            }
+        }
 
         return array(
             'id'              => (int) $row['pt_id'],
@@ -85,6 +162,13 @@ if (!function_exists('lc_admin_partner_to_api')) {
             'name'            => (string) $row['pt_name'],
             'memberId'        => (string) $row['mb_id'],
             'date'            => date('Y.m.d', strtotime($row['pt_created_at'])),
+            'phone'           => (string) ($contact['phone'] ?? ''),
+            'email'           => (string) ($contact['email'] ?? ''),
+            'channels'        => lc_admin_partner_primary_channels((int) $row['pt_id']),
+            'bankName'        => $bank_name,
+            'bankAccount'     => $bank_account,
+            'bankHolder'      => $bank_holder,
+            'bankLabel'       => $bank_label,
             'totalDb'         => $total,
             'approvedDb'      => $approved,
             'canceledDb'      => (int) ($row['canceled_db'] ?? 0),

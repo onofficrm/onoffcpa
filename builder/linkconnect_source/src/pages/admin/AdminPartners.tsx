@@ -331,22 +331,36 @@ export function AdminPartners() {
                     기본 정보
                   </h3>
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">연락처</span>
-                      <span className="font-medium text-slate-900">010-12**-56**</span>
+                    <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                      <span className="text-slate-500 shrink-0">회원 ID</span>
+                      <span className="font-medium text-slate-900 text-right break-all">{selectedPartner.memberId || '-'}</span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">이메일</span>
-                      <span className="font-medium text-slate-900">user****@gmail.com</span>
+                    <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                      <span className="text-slate-500 shrink-0">연락처</span>
+                      <span className="font-medium text-slate-900 text-right font-mono">{selectedPartner.phone || '-'}</span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">주요 채널</span>
-                      <span className="font-medium text-slate-900">네이버 블로그, 인스타그램</span>
+                    <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                      <span className="text-slate-500 shrink-0">이메일</span>
+                      <span className="font-medium text-slate-900 text-right break-all">{selectedPartner.email || '-'}</span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">정산 계좌</span>
-                      <span className="font-medium text-slate-900">국민 123456-**-***</span>
+                    <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                      <span className="text-slate-500 shrink-0">주요 채널</span>
+                      <span className="font-medium text-slate-900 text-right">{selectedPartner.channels || '-'}</span>
                     </div>
+                    <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                      <span className="text-slate-500 shrink-0">정산 계좌</span>
+                      <span className="font-medium text-slate-900 text-right break-all">
+                        {selectedPartner.bankLabel
+                          || [selectedPartner.bankName, selectedPartner.bankAccount].filter(Boolean).join(' ')
+                          || '-'}
+                      </span>
+                    </div>
+                    {selectedPartner.bankHolder ? (
+                      <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                        <span className="text-slate-500 shrink-0">예금주</span>
+                        <span className="font-medium text-slate-900 text-right">{selectedPartner.bankHolder}</span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
