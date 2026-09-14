@@ -148,6 +148,26 @@ if (!function_exists('lc_admin_partner_to_api')) {
         $bank_name = trim((string) ($row['pt_bank_name'] ?? ''));
         $bank_account = trim((string) ($row['pt_bank_account'] ?? ''));
         $bank_holder = trim((string) ($row['pt_bank_holder'] ?? ''));
+
+        // Backfill from latest settlement when partner profile bank is empty
+        if ($bank_account === '' && !empty($row['pt_id']) && function_exists('lc_table')) {
+            $st_table = lc_table('settlements');
+            $pt_id = (int) $row['pt_id'];
+            $latest_bank = lc_sql_fetch(
+                " SELECT st_bank_name, st_bank_account, st_bank_holder
+                  FROM `{$st_table}`
+                  WHERE pt_id = '{$pt_id}'
+                    AND st_bank_account <> ''
+                  ORDER BY st_id DESC
+                  LIMIT 1 "
+            );
+            if (is_array($latest_bank)) {
+                $bank_name = trim((string) ($latest_bank['st_bank_name'] ?? ''));
+                $bank_account = trim((string) ($latest_bank['st_bank_account'] ?? ''));
+                $bank_holder = trim((string) ($latest_bank['st_bank_holder'] ?? ''));
+            }
+        }
+
         $bank_label = '';
         if ($bank_name !== '' || $bank_account !== '') {
             $bank_label = trim($bank_name . ' ' . $bank_account);
@@ -383,6 +403,11 @@ if (!function_exists('lc_admin_conversion_to_api')) {
             ? lc_conversion_resolve_inflow_meta($row, 'full')
             : array();
 
+        $phone = trim((string) ($row['cv_phone'] ?? ''));
+        if ($phone !== '' && function_exists('lc_conversion_format_phone')) {
+            $phone = lc_conversion_format_phone($phone);
+        }
+
         return array(
             'id'          => (string) $row['cv_code'],
             'cvId'        => (int) $row['cv_id'],
@@ -391,6 +416,9 @@ if (!function_exists('lc_admin_conversion_to_api')) {
             'partner'     => (string) ($row['pt_code'] ?? '-'),
             'advertiser'  => (string) ($row['mt_company'] ?? '-'),
             'customer'    => (string) $row['cv_name'],
+            'phone'       => $phone,
+            'email'       => (string) ($row['cv_email'] ?? ''),
+            'inquiry'     => (string) ($row['cv_inquiry'] ?? ''),
             'channel'     => (string) ($row['cv_channel'] ?? ''),
             'source'      => (string) ($row['cv_source'] ?? 'form'),
             'subId'       => (string) ($inflow['subId'] ?? $row['cv_sub_id'] ?? ''),

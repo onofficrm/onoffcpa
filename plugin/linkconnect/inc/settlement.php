@@ -194,6 +194,16 @@ if (!function_exists('lc_settlement_request')) {
             st_requested_at = NOW() ", false);
 
         $st_id = (int) lc_sql_insert_id();
+
+        // Keep partner profile bank in sync for admin partner detail
+        $pt_table = lc_table('partners');
+        lc_sql_query(" UPDATE `{$pt_table}` SET
+            pt_bank_name = '" . lc_sql_escape($bank_name) . "',
+            pt_bank_account = '" . lc_sql_escape($bank_account) . "',
+            pt_bank_holder = '" . lc_sql_escape($bank_holder) . "',
+            pt_updated_at = NOW()
+            WHERE pt_id = '{$pt_id}' ", false);
+
         $row = lc_settlement_get_by_id($st_id);
 
         return array(
@@ -289,9 +299,8 @@ if (!function_exists('lc_settlement_to_admin_api')) {
         }
 
         $account = (string) $row['st_bank_account'];
-        if (strlen($account) > 6) {
-            $account = substr($account, 0, 3) . '-***-' . substr($account, -3);
-        }
+        // Admin settlement API always returns full account (endpoint is admin-gated).
+        // Keep soft mask only when explicitly requested by non-admin callers (none today).
 
         return array(
             'id'             => (int) $row['st_id'],
@@ -351,28 +360,14 @@ if (!function_exists('lc_settlement_admin_update')) {
                 return array('ok' => false, 'message' => '승인 금액이 없습니다.');
             }
 
-            $is_core = function_exists('lc_onoff_core_settlement_is_core_row')
-                && lc_onoff_core_settlement_is_core_row($row);
-
-            if ($is_core) {
-                // Core CPS: do not debit CPA wallet balance; mark commissions PAID.
-                if (function_exists('lc_onoff_core_settlement_on_admin_pay')) {
-                    $core_pay = lc_onoff_core_settlement_on_admin_pay($st_id);
-                    if (empty($core_pay['ok'])) {
-                        return array('ok' => false, 'message' => (string) ($core_pay['message'] ?? 'core commission pay failed'));
-                    }
-                }
-            } else {
-                $partner = lc_get_partner_by_id($pt_id);
-                if (!$partner || (int) $partner['pt_balance'] < $approved_amount) {
-                    return array('ok' => false, 'message' => '파트너 잔액이 부족합니다.');
-                }
-
-                $pt_table = lc_table('partners');
-                $new_balance = (int) $partner['pt_balance'] - $approved_amount;
-                lc_sql_query(" UPDATE `{$pt_table}` SET pt_balance = '{$new_balance}', pt_updated_at = NOW() WHERE pt_id = '{$pt_id}' ", false);
+            $partner = lc_get_partner_by_id($pt_id);
+            if (!$partner || (int) $partner['pt_balance'] < $approved_amount) {
+                return array('ok' => false, 'message' => '파트너 잔액이 부족합니다.');
             }
 
+            $pt_table = lc_table('partners');
+            $new_balance = (int) $partner['pt_balance'] - $approved_amount;
+            lc_sql_query(" UPDATE `{$pt_table}` SET pt_balance = '{$new_balance}', pt_updated_at = NOW() WHERE pt_id = '{$pt_id}' ", false);
             lc_sql_query(" UPDATE `{$table}` SET
                 st_status = '" . lc_sql_escape(LC_SETTLEMENT_PAID) . "',
                 st_approved_amount = '{$approved_amount}',
@@ -390,12 +385,6 @@ if (!function_exists('lc_settlement_admin_update')) {
                 WHERE st_id = '{$st_id}' ", false);
         } elseif ($action === 'reject') {
             $memo = isset($payload['memo']) ? trim((string) $payload['memo']) : '반려';
-            if (function_exists('lc_onoff_core_settlement_is_core_row')
-                && lc_onoff_core_settlement_is_core_row($row)
-                && function_exists('lc_onoff_core_settlement_on_admin_reject')
-            ) {
-                lc_onoff_core_settlement_on_admin_reject($st_id);
-            }
             lc_sql_query(" UPDATE `{$table}` SET
                 st_status = '" . lc_sql_escape(LC_SETTLEMENT_REJECTED) . "',
                 st_approved_amount = 0,

@@ -438,7 +438,18 @@ if (!function_exists('lc_conversion_to_api_merchant')) {
             ? lc_conversion_resolve_inflow_meta($row, 'mask')
             : array();
 
-        return array(
+        $attachment_meta = function_exists('lc_conversion_attachment_api_meta')
+            ? lc_conversion_attachment_api_meta($row)
+            : array(
+                'attachmentName'        => '',
+                'attachmentMime'        => '',
+                'attachmentUrl'         => '',
+                'attachmentDownloadUrl' => '',
+                'attachmentPreviewable' => false,
+                'attachmentStored'      => false,
+            );
+
+        return array_merge(array(
             'id'          => (string) $row['cv_code'],
             'cvId'        => (int) $row['cv_id'],
             'date'        => date('Y.m.d H:i', strtotime($row['cv_created_at'])),
@@ -477,7 +488,7 @@ if (!function_exists('lc_conversion_to_api_merchant')) {
             'adminComment'     => '',
             'partnerPublic'    => !isset($row['cv_partner_visible']) || (int) $row['cv_partner_visible'] === 1,
             'history'     => lc_conversion_merchant_history($row),
-        );
+        ), $attachment_meta);
     }
 }
 
@@ -688,13 +699,7 @@ if (!function_exists('lc_conversion_update_status')) {
         if ($new_status === LC_STATUS_APPROVED) {
             // 원격 ACK(원본/상대 플랫폼): 광고주 지갑 차감은 승인을 시작한 플랫폼에서만 수행.
             // 여기서 다시 차감하면 이중 과금이 되므로 건너뛰고, 파트너 적립만 수행.
-            $cp_row = function_exists('lc_campaign_get_by_id')
-                ? lc_campaign_get_by_id((int) ($conversion['cp_id'] ?? 0))
-                : null;
-            $platform_owned = is_array($cp_row)
-                && function_exists('lc_campaign_is_platform_owned')
-                && lc_campaign_is_platform_owned($cp_row);
-            if (!$mp_remote_ack && !$platform_owned) {
+            if (!$mp_remote_ack) {
                 $deduct = lc_wallet_deduct_for_conversion(
                     $mt_id,
                     $cv_id,
@@ -850,13 +855,7 @@ if (!function_exists('lc_conversion_admin_final_status')) {
             }
         } elseif ($action === 'approve') {
             // 취소/무효 → 승인: 광고비 차감 + 파트너 적립
-            $cp_row = function_exists('lc_campaign_get_by_id')
-                ? lc_campaign_get_by_id((int) ($conversion['cp_id'] ?? 0))
-                : null;
-            $platform_owned = is_array($cp_row)
-                && function_exists('lc_campaign_is_platform_owned')
-                && lc_campaign_is_platform_owned($cp_row);
-            if ($mt_id > 0 && !$platform_owned) {
+            if ($mt_id > 0) {
                 $deduct = lc_wallet_deduct_for_conversion($mt_id, $cv_id, $price, $conversion['cv_code'] . ' 관리자 최종승인 차감');
                 if (!$deduct['ok']) {
                     return $deduct;
@@ -869,13 +868,7 @@ if (!function_exists('lc_conversion_admin_final_status')) {
         } else {
             // 승인 → 취소/무효: 광고비 환급 + 파트너 적립 회수
             if ($current === LC_STATUS_APPROVED) {
-                $cp_row = function_exists('lc_campaign_get_by_id')
-                    ? lc_campaign_get_by_id((int) ($conversion['cp_id'] ?? 0))
-                    : null;
-                $platform_owned = is_array($cp_row)
-                    && function_exists('lc_campaign_is_platform_owned')
-                    && lc_campaign_is_platform_owned($cp_row);
-                if ($mt_id > 0 && !$platform_owned && function_exists('lc_wallet_record')) {
+                if ($mt_id > 0 && function_exists('lc_wallet_record')) {
                     lc_wallet_record($mt_id, 'refund', abs($price), $conversion['cv_code'] . ' 관리자 최종취소 환급', 'conversion', $cv_id);
                 }
                 if (function_exists('lc_partner_debit_for_conversion')) {
@@ -1755,9 +1748,6 @@ if (!function_exists('lc_partner_dashboard_for_api')) {
             'chart7d'          => $chart,
             'channels'         => $channels,
             'recent'           => $recent,
-            'core'             => function_exists('lc_onoff_core_partner_dashboard')
-                ? lc_onoff_core_partner_dashboard($pt_id)
-                : null,
         );
     }
 }
@@ -1885,6 +1875,10 @@ if (!function_exists('lc_conversion_to_inspection_api')) {
             : trim((string) ($row['cv_page_url'] ?? ''));
         $source = (string) ($row['cv_source'] ?? 'form');
         $channel = (string) ($row['cv_channel'] ?? '');
+        $phone = trim((string) ($row['cv_phone'] ?? ''));
+        if ($phone !== '' && function_exists('lc_conversion_format_phone')) {
+            $phone = lc_conversion_format_phone($phone);
+        }
 
         return array(
             'id'              => (string) $row['cv_code'],
@@ -1894,8 +1888,8 @@ if (!function_exists('lc_conversion_to_inspection_api')) {
             'campaign'        => (string) ($row['cp_name'] ?? ''),
             'advertiser'      => (string) ($row['mt_company'] ?? ''),
             'partner'         => (string) ($row['pt_name'] ?? '') . ' (' . (string) ($row['pt_code'] ?? '') . ')',
-            'customer'        => lc_conversion_mask_name($row['cv_name']),
-            'phone'           => lc_conversion_mask_phone($row['cv_phone']),
+            'customer'        => (string) ($row['cv_name'] ?? ''),
+            'phone'           => $phone,
             'inquiry'         => (string) ($row['cv_inquiry'] ?? ''),
             'reason'          => (string) ($row['cv_reject_reason'] !== '' ? $row['cv_reject_reason'] : $row['cv_comment']),
             'comment'         => (string) $row['cv_comment'],

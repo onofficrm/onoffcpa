@@ -110,12 +110,13 @@ export function AdminConversions() {
           </button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[1040px]">
+          <table className="w-full text-sm min-w-[1180px]">
             <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
               <tr>
                 <th className="px-4 py-3 text-left">DB ID</th>
                 <th className="px-4 py-3 text-left">접수일</th>
                 <th className="px-4 py-3 text-left">고객</th>
+                <th className="px-4 py-3 text-left">연락처</th>
                 <th className="px-4 py-3 text-left">파트너</th>
                 <th className="px-4 py-3 text-left">유입경로</th>
                 <th className="px-4 py-3 text-left">광고주</th>
@@ -127,18 +128,19 @@ export function AdminConversions() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-slate-500">불러오는 중...</td>
+                  <td colSpan={10} className="px-4 py-10 text-center text-slate-500">불러오는 중...</td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-slate-500">등록된 디비가 없습니다.</td>
+                  <td colSpan={10} className="px-4 py-10 text-center text-slate-500">등록된 디비가 없습니다.</td>
                 </tr>
               ) : (
                 rows.map((row) => (
                     <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/80">
                       <td className="px-4 py-3 font-mono text-xs text-slate-700">{row.id}</td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{row.date}</td>
-                      <td className="px-4 py-3 font-medium text-slate-900">{row.customer}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{row.customer || '-'}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-slate-800 whitespace-nowrap">{row.phone || '-'}</td>
                       <td className="px-4 py-3 font-mono text-xs">{row.partner}</td>
                       <td className="px-4 py-3">
                         <ConversionInflowCell data={row} showAbuse />
