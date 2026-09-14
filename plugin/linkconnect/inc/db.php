@@ -244,6 +244,12 @@ if (!function_exists('lc_db_run_schema')) {
                 `pt_code` varchar(20) NOT NULL,
                 `pt_name` varchar(100) NOT NULL DEFAULT '',
                 `pt_status` varchar(20) NOT NULL DEFAULT 'pending',
+                `pt_entity_type` varchar(20) NOT NULL DEFAULT '',
+                `pt_resident_no` varchar(20) NOT NULL DEFAULT '',
+                `pt_company_name` varchar(200) NOT NULL DEFAULT '',
+                `pt_business_number` varchar(20) NOT NULL DEFAULT '',
+                `pt_representative_name` varchar(100) NOT NULL DEFAULT '',
+                `pt_company_address` varchar(300) NOT NULL DEFAULT '',
                 `pt_bank_name` varchar(50) NOT NULL DEFAULT '',
                 `pt_bank_account` varchar(50) NOT NULL DEFAULT '',
                 `pt_bank_holder` varchar(50) NOT NULL DEFAULT '',
@@ -636,21 +642,8 @@ if (!function_exists('lc_db_run_migrations')) {
         if (lc_db_table_exists($partners) && !lc_db_column_exists($partners, 'pt_notify_prefs')) {
             $alters[] = "ALTER TABLE `{$partners}` ADD COLUMN `pt_notify_prefs` text AFTER `pt_balance`";
         }
-        if (lc_db_table_exists($partners) && !lc_db_column_exists($partners, 'pt_onoff_roles')) {
-            $alters[] = "ALTER TABLE `{$partners}` ADD COLUMN `pt_onoff_roles` varchar(200) NOT NULL DEFAULT '' AFTER `pt_notify_prefs`";
-        }
         if (lc_db_table_exists($merchants) && !lc_db_column_exists($merchants, 'mt_notify_prefs')) {
             $alters[] = "ALTER TABLE `{$merchants}` ADD COLUMN `mt_notify_prefs` text AFTER `mt_balance`";
-        }
-
-        if (lc_db_table_exists($campaigns) && !lc_db_column_exists($campaigns, 'cp_platform_service')) {
-            $alters[] = "ALTER TABLE `{$campaigns}` ADD COLUMN `cp_platform_service` varchar(20) NOT NULL DEFAULT 'ONOFFCPA' AFTER `cp_type`";
-        }
-        if (lc_db_table_exists($campaigns) && !lc_db_column_exists($campaigns, 'cp_product_type')) {
-            $alters[] = "ALTER TABLE `{$campaigns}` ADD COLUMN `cp_product_type` varchar(20) NOT NULL DEFAULT '' AFTER `cp_platform_service`";
-        }
-        if (lc_db_table_exists($campaigns) && !lc_db_column_exists($campaigns, 'cp_commission_rule_id')) {
-            $alters[] = "ALTER TABLE `{$campaigns}` ADD COLUMN `cp_commission_rule_id` varchar(64) NOT NULL DEFAULT '' AFTER `cp_product_type`";
         }
 
         $nf = lc_table('notifications');
@@ -684,6 +677,9 @@ if (!function_exists('lc_db_run_migrations')) {
             'cv_call_result' => "varchar(20) NOT NULL DEFAULT '' AFTER `cv_call_duration`",
             'cv_final_status' => "varchar(20) NOT NULL DEFAULT '' AFTER `cv_call_result`",
             'cv_final_locked' => "tinyint(1) NOT NULL DEFAULT 0 AFTER `cv_final_status`",
+            'cv_attachment_path' => "varchar(500) NOT NULL DEFAULT '' AFTER `cv_inquiry`",
+            'cv_attachment_name' => "varchar(255) NOT NULL DEFAULT '' AFTER `cv_attachment_path`",
+            'cv_attachment_mime'   => "varchar(120) NOT NULL DEFAULT '' AFTER `cv_attachment_name`",
         ) as $col => $definition) {
             if (lc_db_table_exists($conversions) && !lc_db_column_exists($conversions, $col)) {
                 $alters[] = "ALTER TABLE `{$conversions}` ADD COLUMN `{$col}` {$definition}";
@@ -692,6 +688,12 @@ if (!function_exists('lc_db_run_migrations')) {
 
         $partners = lc_table('partners');
         foreach (array(
+            'pt_entity_type' => "varchar(20) NOT NULL DEFAULT '' AFTER `pt_status`",
+            'pt_resident_no' => "varchar(20) NOT NULL DEFAULT '' AFTER `pt_entity_type`",
+            'pt_company_name' => "varchar(200) NOT NULL DEFAULT '' AFTER `pt_resident_no`",
+            'pt_business_number' => "varchar(20) NOT NULL DEFAULT '' AFTER `pt_company_name`",
+            'pt_representative_name' => "varchar(100) NOT NULL DEFAULT '' AFTER `pt_business_number`",
+            'pt_company_address' => "varchar(300) NOT NULL DEFAULT '' AFTER `pt_representative_name`",
             'pt_admin_memo' => "varchar(500) NOT NULL DEFAULT '' AFTER `pt_balance`",
             'pt_admin_tags' => "varchar(200) NOT NULL DEFAULT '' AFTER `pt_admin_memo`",
             'pt_assigned_mb_id' => "varchar(20) NOT NULL DEFAULT '' AFTER `pt_admin_tags`",

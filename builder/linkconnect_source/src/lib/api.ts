@@ -61,7 +61,11 @@ export async function partnerApiGet<T>(endpoint: string, query?: Record<string, 
   const body = await parseJson<ApiSuccessBody<T> | ApiErrorBody>(response);
   if (!body.ok) {
     const errBody = body as ApiErrorBody;
-    throw new PartnerApiError(errBody.error, errBody.code, response.status);
+    const err = new PartnerApiError(errBody.error, errBody.code, response.status);
+    if (errBody.data?.errors && typeof errBody.data.errors === 'object') {
+      (err as PartnerApiError & { fieldErrors?: Record<string, string> }).fieldErrors = errBody.data.errors as Record<string, string>;
+    }
+    throw err;
   }
 
   return (body as ApiSuccessBody<T>).data;
@@ -81,7 +85,11 @@ export async function partnerApiPost<T>(endpoint: string, payload?: Record<strin
   const body = await parseJson<ApiSuccessBody<T> | ApiErrorBody>(response);
   if (!body.ok) {
     const errBody = body as ApiErrorBody;
-    throw new PartnerApiError(errBody.error, errBody.code, response.status);
+    const err = new PartnerApiError(errBody.error, errBody.code, response.status);
+    if (errBody.data?.errors && typeof errBody.data.errors === 'object') {
+      (err as PartnerApiError & { fieldErrors?: Record<string, string> }).fieldErrors = errBody.data.errors as Record<string, string>;
+    }
+    throw err;
   }
 
   return (body as ApiSuccessBody<T>).data;
@@ -94,10 +102,26 @@ export type PartnerProfile = {
   status: string;
   statusLabel: string;
   balance: number;
+  entityType?: string;
+  entityTypeLabel?: string;
+  residentNo?: string;
+  companyName?: string;
+  businessNumber?: string;
+  representativeName?: string;
+  companyAddress?: string;
   bankName: string;
   bankAccount: string;
   bankHolder: string;
   createdAt: string;
+};
+
+export type PartnerApplyPayload = {
+  entityType: 'individual' | 'business';
+  residentNo?: string;
+  companyName?: string;
+  businessNumber?: string;
+  representativeName?: string;
+  companyAddress?: string;
 };
 
 export type PartnerMeResponse = {
@@ -368,8 +392,8 @@ export function downloadPartnerConversionsCsv(filters?: { status?: string; q?: s
   return downloadCsvBlob(url.toString(), `partner_conversions_${Date.now()}.csv`);
 }
 
-export function applyPartner() {
-  return partnerApiPost<{ partner: PartnerProfile | null; message: string }>('apply.php');
+export function applyPartner(payload: PartnerApplyPayload) {
+  return partnerApiPost<{ partner: PartnerProfile | null; message: string }>('apply.php', payload);
 }
 
 const MERCHANT_API_BASE = lcPluginUrl('merchant/api');
@@ -647,6 +671,13 @@ export type AdminPartner = {
   phone?: string;
   email?: string;
   channels?: string;
+  entityType?: string;
+  entityTypeLabel?: string;
+  residentNo?: string;
+  companyName?: string;
+  businessNumber?: string;
+  representativeName?: string;
+  companyAddress?: string;
   bankName?: string;
   bankAccount?: string;
   bankHolder?: string;

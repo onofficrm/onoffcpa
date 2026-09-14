@@ -336,6 +336,43 @@ export function AdminPartners() {
                       <span className="font-medium text-slate-900 text-right break-all">{selectedPartner.memberId || '-'}</span>
                     </div>
                     <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                      <span className="text-slate-500 shrink-0">가입 유형</span>
+                      <span className="font-medium text-slate-900 text-right">
+                        {selectedPartner.entityTypeLabel
+                          || (selectedPartner.entityType === 'individual'
+                            ? '개인'
+                            : selectedPartner.entityType === 'business'
+                              ? '사업자'
+                              : '-')}
+                      </span>
+                    </div>
+                    {selectedPartner.entityType === 'individual' || selectedPartner.residentNo ? (
+                      <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                        <span className="text-slate-500 shrink-0">주민등록번호</span>
+                        <span className="font-medium text-slate-900 text-right font-mono">{selectedPartner.residentNo || '-'}</span>
+                      </div>
+                    ) : null}
+                    {selectedPartner.entityType === 'business' || selectedPartner.companyName ? (
+                      <>
+                        <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                          <span className="text-slate-500 shrink-0">회사명</span>
+                          <span className="font-medium text-slate-900 text-right">{selectedPartner.companyName || '-'}</span>
+                        </div>
+                        <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                          <span className="text-slate-500 shrink-0">사업자등록번호</span>
+                          <span className="font-medium text-slate-900 text-right font-mono">{selectedPartner.businessNumber || '-'}</span>
+                        </div>
+                        <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                          <span className="text-slate-500 shrink-0">대표자</span>
+                          <span className="font-medium text-slate-900 text-right">{selectedPartner.representativeName || '-'}</span>
+                        </div>
+                        <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
+                          <span className="text-slate-500 shrink-0">사업장 주소</span>
+                          <span className="font-medium text-slate-900 text-right break-all">{selectedPartner.companyAddress || '-'}</span>
+                        </div>
+                      </>
+                    ) : null}
+                    <div className="flex justify-between gap-3 py-1 border-b border-slate-100">
                       <span className="text-slate-500 shrink-0">연락처</span>
                       <span className="font-medium text-slate-900 text-right font-mono">{selectedPartner.phone || '-'}</span>
                     </div>

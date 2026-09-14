@@ -15,11 +15,33 @@ $wants_json = (
     || (isset($_SERVER['CONTENT_TYPE']) && stripos($_SERVER['CONTENT_TYPE'], 'application/json') !== false)
 );
 
-$result = lc_partner_create($member['mb_id']);
+$body = lc_api_read_json_body();
+if (!is_array($body) || $body === array()) {
+    $body = $_POST;
+}
+
+$normalized = lc_partner_normalize_identity(is_array($body) ? $body : array());
+if (!$normalized['ok']) {
+    if ($wants_json) {
+        lc_api_error(
+            $normalized['message'],
+            'VALIDATION_FAILED',
+            400,
+            array('errors' => isset($normalized['errors']) ? $normalized['errors'] : array())
+        );
+    }
+    alert($normalized['message'], lc_url('partner/dashboard.php'));
+}
+
+$result = lc_partner_create($member['mb_id'], '', LC_PARTNER_STATUS_ACTIVE, $normalized['identity']);
 
 if (!$result['ok']) {
     if ($wants_json) {
-        lc_api_error($result['message'], 'APPLY_FAILED', 400);
+        $extra = array();
+        if (!empty($result['errors']) && is_array($result['errors'])) {
+            $extra['errors'] = $result['errors'];
+        }
+        lc_api_error($result['message'], 'APPLY_FAILED', 400, $extra);
     }
     alert($result['message'], lc_url('partner/dashboard.php'));
 }

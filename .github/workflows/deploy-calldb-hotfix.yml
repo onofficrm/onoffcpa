@@ -18,6 +18,11 @@ on:
       - 'plugin/linkconnect/inc/settings.php'
       - 'plugin/linkconnect/inc/conversion.php'
       - 'plugin/linkconnect/inc/admin.php'
+      - 'builder/linkconnect_source/src/pages/admin/AdminPartners.tsx'
+      - 'builder/linkconnect_source/src/components/PartnerRouteGuard.tsx'
+      - 'plugin/linkconnect/partner/api/apply.php'
+      - 'plugin/linkconnect/inc/db.php'
+      - 'plugin/linkconnect/inc/partner.php'
       - 'plugin/linkconnect/inc/partner_analytics.php'
       - 'plugin/linkconnect/inc/alimtalk.php'
       - 'plugin/linkconnect/inc/notification.php'
@@ -26,7 +31,6 @@ on:
       - 'plugin/linkconnect/admin/api/settings.php'
       - 'builder/linkconnect_source/src/pages/admin/AdminSettings.tsx'
       - 'builder/linkconnect_source/src/components/ConversionInflowPath.tsx'
-      - 'builder/linkconnect_source/src/pages/admin/AdminPartners.tsx'
       - 'builder/linkconnect_source/src/pages/partner/PartnerAnalytics.tsx'
       - 'plugin/linkconnect/admin/api/call.php'
       - 'plugin/linkconnect/partner/api/call.php'
@@ -70,6 +74,9 @@ jobs:
             "plugin/linkconnect/inc/settings.php"
             "plugin/linkconnect/inc/conversion.php"
             "plugin/linkconnect/inc/admin.php"
+            "plugin/linkconnect/partner/api/apply.php"
+            "plugin/linkconnect/inc/db.php"
+            "plugin/linkconnect/inc/partner.php"
             "plugin/linkconnect/inc/partner_analytics.php"
             "plugin/linkconnect/inc/alimtalk.php"
             "plugin/linkconnect/inc/notification.php"
