@@ -408,6 +408,10 @@ if (!function_exists('lc_admin_conversion_to_api')) {
             $phone = lc_conversion_format_phone($phone);
         }
 
+        $attachment = function_exists('lc_conversion_attachment_api_meta')
+            ? lc_conversion_attachment_api_meta($row)
+            : array();
+
         return array(
             'id'          => (string) $row['cv_code'],
             'cvId'        => (int) $row['cv_id'],
@@ -418,6 +422,7 @@ if (!function_exists('lc_admin_conversion_to_api')) {
             'customer'    => (string) $row['cv_name'],
             'phone'       => $phone,
             'email'       => (string) ($row['cv_email'] ?? ''),
+            'region'      => (string) ($row['cv_region'] ?? ''),
             'inquiry'     => (string) ($row['cv_inquiry'] ?? ''),
             'channel'     => (string) ($row['cv_channel'] ?? ''),
             'source'      => (string) ($row['cv_source'] ?? 'form'),
@@ -438,6 +443,9 @@ if (!function_exists('lc_admin_conversion_to_api')) {
             'status'      => lc_conversion_status_label($row['cv_status']),
             'statusCode'  => (string) $row['cv_status'],
             'price'       => (int) $row['cv_price'],
+            'attachmentName' => (string) ($attachment['attachmentName'] ?? ''),
+            'attachmentMime' => (string) ($attachment['attachmentMime'] ?? ''),
+            'attachmentStored' => !empty($attachment['attachmentStored']),
         );
     }
 }
