@@ -18,6 +18,7 @@ on:
       - 'plugin/linkconnect/inc/settings.php'
       - 'plugin/linkconnect/inc/conversion.php'
       - 'plugin/linkconnect/inc/admin.php'
+      - 'plugin/linkconnect/admin/api/conversions.php'
       - 'builder/linkconnect_source/src/pages/admin/AdminConversions.tsx'
       - 'plugin/linkconnect/inc/settlement.php'
       - 'builder/linkconnect_source/src/pages/admin/AdminPartners.tsx'
@@ -77,6 +78,7 @@ jobs:
             "plugin/linkconnect/inc/settings.php"
             "plugin/linkconnect/inc/conversion.php"
             "plugin/linkconnect/inc/admin.php"
+            "plugin/linkconnect/admin/api/conversions.php"
             "plugin/linkconnect/inc/settlement.php"
             "plugin/linkconnect/partner/api/apply.php"
             "plugin/linkconnect/inc/db.php"

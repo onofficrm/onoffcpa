@@ -33,10 +33,24 @@ if ($method === 'GET') {
         'approved'      => 0,
         'rejected'      => 0,
         'pending'       => 0,
+        'callUncreated' => 0,
     );
 
     if (lc_db_installed()) {
-        $items = array_map('lc_admin_conversion_to_api', lc_admin_list_conversions($filters, 100));
+        $conversion_items = array_map('lc_admin_conversion_to_api', lc_admin_list_conversions($filters, 100));
+        $call_log_items = function_exists('lc_admin_list_call_log_only_conversions') && function_exists('lc_admin_call_log_only_conversion_to_api')
+            ? array_map('lc_admin_call_log_only_conversion_to_api', lc_admin_list_call_log_only_conversions($filters, 100))
+            : array();
+        $items = array_merge($conversion_items, $call_log_items);
+        usort($items, function ($a, $b) {
+            $at = strtotime((string) ($a['createdAt'] ?? '')) ?: 0;
+            $bt = strtotime((string) ($b['createdAt'] ?? '')) ?: 0;
+            if ($at === $bt) {
+                return strcmp((string) ($b['id'] ?? ''), (string) ($a['id'] ?? ''));
+            }
+            return $bt <=> $at;
+        });
+        $items = array_slice($items, 0, 100);
 
         $cv_table = lc_table('conversions');
         $today = date('Y-m-d');
@@ -48,11 +62,21 @@ if ($method === 'GET') {
             SUM(CASE WHEN cv_status = '" . lc_sql_escape(LC_STATUS_PENDING) . "' THEN 1 ELSE 0 END) AS pending_cnt
             FROM `{$cv_table}` ");
 
+        $call_uncreated = 0;
+        if (lc_db_table_exists(lc_table('call_logs'))) {
+            $clog = lc_table('call_logs');
+            $call_row = lc_sql_fetch(" SELECT COUNT(*) AS cnt
+                FROM `{$clog}`
+                WHERE cv_id = '0' AND cp_id > '0' AND pt_id > '0' ", false);
+            $call_uncreated = (int) ($call_row['cnt'] ?? 0);
+        }
+
         $summary = array(
             'todayReceived' => (int) ($row['today_cnt'] ?? 0),
             'approved'      => (int) ($row['approved_cnt'] ?? 0),
             'rejected'      => (int) ($row['rejected_cnt'] ?? 0),
             'pending'       => (int) ($row['pending_cnt'] ?? 0),
+            'callUncreated' => $call_uncreated,
         );
     }
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '../../layouts/AdminLayout';
 import { SummaryCard, StatusBadge } from '../../components/admin/AdminShared';
-import { Calendar, Database, Download, FileText, Link2, MonitorPlay, User, X } from 'lucide-react';
+import { Calendar, Database, Download, FileText, Link2, MonitorPlay, PhoneIncoming, User, X } from 'lucide-react';
 import { AdminConversion, downloadAdminConversionsCsv, fetchAdminConversions } from '../../lib/api';
 import { HelpTipButton } from '../../components/HelpTipButton';
 import { EMBED_HELP } from '../../lib/embedHelpTips';
@@ -21,7 +21,7 @@ function parseSourceFilter(raw: string | null): SourceFilter {
 export function AdminConversions() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<AdminConversion[]>([]);
-  const [summary, setSummary] = useState({ todayReceived: 0, approved: 0, rejected: 0, pending: 0 });
+  const [summary, setSummary] = useState({ todayReceived: 0, approved: 0, rejected: 0, pending: 0, callUncreated: 0 });
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>(() => parseSourceFilter(searchParams.get('source')));
@@ -79,13 +79,19 @@ export function AdminConversions() {
     }
   };
 
+  const formatCallDuration = (sec?: number) => {
+    const total = Math.max(0, Number(sec ?? 0));
+    return `${Math.floor(total / 60)}분 ${total % 60}초`;
+  };
+
   return (
     <AdminLayout activeMenu="db" title="전체 디비 관리" description="전체 접수·승인·취소 디비와 수익 분배를 조회합니다.">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <SummaryCard title="오늘 접수" value={String(summary.todayReceived)} suffix="건" />
         <SummaryCard title="승인 완료" value={String(summary.approved)} suffix="건" color="emerald" highlight />
         <SummaryCard title="취소/무효" value={String(summary.rejected)} suffix="건" color="red" />
         <SummaryCard title="검수 대기" value={String(summary.pending)} suffix="건" color="amber" />
+        <SummaryCard title="콜디비 미생성" value={String(summary.callUncreated ?? 0)} suffix="건" color="violet" highlight={(summary.callUncreated ?? 0) > 0} />
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -130,6 +136,13 @@ export function AdminConversions() {
             {downloading ? '다운로드 중...' : 'CSV 다운로드'}
           </button>
         </div>
+        <div className="px-6 py-3 border-b border-slate-100 bg-violet-50/60 text-sm text-violet-900 flex items-start gap-2">
+          <PhoneIncoming size={16} className="mt-0.5 text-violet-600" />
+          <span>
+            콜디비는 생성된 전환 DB와 아직 전환으로 생성되지 않은 통화로그까지 함께 표시됩니다.
+            <strong className="ml-1">CALL-</strong>로 시작하는 항목은 통화 원본 로그입니다.
+          </span>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[1180px]">
             <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
@@ -160,19 +173,26 @@ export function AdminConversions() {
                     <tr
                     key={row.id}
                     className={`border-t border-slate-100 hover:bg-slate-50/80 ${
-                      selectedDb?.cvId === row.cvId ? 'bg-cyan-50/60' : ''
+                      selectedDb?.id === row.id ? 'bg-cyan-50/60' : ''
                     }`}
                   >
-                      <td className="px-4 py-3 font-mono text-xs text-slate-700">{row.id}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-slate-700">
+                      <span className={row.isCallLogOnly ? 'text-violet-700 font-bold' : ''}>{row.id}</span>
+                    </td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{row.date}</td>
                       <td className="px-4 py-3">
                       <button
                         type="button"
                         onClick={() => openDetail(row)}
                         className="font-medium text-cyan-700 hover:text-cyan-900 hover:underline text-left"
-                        title="랜딩 입력 정보 보기"
+                        title={row.isCallLogOnly ? '콜디비 통화 정보 보기' : '랜딩 입력 정보 보기'}
                       >
                         {row.customer || '-'}
+                        {row.isCallLogOnly ? (
+                          <span className="ml-2 inline-flex px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 text-[10px] font-bold align-middle">
+                            통화로그
+                          </span>
+                        ) : null}
                       </button>
                     </td>
                       <td className="px-4 py-3 font-mono text-xs text-slate-800 whitespace-nowrap">{row.phone || '-'}</td>
@@ -235,25 +255,49 @@ export function AdminConversions() {
 
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2 text-slate-800 font-bold text-sm">
-                  <User size={16} className="text-slate-400" /> 랜딩 입력 정보
+                  {selectedDb.isCallLogOnly ? <PhoneIncoming size={16} className="text-violet-500" /> : <User size={16} className="text-slate-400" />}
+                  {selectedDb.isCallLogOnly ? '콜디비 통화 정보' : '랜딩 입력 정보'}
                 </div>
                 <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-sm">
                   <div>
-                    <div className="text-slate-400 mb-1">고객명</div>
+                    <div className="text-slate-400 mb-1">{selectedDb.isCallLogOnly ? '구분' : '고객명'}</div>
                     <div className="font-medium text-slate-900">{selectedDb.customer || '-'}</div>
                   </div>
                   <div>
-                    <div className="text-slate-400 mb-1">연락처</div>
+                    <div className="text-slate-400 mb-1">{selectedDb.isCallLogOnly ? '발신번호' : '연락처'}</div>
                     <div className="font-medium font-mono text-slate-900">{selectedDb.phone || '-'}</div>
                   </div>
-                  <div>
-                    <div className="text-slate-400 mb-1">이메일</div>
-                    <div className="font-medium text-slate-900 break-all">{selectedDb.email || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-400 mb-1">지역</div>
-                    <div className="font-medium text-slate-900">{selectedDb.region || '-'}</div>
-                  </div>
+                  {selectedDb.isCallLogOnly ? (
+                    <>
+                      <div>
+                        <div className="text-slate-400 mb-1">가상번호</div>
+                        <div className="font-medium font-mono text-slate-900">{selectedDb.virtualNumber || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 mb-1">통화결과</div>
+                        <div className="font-medium text-slate-900">{selectedDb.callResultLabel || selectedDb.callResult || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 mb-1">통화시간</div>
+                        <div className="font-medium text-slate-900">{formatCallDuration(selectedDb.callDuration)}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 mb-1">전환상태</div>
+                        <div className="font-medium text-violet-700">아직 전환 DB 미생성</div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <div className="text-slate-400 mb-1">이메일</div>
+                        <div className="font-medium text-slate-900 break-all">{selectedDb.email || '-'}</div>
+                      </div>
+                      <div>
+                        <div className="text-slate-400 mb-1">지역</div>
+                        <div className="font-medium text-slate-900">{selectedDb.region || '-'}</div>
+                      </div>
+                    </>
+                  )}
                   <div className="sm:col-span-2">
                     <div className="text-slate-400 mb-1">문의내용</div>
                     <div className="bg-slate-50 p-3 rounded-lg text-slate-700 leading-relaxed whitespace-pre-wrap">
