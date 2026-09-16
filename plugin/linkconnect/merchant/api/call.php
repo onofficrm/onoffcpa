@@ -47,6 +47,7 @@ function lc_merchant_call_enrich_log_api(array $api, array $row)
     $api['cvStatus'] = '';
     $api['cvStatusLabel'] = '';
     $api['finalLocked'] = false;
+    $api['canApprove'] = false;
     $api['canCancel'] = false;
 
     if ($cv_id <= 0 || !function_exists('lc_conversion_get_by_id')) {
@@ -65,6 +66,7 @@ function lc_merchant_call_enrich_log_api(array $api, array $row)
         ? (string) lc_conversion_status_label($status)
         : $status;
     $api['finalLocked'] = $locked;
+    $api['canApprove'] = !$locked && $status === LC_STATUS_PENDING;
     // 신규접수·승인완료(잠금 전)는 통화내역에서 바로 취소 가능
     $api['canCancel'] = !$locked && in_array($status, array(LC_STATUS_PENDING, LC_STATUS_APPROVED), true);
 

@@ -20,6 +20,7 @@ import {
   fetchMerchantCallLogs,
   requestMerchantCallRecording,
   saveMerchantCallSettings,
+  updateMerchantConversion,
 } from '../../lib/api';
 import { CallRecordingCell } from '../../components/call/CallRecordingCell';
 import { DataTableEmpty, EmptyState, InsightBanner, SummaryCard, tableRowClass } from '../../components/center-ui';
@@ -60,12 +61,17 @@ export function AdvertiserCall() {
   const [partnerVisible, setPartnerVisible] = useState(true);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState('');
+  const [approveTarget, setApproveTarget] = useState<CallLog | null>(null);
+  const [approveComment, setApproveComment] = useState('');
+  const [approveBusy, setApproveBusy] = useState(false);
+  const [approveError, setApproveError] = useState('');
 
   const summary = useMemo(() => {
     const adminReady = items.filter((item) => item.adminEnabled).length;
     const enabled = items.filter((item) => drafts[item.cpId]?.enabled).length;
     const success = logs.filter((log) => log.result === 'success').length;
     const missed = logs.filter((log) => log.result === 'missed').length;
+    const approvable = logs.filter((log) => log.canApprove).length;
     const cancellable = logs.filter((log) => log.canCancel).length;
     return {
       total: items.length,
@@ -74,6 +80,7 @@ export function AdvertiserCall() {
       success,
       missed,
       totalCalls: logs.length,
+      approvable,
       cancellable,
     };
   }, [drafts, items, logs]);
@@ -146,6 +153,38 @@ export function AdvertiserCall() {
     setCancelError('');
   };
 
+  const openApprove = (log: CallLog) => {
+    setApproveTarget(log);
+    setApproveComment('');
+    setApproveError('');
+  };
+
+  const handleApproveConfirm = async () => {
+    if (!approveTarget?.cvId) {
+      setApproveError('연결된 콜디비가 없습니다.');
+      return;
+    }
+    setApproveBusy(true);
+    setApproveError('');
+    try {
+      await updateMerchantConversion({
+        action: 'approve',
+        cvId: approveTarget.cvId,
+        comment: approveComment,
+        qualityScore: 4,
+        qualityTags: ['콜디비'],
+        partnerVisible: true,
+      });
+      setMessage('콜디비를 승인했습니다.');
+      setApproveTarget(null);
+      loadLogs();
+    } catch (e) {
+      setApproveError(e instanceof Error ? e.message : '승인 처리에 실패했습니다.');
+    } finally {
+      setApproveBusy(false);
+    }
+  };
+
   const handleCancelConfirm = async () => {
     if (!cancelTarget || !cancelReason) {
       setCancelError('취소 사유를 선택해 주세요.');
@@ -176,7 +215,7 @@ export function AdvertiserCall() {
         <InsightBanner
           accent="cyan"
           message={<>콜디비 수신 상품 <strong>{summary.enabled}개</strong>, 최근 통화 <strong>{summary.totalCalls}건</strong>이 집계되었습니다.</>}
-          subMessage="통화내역 처리 열의 「취소」로 바로 취소할 수 있습니다. 신규접수·승인완료(잠금 전) 모두 가능합니다."
+          subMessage="통화내역 처리 열에서 콜디비를 바로 승인하거나 취소할 수 있습니다."
           actions={[{ label: '디비 확인', to: '/advertiser/db?source=call', variant: 'secondary' }]}
         />
 
@@ -185,7 +224,7 @@ export function AdvertiserCall() {
           <SummaryCard title="관리자 활성" value={summary.adminReady} suffix="개" icon={<CheckCircle2 className="text-cyan-500" />} highlight color="cyan" caption="가상번호 배정 가능" />
           <SummaryCard title="수신 ON" value={summary.enabled} suffix="개" icon={<PhoneForwarded className="text-emerald-500" />} highlight color="emerald" caption="착신 운영 중" />
           <SummaryCard title="통화 성공" value={summary.success} suffix="건" icon={<PhoneIncoming className="text-blue-500" />} caption={`부재중 ${summary.missed}건`} />
-          <SummaryCard title="취소 가능" value={summary.cancellable} suffix="건" icon={<XCircle className="text-rose-500" />} caption="처리 열에서 취소" />
+          <SummaryCard title="처리 가능" value={summary.approvable + summary.cancellable} suffix="건" icon={<XCircle className="text-rose-500" />} caption={`승인 ${summary.approvable} · 취소 ${summary.cancellable}`} />
         </div>
 
         {message && (
@@ -312,7 +351,7 @@ export function AdvertiserCall() {
                 통화 내역
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                통화성공·부재중 모두 콜디비가 먼저 생성(과금)됩니다. 처리 열의 「취소」로 바로 취소하세요.
+                통화성공·부재중 모두 콜디비가 먼저 생성됩니다. 처리 열에서 바로 승인·취소하세요.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -390,16 +429,31 @@ export function AdvertiserCall() {
                         />
                       </td>
                       <td className="px-5 py-4 text-center">
-                        {l.canCancel ? (
-                          <button
-                            type="button"
-                            onClick={() => openCancel(l)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
-                          >
-                            <XCircle size={13} /> 취소
-                          </button>
+                        {l.canApprove || l.canCancel ? (
+                          <div className="inline-flex items-center justify-center gap-1.5">
+                            {l.canApprove ? (
+                              <button
+                                type="button"
+                                onClick={() => openApprove(l)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg"
+                              >
+                                <CheckCircle2 size={13} /> 승인
+                              </button>
+                            ) : null}
+                            {l.canCancel ? (
+                              <button
+                                type="button"
+                                onClick={() => openCancel(l)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg"
+                              >
+                                <XCircle size={13} /> 취소
+                              </button>
+                            ) : null}
+                          </div>
                         ) : l.cvId > 0 && (l.cvStatus === 'rejected' || l.cvStatusLabel === '취소/무효') ? (
                           <span className="text-xs text-slate-400">취소됨</span>
+                        ) : l.cvId > 0 && (l.cvStatus === 'approved' || l.cvStatusLabel === '승인완료') ? (
+                          <span className="text-xs text-emerald-600 font-bold">승인됨</span>
                         ) : l.cvId > 0 ? (
                           <Link
                             to={`/advertiser/db?source=call&q=${encodeURIComponent(String(l.cvId))}`}
@@ -419,6 +473,45 @@ export function AdvertiserCall() {
           </div>
         </div>
       </div>
+
+      {approveTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-slate-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-900">콜디비 승인</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                {approveTarget.startedAt} · {formatPhone(approveTarget.caller)} · CPA 승인과 동일하게 처리됩니다.
+              </p>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm text-emerald-800">
+                승인하면 광고비 차감과 파트너 수익이 확정 반영됩니다.
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">승인 코멘트 (선택)</label>
+                <input
+                  type="text"
+                  value={approveComment}
+                  onChange={(e) => setApproveComment(e.target.value)}
+                  placeholder="예: 상담 가능 고객으로 확인"
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:border-emerald-500"
+                />
+              </div>
+              {approveError ? <p className="text-sm text-red-600 font-medium">{approveError}</p> : null}
+            </div>
+            <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">
+              <button type="button" onClick={() => setApproveTarget(null)} disabled={approveBusy}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 disabled:opacity-50">
+                닫기
+              </button>
+              <button type="button" onClick={handleApproveConfirm} disabled={approveBusy || !approveTarget.cvId}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50">
+                {approveBusy ? '처리 중…' : '승인 확정'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {cancelTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
