@@ -63,6 +63,17 @@ const apiErrorsFallback = [
   { time: '13:10:12', name: '스피드렌터카 ERP', code: 'ERR_AUTH', msg: '유효하지 않은 API 토큰' },
 ];
 
+function MoreLink({ to, label = '더보기' }: { to: string; label?: string }) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex items-center rounded-lg px-2.5 py-1.5 text-sm font-medium text-cyan-600 hover:bg-cyan-50 hover:text-cyan-700 transition-colors"
+    >
+      {label}
+    </Link>
+  );
+}
+
 export function AdminDashboard() {
   const [summary, setSummary] = useState({
     todayReceived: 248,
@@ -364,7 +375,7 @@ export function AdminDashboard() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6 flex flex-col">
         <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center">
           <h2 className="text-lg font-bold text-slate-900">광고상품별 실적</h2>
-          <button className="text-sm font-medium text-cyan-600 hover:text-cyan-700">더보기</button>
+          <MoreLink to="/admin/campaigns" />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
@@ -420,7 +431,7 @@ export function AdminDashboard() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center">
             <h2 className="text-lg font-bold text-slate-900">파트너 TOP 5 (당월)</h2>
-            <button className="text-sm font-medium text-cyan-600 hover:text-cyan-700">더보기</button>
+            <MoreLink to="/admin/partners" />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -455,7 +466,7 @@ export function AdminDashboard() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center">
             <h2 className="text-lg font-bold text-slate-900">광고주 TOP 5 (당월)</h2>
-            <button className="text-sm font-medium text-cyan-600 hover:text-cyan-700">더보기</button>
+            <MoreLink to="/admin/advertisers" />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -493,7 +504,7 @@ export function AdminDashboard() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center">
             <h2 className="text-lg font-bold text-slate-900">최근 접수 디비</h2>
-            <button className="text-sm font-medium text-cyan-600 hover:text-cyan-700">더보기</button>
+            <MoreLink to="/admin/conversions" />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -527,7 +538,7 @@ export function AdminDashboard() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center">
             <h2 className="text-lg font-bold text-slate-900">최근 취소/무효 요청</h2>
-            <button className="text-sm font-medium text-cyan-600 hover:text-cyan-700">더보기</button>
+            <MoreLink to="/admin/inspections" />
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -550,7 +561,7 @@ export function AdminDashboard() {
                       <StatusBadge status={item.status} />
                     </td>
                     <td className="px-6 py-3 text-right whitespace-nowrap">
-                      <button className="px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 rounded text-xs font-bold transition-colors">검수하기</button>
+                      <Link to="/admin/inspections" className="px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 rounded text-xs font-bold transition-colors">검수하기</Link>
                     </td>
                   </tr>
                 ))}
@@ -567,7 +578,7 @@ export function AdminDashboard() {
             <h2 className="text-lg font-bold text-slate-900">API 오류 로그</h2>
             <span className="bg-rose-100 text-rose-700 text-xs font-bold px-2 py-0.5 rounded-full">최근 24시간</span>
           </div>
-          <button className="text-sm font-medium text-cyan-600 hover:text-cyan-700">더보기</button>
+          <MoreLink to="/admin/api" />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
