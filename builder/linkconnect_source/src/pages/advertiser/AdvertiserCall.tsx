@@ -415,6 +415,13 @@ export function AdvertiserCall() {
                             {l.cvStatusLabel || l.cvStatus || '연결됨'}
                             {l.finalLocked ? ' · 잠금' : ''}
                           </span>
+                        ) : l.canCancel ? (
+                          <span
+                            className="font-bold text-amber-600"
+                            title="전환이 아직 생성되지 않은 통화입니다. 취소 시 콜디비를 생성한 뒤 취소/무효로 기록합니다."
+                          >
+                            취소 가능
+                          </span>
                         ) : (
                           <span className="text-slate-400" title="통화만 있고 콜디비 전환이 아직 없습니다. 관리자 재매칭·콜디비 생성 후 취소할 수 있습니다.">
                             DB 없음
@@ -519,10 +526,15 @@ export function AdvertiserCall() {
             <div className="px-5 py-4 border-b border-slate-100">
               <h3 className="font-bold text-slate-900">콜디비 취소</h3>
               <p className="text-xs text-slate-500 mt-1">
-                {cancelTarget.startedAt} · {formatPhone(cancelTarget.caller)} · CPA 취소와 동일하게 처리됩니다.
+                {cancelTarget.startedAt} · {formatPhone(cancelTarget.caller)} · {cancelTarget.cvId > 0 ? 'CPA 취소와 동일하게 처리됩니다.' : '콜디비 생성 후 취소/무효로 기록됩니다.'}
               </p>
             </div>
             <div className="px-5 py-4 space-y-4">
+              {cancelTarget.cvId <= 0 ? (
+                <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-sm text-amber-800">
+                  아직 DB가 생성되지 않은 통화입니다. 취소 확정 시 콜디비를 먼저 생성하고 바로 취소/무효 상태로 저장합니다.
+                </div>
+              ) : null}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">취소 사유 *</label>
                 <select
