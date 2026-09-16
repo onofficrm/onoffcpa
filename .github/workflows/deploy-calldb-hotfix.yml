@@ -17,6 +17,15 @@ on:
       - 'plugin/linkconnect/install/apply_missed_call_billing.php'
       - 'plugin/linkconnect/inc/settings.php'
       - 'plugin/linkconnect/inc/conversion.php'
+      - 'builder/linkconnect_source/src/components/partner/StatusBadgeLocal.tsx'
+      - 'builder/linkconnect_source/src/components/advertiser/StatusBadgeLocal.tsx'
+      - 'builder/linkconnect_source/src/App.tsx'
+      - 'builder/linkconnect_source/src/layouts/PartnerLayout.tsx'
+      - 'builder/linkconnect_source/src/layouts/AdvertiserLayout.tsx'
+      - 'builder/linkconnect_source/src/pages/partner/PartnerDbStatus.tsx'
+      - 'builder/linkconnect_source/src/pages/advertiser/AdvertiserDb.tsx'
+      - 'plugin/linkconnect/partner/api/conversions.php'
+      - 'plugin/linkconnect/merchant/api/conversions.php'
       - 'plugin/linkconnect/inc/admin.php'
       - 'plugin/linkconnect/admin/api/conversions.php'
       - 'builder/linkconnect_source/src/pages/admin/AdminConversions.tsx'
@@ -77,6 +86,8 @@ jobs:
             "plugin/linkconnect/install/apply_missed_call_billing.php"
             "plugin/linkconnect/inc/settings.php"
             "plugin/linkconnect/inc/conversion.php"
+            "plugin/linkconnect/partner/api/conversions.php"
+            "plugin/linkconnect/merchant/api/conversions.php"
             "plugin/linkconnect/inc/admin.php"
             "plugin/linkconnect/admin/api/conversions.php"
             "plugin/linkconnect/inc/settlement.php"

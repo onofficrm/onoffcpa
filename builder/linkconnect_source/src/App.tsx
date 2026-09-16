@@ -23,12 +23,10 @@ import { PartnerAnalytics } from './pages/partner/PartnerAnalytics';
 import { PartnerSettlement } from './pages/partner/PartnerSettlement';
 import { PartnerSupport } from './pages/partner/PartnerSupport';
 import { PartnerReport } from './pages/partner/PartnerReport';
-import { PartnerCall } from './pages/partner/PartnerCall';
 
 import { AdvertiserCampaigns } from './pages/advertiser/AdvertiserCampaigns';
 import { AdvertiserCampaignGuide } from './pages/advertiser/AdvertiserCampaignGuide';
 import { AdvertiserDb } from './pages/advertiser/AdvertiserDb';
-import { AdvertiserCall } from './pages/advertiser/AdvertiserCall';
 import { AdvertiserBilling } from './pages/advertiser/AdvertiserBilling';
 import { AdvertiserReports } from './pages/advertiser/AdvertiserReports';
 import { AdvertiserSupport } from './pages/advertiser/AdvertiserSupport';
@@ -92,7 +90,7 @@ export default function App() {
           <Route path="partner/search" element={<PartnerSearch />} />
           <Route path="partner/links" element={<PartnerLinks />} />
           <Route path="partner/db-status" element={<PartnerDbStatus />} />
-          <Route path="partner/call" element={<PartnerCall />} />
+          <Route path="partner/call" element={<Navigate to="/partner/db-status?source=call" replace />} />
           <Route path="partner/db-cancel" element={<PartnerDbCancel />} />
           <Route path="partner/analytics" element={<PartnerAnalytics />} />
           <Route path="partner/report" element={<PartnerReport />} />
@@ -109,7 +107,7 @@ export default function App() {
             <Route path="advertiser/campaigns" element={<AdvertiserCampaigns />} />
             <Route path="advertiser/campaigns/:cpId/guide" element={<AdvertiserCampaignGuide />} />
             <Route path="advertiser/db" element={<AdvertiserDb />} />
-            <Route path="advertiser/call" element={<AdvertiserCall />} />
+            <Route path="advertiser/call" element={<Navigate to="/advertiser/db?source=call" replace />} />
             <Route path="advertiser/billing" element={<AdvertiserBilling />} />
             <Route path="advertiser/reports" element={<AdvertiserReports />} />
             <Route path="advertiser/settings" element={<AdvertiserSettings />} />

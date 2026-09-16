@@ -11,7 +11,7 @@ type SourceFilter = '' | 'embed' | 'call' | 'form';
 
 export function PartnerDbStatus() {
   const [items, setItems] = useState<PartnerConversion[]>([]);
-  const [summary, setSummary] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, estRevenue: 0, confRevenue: 0 });
+  const [summary, setSummary] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, estRevenue: 0, confRevenue: 0, callUncreated: 0 });
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [q, setQ] = useState('');
@@ -40,19 +40,20 @@ export function PartnerDbStatus() {
   };
 
   return (
-    <PartnerLayout activeMenu="db-status" title="CPA 실적">
+    <PartnerLayout activeMenu="db-status" title="디비 확인">
       <div className="flex flex-col mb-8 -mt-2">
         <p className="text-slate-500">
-          접수된 디비의 상태와 수익 반영 여부를 확인할 수 있습니다.
+          CPA와 콜디비 접수 상태, 수익 반영 여부를 한 화면에서 확인할 수 있습니다.
         </p>
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
         <SummaryCard title="전체 접수 DB" value={String(summary.total)} suffix="건" icon={<ListOrdered className="text-slate-500" />} />
         <SummaryCard title="승인대기" value={String(summary.pending)} suffix="건" icon={<Clock className="text-blue-500" />} />
         <SummaryCard title="승인완료" value={String(summary.approved)} suffix="건" highlight icon={<CheckCircle2 className="text-emerald-500" />} />
         <SummaryCard title="취소/무효" value={String(summary.rejected)} suffix="건" icon={<XCircle className="text-red-500" />} />
+        <SummaryCard title="콜디비 미생성" value={String(summary.callUncreated ?? 0)} suffix="건" highlight={(summary.callUncreated ?? 0) > 0} color="violet" icon={<Info className="text-violet-500" />} />
         <SummaryCard title="예상수익" value={summary.estRevenue.toLocaleString()} suffix="원" icon={<DollarSign className="text-slate-500" />} />
         <SummaryCard title="확정수익" value={summary.confRevenue.toLocaleString()} suffix="원" highlight icon={<Target className="text-emerald-600" />} />
       </div>
@@ -84,10 +85,10 @@ export function PartnerDbStatus() {
             onChange={(e) => setSourceFilter(e.target.value as SourceFilter)}
             className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-emerald-500 min-w-[120px]"
           >
-            <option value="">출처 전체</option>
-            <option value="embed">외부위젯</option>
+            <option value="">전체 DB</option>
+            <option value="form">CPA</option>
             <option value="call">콜디비</option>
-            <option value="form">폼/링크</option>
+            <option value="embed">외부위젯</option>
           </select>
           <HelpTipButton title={EMBED_HELP.sourceFilter.title}>{EMBED_HELP.sourceFilter.body}</HelpTipButton>
         </div>
@@ -147,7 +148,12 @@ export function PartnerDbStatus() {
                 <tr key={db.id} className={`transition-colors ${db.status === '취소/무효' ? 'bg-red-50/30 hover:bg-red-50/50' : 'hover:bg-slate-50'}`}>
                   <td className="px-4 py-4 text-slate-500 whitespace-nowrap">{db.date}</td>
                   <td className="px-4 py-4 font-medium text-slate-900 min-w-[140px]">{db.campaign}</td>
-                  <td className="px-4 py-4 text-slate-700 whitespace-nowrap">{db.name}</td>
+                  <td className="px-4 py-4 text-slate-700 whitespace-nowrap">
+                    {db.name}
+                    {db.isCallLogOnly ? (
+                      <span className="ml-2 inline-flex px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 text-[10px] font-bold align-middle">통화로그</span>
+                    ) : null}
+                  </td>
                   <td className="px-4 py-4 font-mono text-slate-600 whitespace-nowrap">{db.phone}</td>
                   <td className="px-4 py-4 text-slate-600">
                     <ConversionInflowCell data={db} />

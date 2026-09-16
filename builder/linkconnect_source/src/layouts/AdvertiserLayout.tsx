@@ -1,7 +1,7 @@
 import React from 'react';
 import { ImpersonateBanner } from '../components/ImpersonateBanner';
 import { SuperAdminWidget, SuperAdminHeaderButton } from '../components/SuperAdminWidget';
-import { LayoutDashboard, FileText, Target, Wallet, BarChart3, MessageSquare, PhoneCall, Megaphone, ScrollText, Bell } from 'lucide-react';
+import { LayoutDashboard, FileText, Target, Wallet, BarChart3, MessageSquare, Megaphone, ScrollText, Bell } from 'lucide-react';
 import { MemberAuthMenu } from '../components/MemberAuthMenu';
 import { CenterTopBar } from '../components/CenterTopBar';
 import {
@@ -71,7 +71,6 @@ export function AdvertiserLayout({
               />
             ) : null}
             <CenterNavItem icon={<Target size={20} />} label="디비 확인" badge={dbBadge} active={activeMenu === 'db'} to="/advertiser/db" accent="cyan" />
-            <CenterNavItem icon={<PhoneCall size={20} />} label="콜디비" active={activeMenu === 'call'} to="/advertiser/call" accent="cyan" />
             <CenterNavItem icon={<Wallet size={20} />} label="광고비 충전/내역" active={activeMenu === 'billing'} to="/advertiser/billing" accent="cyan" />
             <CenterNavItem icon={<Megaphone size={20} />} label="마케팅 성과" active={activeMenu === 'marketing'} to="/advertiser/marketing" accent="cyan" />
             <CenterNavItem icon={<BarChart3 size={20} />} label="성과 리포트" active={activeMenu === 'reports'} to="/advertiser/reports" accent="cyan" />

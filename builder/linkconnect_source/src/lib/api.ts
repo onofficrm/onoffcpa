@@ -254,6 +254,9 @@ export type PartnerLink = {
 export type PartnerConversion = {
   id: string;
   cvId: number;
+  callLogId?: number;
+  isCallLogOnly?: boolean;
+  createdAt?: string;
   date: string;
   campaign: string;
   name: string;
@@ -284,6 +287,10 @@ export type PartnerConversion = {
   reason?: string;
   appeal?: string;
   hasAppeal?: boolean;
+  callDuration?: number;
+  callResult?: string;
+  callResultLabel?: string;
+  virtualNumber?: string;
 };
 
 export type PartnerDashboardEmbed = {
@@ -309,6 +316,7 @@ export type PartnerDashboardResponse = {
     estRevenue: number;
     confRevenue: number;
     todayEstRevenue: number;
+    callUncreated?: number;
   };
   embed?: PartnerDashboardEmbed;
   chart7d: Array<{ date: string; click: number; db: number; approval: number }>;
@@ -493,6 +501,9 @@ export type MerchantMeResponse = {
 export type MerchantConversion = {
   id: string;
   cvId: number;
+  callLogId?: number;
+  isCallLogOnly?: boolean;
+  createdAt?: string;
   date: string;
   campaign: string;
   name: string;
@@ -533,6 +544,10 @@ export type MerchantConversion = {
   attachmentDownloadUrl?: string;
   attachmentPreviewable?: boolean;
   attachmentStored?: boolean;
+  callDuration?: number;
+  callResult?: string;
+  callResultLabel?: string;
+  virtualNumber?: string;
 };
 
 export type MerchantDashboardResponse = {
@@ -547,6 +562,7 @@ export type MerchantDashboardResponse = {
     todaySpend: number;
     todayEmbed?: number;
     embedTotal?: number;
+    callUncreated?: number;
   };
   chart7d: Array<{ date: string; db: number; approval: number; cancel: number }>;
   recent: MerchantConversion[];

@@ -43,6 +43,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         'summary' => lc_conversion_partner_summary($pt_id),
         'total'   => 0,
     );
+    $call_uncreated = function_exists('lc_conversion_call_log_only_rows')
+        ? count(lc_conversion_call_log_only_rows(array('pt_id' => $pt_id), 5000))
+        : 0;
+    $response['summary']['callUncreated'] = $call_uncreated;
+    $response['summary']['total'] = (int) ($response['summary']['total'] ?? 0) + $call_uncreated;
 
     if ($rejected) {
         $response['cancelSummary'] = lc_conversion_partner_cancel_summary($pt_id);

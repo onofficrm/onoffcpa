@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdvertiserLayout } from '../../layouts/AdvertiserLayout';
 import { SummaryCard, StatusBadge } from '../../components/advertiser/AdvertiserShared';
-import { downloadMerchantConversionsCsv, fetchMerchantConversions, MerchantConversion, reportMerchantChannel, updateMerchantConversion } from '../../lib/api';
+import { cancelMerchantCallConversion, downloadMerchantConversionsCsv, fetchMerchantConversions, MerchantConversion, reportMerchantChannel, updateMerchantConversion } from '../../lib/api';
 import { HelpTipButton } from '../../components/HelpTipButton';
 import { EMBED_HELP } from '../../lib/embedHelpTips';
 import { ConversionInflowCell, ConversionInflowDetails } from '../../components/ConversionInflowPath';
@@ -26,7 +26,7 @@ function parseSourceFilter(value: string | null): SourceFilter {
 export function AdvertiserDb() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<MerchantConversion[]>(fallbackDbData);
-  const [summary, setSummary] = useState({ pending: 9, needsAction: 9, todaySpend: 300000 });
+  const [summary, setSummary] = useState({ pending: 9, needsAction: 9, todaySpend: 300000, callUncreated: 0 });
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState('');
   const [approveComment, setApproveComment] = useState('');
@@ -153,19 +153,28 @@ export function AdvertiserDb() {
   };
 
   const handleRejectConfirm = async () => {
-    if (!selectedDb?.cvId || !cancelReason) {
+    if (!selectedDb || !cancelReason) {
       return;
     }
     setProcessing(true);
     setActionError('');
     try {
-      await updateMerchantConversion({
-        action: 'reject',
-        cvId: selectedDb.cvId,
-        reason: cancelReason,
-        comment: cancelComment,
-        partnerVisible,
-      });
+      if (selectedDb.isCallLogOnly && selectedDb.callLogId) {
+        await cancelMerchantCallConversion({
+          clogId: selectedDb.callLogId,
+          reason: cancelReason,
+          comment: cancelComment,
+          partnerVisible,
+        });
+      } else if (selectedDb.cvId) {
+        await updateMerchantConversion({
+          action: 'reject',
+          cvId: selectedDb.cvId,
+          reason: cancelReason,
+          comment: cancelComment,
+          partnerVisible,
+        });
+      }
       setIsRejectOpen(false);
       setCancelReason('');
       setCancelComment('');
@@ -198,7 +207,7 @@ export function AdvertiserDb() {
     <AdvertiserLayout activeMenu="db" title="디비 확인" pendingBadge={summary.needsAction}>
       <div className="flex flex-col mb-8 -mt-2 gap-1">
         <p className="text-slate-500">
-          접수된 디비를 확인하고 승인 또는 취소/무효 처리를 진행하세요.
+          CPA와 콜디비 접수 내역을 한 화면에서 확인하고 승인 또는 취소/무효 처리를 진행하세요.
         </p>
         <p className="text-xs text-slate-400 flex flex-wrap items-center gap-1.5">
           출처 필터로 외부위젯·콜디비·폼/링크를 구분할 수 있습니다.
@@ -212,6 +221,7 @@ export function AdvertiserDb() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         <SummaryCard title="신규접수" value={String(summary.pending)} suffix="건" />
         <SummaryCard title="오늘 처리 필요" value={String(summary.needsAction)} suffix="건" color="cyan" highlight />
+        <SummaryCard title="콜디비 미생성" value={String(summary.callUncreated ?? 0)} suffix="건" color="violet" highlight={(summary.callUncreated ?? 0) > 0} />
         <SummaryCard title="오늘 사용 광고비" value={summary.todaySpend.toLocaleString()} suffix="원" dark />
       </div>
 
@@ -270,10 +280,10 @@ export function AdvertiserDb() {
             className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-cyan-500 min-w-[118px]"
             aria-label="DB 출처 필터"
           >
-            <option value="">전체</option>
-            <option value="embed">외부위젯</option>
+            <option value="">전체 DB</option>
+            <option value="form">CPA</option>
             <option value="call">콜디비</option>
-            <option value="form">폼/링크</option>
+            <option value="embed">외부위젯</option>
           </select>
           <HelpTipButton title={EMBED_HELP.sourceFilter.title} label="출처 설명">
             {EMBED_HELP.sourceFilter.body}
@@ -372,9 +382,11 @@ export function AdvertiserDb() {
                   <td className="px-4 py-4 text-center whitespace-nowrap">
                     {db.needsAction ? (
                       <div className="flex gap-2 justify-center">
-                        <button onClick={(e) => { e.stopPropagation(); handleApproveClick(db); }} className="px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm border-0 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
-                          <Check size={14} /> 승인
-                        </button>
+                        {!db.isCallLogOnly ? (
+                          <button onClick={(e) => { e.stopPropagation(); handleApproveClick(db); }} className="px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm border-0 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                            <Check size={14} /> 승인
+                          </button>
+                        ) : null}
                         <button onClick={(e) => { e.stopPropagation(); handleRejectClick(db); }} className="px-3 py-1.5 bg-red-600 text-white hover:bg-red-700 shadow-sm border-0 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
                           <X size={14} /> 취소
                         </button>
@@ -430,9 +442,11 @@ export function AdvertiserDb() {
 
               {db.needsAction ? (
                 <div className="flex gap-2 pt-2">
-                  <button onClick={(e) => { e.stopPropagation(); handleApproveClick(db); }} className="flex-1 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm border-0 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1">
-                    <Check size={16} /> 승인
-                  </button>
+                  {!db.isCallLogOnly ? (
+                    <button onClick={(e) => { e.stopPropagation(); handleApproveClick(db); }} className="flex-1 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm border-0 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1">
+                      <Check size={16} /> 승인
+                    </button>
+                  ) : null}
                   <button onClick={(e) => { e.stopPropagation(); handleRejectClick(db); }} className="flex-1 py-2.5 bg-red-600 text-white hover:bg-red-700 shadow-sm border-0 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1">
                     <X size={16} /> 취소
                   </button>
@@ -605,7 +619,7 @@ export function AdvertiserDb() {
                   </div>
                   <div className="flex justify-between items-center">
                     <div className="text-slate-400">광고 유형</div>
-                    <div className="font-medium text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-xs">CPA</div>
+                    <div className="font-medium text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-xs">{selectedDb.source === 'call' ? '콜디비' : 'CPA'}</div>
                   </div>
                   <div className="flex justify-between items-center">
                     <div className="text-slate-400">디비당 차감 단가</div>
@@ -832,7 +846,7 @@ export function AdvertiserDb() {
               </button>
               <button 
                 onClick={handleRejectConfirm}
-                disabled={!cancelReason || processing || !selectedDb?.cvId}
+                disabled={!cancelReason || processing || (!selectedDb?.cvId && !selectedDb?.callLogId)}
                 className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm shadow-red-600/20"
               >
                 {processing ? '처리 중...' : '무효 처리하기'}

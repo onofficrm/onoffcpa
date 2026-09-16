@@ -53,6 +53,11 @@ if ($method === 'GET') {
         'pending' => 9, 'approved' => 21, 'rejected' => 4, 'needsAction' => 9,
         'todayReceived' => 17, 'todaySpend' => 300000,
     );
+    $call_uncreated = function_exists('lc_conversion_call_log_only_rows')
+        ? count(lc_conversion_call_log_only_rows(array('mt_id' => $mt_id), 5000))
+        : 0;
+    $summary['callUncreated'] = $call_uncreated;
+    $summary['needsAction'] = (int) ($summary['needsAction'] ?? 0) + $call_uncreated;
 
     lc_api_success(array(
         'items'   => $items,
