@@ -1431,7 +1431,7 @@ if (!function_exists('lc_conversion_call_log_only_rows')) {
         $clog = lc_table('call_logs');
         $cp_table = lc_table('campaigns');
         $pt_table = lc_table('partners');
-        $where = " l.cv_id = '0' AND l.cp_id > '0' AND l.pt_id > '0' ";
+        $where = " l.cv_id = '0' AND l.cp_id > '0' ";
         if (!empty($filters['mt_id'])) {
             $where .= " AND l.mt_id = '" . (int) $filters['mt_id'] . "' ";
         }
@@ -1491,8 +1491,8 @@ if (!function_exists('lc_conversion_call_log_only_to_api')) {
             'region'        => '',
             'inquiry'       => '콜디비 통화 ' . floor($duration / 60) . '분 ' . ($duration % 60) . '초 (' . $result_label . ')',
             'partner'       => (string) ($row['pt_code'] ?? '-'),
-            'status'        => '콜디비 미생성',
-            'statusCode'    => 'call_uncreated',
+            'status'        => $mask_phone ? '검수중' : '신규접수',
+            'statusCode'    => defined('LC_STATUS_PENDING') ? LC_STATUS_PENDING : 'pending',
             'price'         => $price,
             'comment'       => '',
             'needsAction'   => !$mask_phone,
@@ -1509,8 +1509,8 @@ if (!function_exists('lc_conversion_call_log_only_to_api')) {
             'utmSource'     => '',
             'utmMedium'     => '',
             'utmCampaign'   => '',
-            'approvalCriteria' => '콜디비 미생성 건은 콜디비 취소 처리만 가능합니다.',
-            'cancelCriteria'   => '취소 확정 시 콜디비를 생성한 뒤 취소/무효 상태로 저장합니다.',
+            'approvalCriteria' => '콜디비도 CPA 디비와 동일하게 승인 처리할 수 있습니다.',
+            'cancelCriteria'   => '콜디비도 CPA 디비와 동일하게 취소/무효 처리할 수 있습니다.',
             'adminComment'     => '',
             'partnerPublic'    => true,
             'history'          => array(array('time' => $created_at, 'text' => '콜디비 통화 로그 접수')),

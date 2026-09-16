@@ -67,7 +67,7 @@ if ($method === 'GET') {
             $clog = lc_table('call_logs');
             $call_row = lc_sql_fetch(" SELECT COUNT(*) AS cnt
                 FROM `{$clog}`
-                WHERE cv_id = '0' AND cp_id > '0' AND pt_id > '0' ", false);
+                WHERE cv_id = '0' AND cp_id > '0' ", false);
             $call_uncreated = (int) ($call_row['cnt'] ?? 0);
         }
 

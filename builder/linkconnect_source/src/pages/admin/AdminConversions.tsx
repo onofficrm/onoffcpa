@@ -91,7 +91,7 @@ export function AdminConversions() {
         <SummaryCard title="승인 완료" value={String(summary.approved)} suffix="건" color="emerald" highlight />
         <SummaryCard title="취소/무효" value={String(summary.rejected)} suffix="건" color="red" />
         <SummaryCard title="검수 대기" value={String(summary.pending)} suffix="건" color="amber" />
-        <SummaryCard title="콜디비 미생성" value={String(summary.callUncreated ?? 0)} suffix="건" color="violet" highlight={(summary.callUncreated ?? 0) > 0} />
+        <SummaryCard title="콜디비 접수" value={String(summary.callUncreated ?? 0)} suffix="건" color="violet" highlight={(summary.callUncreated ?? 0) > 0} />
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -139,8 +139,8 @@ export function AdminConversions() {
         <div className="px-6 py-3 border-b border-slate-100 bg-violet-50/60 text-sm text-violet-900 flex items-start gap-2">
           <PhoneIncoming size={16} className="mt-0.5 text-violet-600" />
           <span>
-            콜디비는 생성된 전환 DB와 아직 전환으로 생성되지 않은 통화로그까지 함께 표시됩니다.
-            <strong className="ml-1">CALL-</strong>로 시작하는 항목은 통화 원본 로그입니다.
+            콜디비는 전화 인입 기준으로 모두 디비 목록에 표시됩니다.
+            <strong className="ml-1">CALL-</strong>로 시작하는 항목은 통화 원본 기준 콜디비입니다.
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -283,7 +283,7 @@ export function AdminConversions() {
                       </div>
                       <div>
                         <div className="text-slate-400 mb-1">전환상태</div>
-                        <div className="font-medium text-violet-700">아직 전환 DB 미생성</div>
+                        <div className="font-medium text-violet-700">콜디비 접수</div>
                       </div>
                     </>
                   ) : (

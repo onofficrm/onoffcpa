@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdvertiserLayout } from '../../layouts/AdvertiserLayout';
 import { SummaryCard, StatusBadge } from '../../components/advertiser/AdvertiserShared';
-import { cancelMerchantCallConversion, downloadMerchantConversionsCsv, fetchMerchantConversions, MerchantConversion, reportMerchantChannel, updateMerchantConversion } from '../../lib/api';
+import { approveMerchantCallConversion, cancelMerchantCallConversion, downloadMerchantConversionsCsv, fetchMerchantConversions, MerchantConversion, reportMerchantChannel, updateMerchantConversion } from '../../lib/api';
 import { HelpTipButton } from '../../components/HelpTipButton';
 import { EMBED_HELP } from '../../lib/embedHelpTips';
 import { ConversionInflowCell, ConversionInflowDetails } from '../../components/ConversionInflowPath';
@@ -100,20 +100,30 @@ export function AdvertiserDb() {
   };
 
   const handleApproveConfirm = async () => {
-    if (!selectedDb?.cvId) {
+    if (!selectedDb?.cvId && !selectedDb?.callLogId) {
       return;
     }
     setProcessing(true);
     setActionError('');
     try {
-      await updateMerchantConversion({
-        action: 'approve',
-        cvId: selectedDb.cvId,
-        comment: approveComment,
-        qualityScore,
-        qualityTags,
-        partnerVisible: true,
-      });
+      if (selectedDb.isCallLogOnly && selectedDb.callLogId) {
+        await approveMerchantCallConversion({
+          clogId: selectedDb.callLogId,
+          comment: approveComment,
+          qualityScore,
+          qualityTags,
+          partnerVisible: true,
+        });
+      } else if (selectedDb.cvId) {
+        await updateMerchantConversion({
+          action: 'approve',
+          cvId: selectedDb.cvId,
+          comment: approveComment,
+          qualityScore,
+          qualityTags,
+          partnerVisible: true,
+        });
+      }
       setIsApproveOpen(false);
       setApproveComment('');
       setQualityScore(4);
@@ -221,7 +231,7 @@ export function AdvertiserDb() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         <SummaryCard title="신규접수" value={String(summary.pending)} suffix="건" />
         <SummaryCard title="오늘 처리 필요" value={String(summary.needsAction)} suffix="건" color="cyan" highlight />
-        <SummaryCard title="콜디비 미생성" value={String(summary.callUncreated ?? 0)} suffix="건" color="violet" highlight={(summary.callUncreated ?? 0) > 0} />
+        <SummaryCard title="콜디비 접수" value={String(summary.callUncreated ?? 0)} suffix="건" color="violet" highlight={(summary.callUncreated ?? 0) > 0} />
         <SummaryCard title="오늘 사용 광고비" value={summary.todaySpend.toLocaleString()} suffix="원" dark />
       </div>
 
@@ -382,11 +392,9 @@ export function AdvertiserDb() {
                   <td className="px-4 py-4 text-center whitespace-nowrap">
                     {db.needsAction ? (
                       <div className="flex gap-2 justify-center">
-                        {!db.isCallLogOnly ? (
-                          <button onClick={(e) => { e.stopPropagation(); handleApproveClick(db); }} className="px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm border-0 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
-                            <Check size={14} /> 승인
-                          </button>
-                        ) : null}
+                        <button onClick={(e) => { e.stopPropagation(); handleApproveClick(db); }} className="px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm border-0 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                          <Check size={14} /> 승인
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); handleRejectClick(db); }} className="px-3 py-1.5 bg-red-600 text-white hover:bg-red-700 shadow-sm border-0 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
                           <X size={14} /> 취소
                         </button>
@@ -442,11 +450,9 @@ export function AdvertiserDb() {
 
               {db.needsAction ? (
                 <div className="flex gap-2 pt-2">
-                  {!db.isCallLogOnly ? (
-                    <button onClick={(e) => { e.stopPropagation(); handleApproveClick(db); }} className="flex-1 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm border-0 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1">
-                      <Check size={16} /> 승인
-                    </button>
-                  ) : null}
+                  <button onClick={(e) => { e.stopPropagation(); handleApproveClick(db); }} className="flex-1 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm border-0 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1">
+                    <Check size={16} /> 승인
+                  </button>
                   <button onClick={(e) => { e.stopPropagation(); handleRejectClick(db); }} className="flex-1 py-2.5 bg-red-600 text-white hover:bg-red-700 shadow-sm border-0 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-1">
                     <X size={16} /> 취소
                   </button>
@@ -780,7 +786,7 @@ export function AdvertiserDb() {
               <button onClick={() => setIsApproveOpen(false)} className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors">
                 취소
               </button>
-              <button onClick={handleApproveConfirm} disabled={processing || !selectedDb?.cvId} className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/20 disabled:opacity-50">
+              <button onClick={handleApproveConfirm} disabled={processing || (!selectedDb?.cvId && !selectedDb?.callLogId)} className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/20 disabled:opacity-50">
                 {processing ? '처리 중...' : '승인하기'}
               </button>
             </div>

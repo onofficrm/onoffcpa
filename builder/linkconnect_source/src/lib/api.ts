@@ -2953,6 +2953,19 @@ export function requestMerchantCallRecording(payload: { clogId: number; memo?: s
   return merchantApiPost<{ message: string; crrId?: number }>('call.php', { action: 'request_recording', ...payload });
 }
 
+export function approveMerchantCallConversion(payload: {
+  clogId: number;
+  comment?: string;
+  qualityScore?: number;
+  qualityTags?: string[];
+  partnerVisible?: boolean;
+}) {
+  return merchantApiPost<{ message: string; clogId: number; cvId: number }>('call.php', {
+    action: 'approve_conversion',
+    ...payload,
+  });
+}
+
 export function cancelMerchantCallConversion(payload: {
   clogId: number;
   reason: string;

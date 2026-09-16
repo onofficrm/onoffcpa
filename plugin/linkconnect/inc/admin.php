@@ -474,7 +474,7 @@ if (!function_exists('lc_admin_list_call_log_only_conversions')) {
             LEFT JOIN `{$cp_table}` c ON c.cp_id = l.cp_id
             LEFT JOIN `{$pt_table}` p ON p.pt_id = l.pt_id
             LEFT JOIN `{$mt_table}` m ON m.mt_id = l.mt_id
-            WHERE l.cv_id = '0' AND l.cp_id > '0' AND l.pt_id > '0'
+            WHERE l.cv_id = '0' AND l.cp_id > '0'
             ORDER BY l.clog_started_at DESC, l.clog_id DESC
             LIMIT {$limit} ";
 
@@ -556,8 +556,8 @@ if (!function_exists('lc_admin_call_log_only_conversion_to_api')) {
             'utmSource'     => '',
             'utmMedium'     => '',
             'utmCampaign'   => '',
-            'status'        => '콜디비 미생성',
-            'statusCode'    => 'call_uncreated',
+            'status'        => '신규접수',
+            'statusCode'    => defined('LC_STATUS_PENDING') ? LC_STATUS_PENDING : 'pending',
             'price'         => $price,
             'callDuration'  => $duration,
             'callResult'    => $result,
