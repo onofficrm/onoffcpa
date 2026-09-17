@@ -1948,7 +1948,9 @@ if (!function_exists('lc_call_conversion_create')) {
 
         $cv_code = lc_conversion_generate_code();
         $table = lc_table('conversions');
-        $name = $caller !== '' ? lc_conversion_mask_phone($caller) : '콜인입';
+        $name = function_exists('lc_conversion_call_customer_name')
+            ? lc_conversion_call_customer_name($caller)
+            : '콜인입';
         $mm = floor($duration / 60);
         $ss = $duration % 60;
         $inquiry = '콜디비 통화 ' . sprintf('%d분 %d초', $mm, $ss) . ' (' . $result . ')';
