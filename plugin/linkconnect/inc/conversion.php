@@ -1168,9 +1168,10 @@ if (!function_exists('lc_merchant_dashboard_for_api')) {
             'balanceFormatted' => is_array($merchant) ? number_format((int) $merchant['mt_balance']) : '0',
             'summary'       => $summary,
             'wallet'        => array(
-                'monthlyCharge'    => (int) ($wallet['monthlyCharge'] ?? 0),
-                'monthlySpend'     => (int) ($wallet['monthlySpend'] ?? 0),
-                'availableBalance' => (int) ($wallet['availableBalance'] ?? 0),
+                'monthlyCharge'     => (int) ($wallet['monthlyCharge'] ?? 0),
+                'monthlySpend'      => (int) ($wallet['monthlySpend'] ?? 0),
+                'monthlyAdminDeduct'=> (int) ($wallet['monthlyAdminDeduct'] ?? 0),
+                'availableBalance'  => (int) ($wallet['availableBalance'] ?? 0),
             ),
             'chart7d'       => $chart,
             'recent'        => $recent,

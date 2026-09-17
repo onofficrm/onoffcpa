@@ -68,87 +68,6 @@ if (!function_exists('lc_wallet_deduct_for_conversion')) {
     }
 }
 
-if (!function_exists('lc_wallet_refund_for_conversion')) {
-    /**
-     * 승인 차감 환급 (동일 conversion 에 대한 completed deduct 가 있을 때만)
-     *
-     * @return array{ok:bool,message:string,refunded?:bool,balance?:int}
-     */
-    function lc_wallet_refund_for_conversion($mt_id, $cv_id, $amount, $memo = '')
-    {
-        $mt_id = (int) $mt_id;
-        $cv_id = (int) $cv_id;
-        $amount = abs((int) $amount);
-        if ($mt_id <= 0 || $cv_id <= 0 || $amount <= 0) {
-            return array('ok' => true, 'message' => 'skipped', 'refunded' => false);
-        }
-
-        if (!lc_wallet_has_conversion_deduct($mt_id, $cv_id)) {
-            return array('ok' => true, 'message' => 'no prior deduct', 'refunded' => false);
-        }
-        if (lc_wallet_has_conversion_refund($mt_id, $cv_id)) {
-            return array('ok' => true, 'message' => 'already refunded', 'refunded' => false);
-        }
-
-        $result = lc_wallet_record(
-            $mt_id,
-            'refund',
-            $amount,
-            $memo !== '' ? $memo : ('CV#' . $cv_id . ' 승인취소 환급'),
-            'conversion',
-            $cv_id
-        );
-        if (empty($result['ok'])) {
-            return $result;
-        }
-
-        return array(
-            'ok'       => true,
-            'message'  => 'refunded',
-            'refunded' => true,
-            'balance'  => isset($result['balance']) ? (int) $result['balance'] : null,
-        );
-    }
-}
-
-if (!function_exists('lc_wallet_has_conversion_deduct')) {
-    function lc_wallet_has_conversion_deduct($mt_id, $cv_id)
-    {
-        if (!lc_db_installed()) {
-            return false;
-        }
-        $table = lc_table('wallet_transactions');
-        $row = lc_sql_fetch(" SELECT wt_id FROM `{$table}`
-            WHERE mt_id = '" . (int) $mt_id . "'
-              AND wt_ref_type = 'conversion'
-              AND wt_ref_id = '" . (int) $cv_id . "'
-              AND wt_type = 'deduct'
-              AND wt_status = 'completed'
-            LIMIT 1 ");
-
-        return is_array($row) && !empty($row['wt_id']);
-    }
-}
-
-if (!function_exists('lc_wallet_has_conversion_refund')) {
-    function lc_wallet_has_conversion_refund($mt_id, $cv_id)
-    {
-        if (!lc_db_installed()) {
-            return false;
-        }
-        $table = lc_table('wallet_transactions');
-        $row = lc_sql_fetch(" SELECT wt_id FROM `{$table}`
-            WHERE mt_id = '" . (int) $mt_id . "'
-              AND wt_ref_type = 'conversion'
-              AND wt_ref_id = '" . (int) $cv_id . "'
-              AND wt_type = 'refund'
-              AND wt_status = 'completed'
-            LIMIT 1 ");
-
-        return is_array($row) && !empty($row['wt_id']);
-    }
-}
-
 if (!function_exists('lc_wallet_list_for_merchant')) {
     function lc_wallet_list_for_merchant($mt_id, $limit = 20)
     {
@@ -204,15 +123,6 @@ if (!function_exists('lc_wallet_request_charge')) {
             return array('ok' => false, 'message' => '충전 금액이 올바르지 않습니다.');
         }
 
-        // 공동 입점: 링크커넥트 충전 신청 시점에도 온오프CPA ≥ LC 예고 검사
-        if (function_exists('lc_mp_ensure_balance_invariant_for_charge')) {
-            $projected = lc_wallet_get_balance($mt_id) + (int) $amount;
-            $inv = lc_mp_ensure_balance_invariant_for_charge($mt_id, $projected);
-            if (empty($inv['ok'])) {
-                return array('ok' => false, 'message' => (string) ($inv['message'] ?? '잔액 규칙을 위반합니다.'));
-            }
-        }
-
         $result = lc_wallet_record($mt_id, 'charge', (int) $amount, $memo !== '' ? $memo : '광고비 충전 신청', 'charge_request', 0, 'pending');
 
         return array(
@@ -227,10 +137,11 @@ if (!function_exists('lc_wallet_merchant_summary')) {
     {
         if (!lc_db_installed()) {
             return array(
-                'balance'          => 0,
-                'monthlyCharge'    => 0,
-                'monthlySpend'     => 0,
-                'availableBalance' => 0,
+                'balance'           => 0,
+                'monthlyCharge'     => 0,
+                'monthlySpend'      => 0,
+                'monthlyAdminDeduct'=> 0,
+                'availableBalance'  => 0,
             );
         }
 
@@ -246,18 +157,29 @@ if (!function_exists('lc_wallet_merchant_summary')) {
               AND wt_status = 'completed'
               AND wt_created_at >= '{$month_start}' ");
 
+        // 광고 사용액: DB 전환(conversion) 차감만. 관리자 수동 차감(admin_adjust)은 별도 집계.
         $spend_row = lc_sql_fetch(" SELECT COALESCE(SUM(ABS(wt_amount)), 0) AS total
             FROM `{$table}`
             WHERE mt_id = '{$mt_id}'
               AND wt_type = 'deduct'
               AND wt_status = 'completed'
+              AND wt_ref_type = 'conversion'
+              AND wt_created_at >= '{$month_start}' ");
+
+        $admin_deduct_row = lc_sql_fetch(" SELECT COALESCE(SUM(ABS(wt_amount)), 0) AS total
+            FROM `{$table}`
+            WHERE mt_id = '{$mt_id}'
+              AND wt_type = 'deduct'
+              AND wt_status = 'completed'
+              AND wt_ref_type = 'admin_adjust'
               AND wt_created_at >= '{$month_start}' ");
 
         return array(
-            'balance'          => $balance,
-            'monthlyCharge'    => (int) ($charge_row['total'] ?? 0),
-            'monthlySpend'     => (int) ($spend_row['total'] ?? 0),
-            'availableBalance' => $balance,
+            'balance'           => $balance,
+            'monthlyCharge'     => (int) ($charge_row['total'] ?? 0),
+            'monthlySpend'      => (int) ($spend_row['total'] ?? 0),
+            'monthlyAdminDeduct'=> (int) ($admin_deduct_row['total'] ?? 0),
+            'availableBalance'  => $balance,
         );
     }
 }
@@ -375,14 +297,6 @@ if (!function_exists('lc_wallet_approve_transaction')) {
         }
 
         $new_balance = (int) $merchant['mt_balance'] + $amount;
-
-        if (function_exists('lc_mp_ensure_balance_invariant_for_charge')) {
-            $inv = lc_mp_ensure_balance_invariant_for_charge($mt_id, $new_balance);
-            if (empty($inv['ok'])) {
-                return array('ok' => false, 'message' => (string) ($inv['message'] ?? '잔액 규칙을 위반합니다.'));
-            }
-        }
-
         $merchant_table = lc_table('merchants');
 
         lc_sql_query(" UPDATE `{$merchant_table}` SET mt_balance = '{$new_balance}', mt_updated_at = NOW() WHERE mt_id = '{$mt_id}' ", false);
@@ -588,16 +502,6 @@ if (!function_exists('lc_wallet_admin_adjust')) {
         }
 
         list($wt_type, $signed) = $type_map[$type];
-
-        if (in_array($type, array('charge', 'refund', 'adjust'), true) && $signed > 0
-            && function_exists('lc_mp_ensure_balance_invariant_for_charge')) {
-            $current = lc_wallet_get_balance($mt_id);
-            $inv = lc_mp_ensure_balance_invariant_for_charge($mt_id, $current + $signed);
-            if (empty($inv['ok'])) {
-                return array('ok' => false, 'message' => (string) ($inv['message'] ?? '잔액 규칙을 위반합니다.'));
-            }
-        }
-
         $result = lc_wallet_record($mt_id, $wt_type, $signed, $memo !== '' ? $memo : '관리자 수동 처리', 'admin_adjust', 0, 'completed');
 
         return array(
@@ -680,7 +584,7 @@ if (!function_exists('lc_wallet_send_recharge_notices')) {
         }
 
         $vars = array(
-            '{site}'      => function_exists('lc_settings_get') ? lc_settings_get('siteName', '온오프CPA') : '온오프CPA',
+            '{site}'      => function_exists('lc_settings_get') ? lc_settings_get('siteName', '링크커넥트') : '링크커넥트',
             '{company}'   => $company,
             '{balance}'   => $balance_fmt,
             '{threshold}' => $threshold_fmt,

@@ -1487,6 +1487,7 @@ export type MerchantWalletResponse = {
     balance: number;
     monthlyCharge: number;
     monthlySpend: number;
+    monthlyAdminDeduct?: number;
     availableBalance: number;
   };
   items: MerchantWalletTransaction[];
