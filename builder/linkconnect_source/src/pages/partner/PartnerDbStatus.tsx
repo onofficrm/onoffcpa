@@ -148,12 +148,7 @@ export function PartnerDbStatus() {
                 <tr key={db.id} className={`transition-colors ${db.status === '취소/무효' ? 'bg-red-50/30 hover:bg-red-50/50' : 'hover:bg-slate-50'}`}>
                   <td className="px-4 py-4 text-slate-500 whitespace-nowrap">{db.date}</td>
                   <td className="px-4 py-4 font-medium text-slate-900 min-w-[140px]">{db.campaign}</td>
-                  <td className="px-4 py-4 text-slate-700 whitespace-nowrap">
-                    {db.name}
-                    {db.isCallLogOnly ? (
-                      <span className="ml-2 inline-flex px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 text-[10px] font-bold align-middle">통화로그</span>
-                    ) : null}
-                  </td>
+                  <td className="px-4 py-4 text-slate-700 whitespace-nowrap">{db.name}</td>
                   <td className="px-4 py-4 font-mono text-slate-600 whitespace-nowrap">{db.phone}</td>
                   <td className="px-4 py-4 text-slate-600">
                     <ConversionInflowCell data={db} />
