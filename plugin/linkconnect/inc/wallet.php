@@ -68,18 +68,54 @@ if (!function_exists('lc_wallet_deduct_for_conversion')) {
     }
 }
 
+if (!function_exists('lc_wallet_normalize_period')) {
+    /**
+     * @param array<string,mixed> $filters
+     * @return array{from:string,to:string,fromDt:string,toDt:string}
+     */
+    function lc_wallet_normalize_period(array $filters = array())
+    {
+        $from = trim((string) ($filters['dateFrom'] ?? ($filters['date_from'] ?? '')));
+        $to = trim((string) ($filters['dateTo'] ?? ($filters['date_to'] ?? '')));
+        if ($from === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
+            $from = date('Y-m-01');
+        }
+        if ($to === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
+            $to = date('Y-m-d');
+        }
+        if ($from > $to) {
+            $tmp = $from;
+            $from = $to;
+            $to = $tmp;
+        }
+
+        return array(
+            'from'   => $from,
+            'to'     => $to,
+            'fromDt' => $from . ' 00:00:00',
+            'toDt'   => $to . ' 23:59:59',
+        );
+    }
+}
+
 if (!function_exists('lc_wallet_list_for_merchant')) {
-    function lc_wallet_list_for_merchant($mt_id, $limit = 20)
+    function lc_wallet_list_for_merchant($mt_id, $limit = 20, array $filters = array())
     {
         if (!lc_db_installed()) {
             return array();
         }
 
         $mt_id = (int) $mt_id;
-        $limit = max(1, min(100, (int) $limit));
+        $limit = max(1, min(500, (int) $limit));
         $table = lc_table('wallet_transactions');
+        $where = " mt_id = '{$mt_id}' ";
+        if (!empty($filters['dateFrom']) || !empty($filters['date_from']) || !empty($filters['dateTo']) || !empty($filters['date_to'])) {
+            $period = lc_wallet_normalize_period($filters);
+            $where .= " AND wt_created_at >= '" . lc_sql_escape($period['fromDt']) . "'
+                        AND wt_created_at <= '" . lc_sql_escape($period['toDt']) . "' ";
+        }
         $rows = array();
-        $result = lc_sql_query(" SELECT * FROM `{$table}` WHERE mt_id = '{$mt_id}' ORDER BY wt_id DESC LIMIT {$limit} ", false);
+        $result = lc_sql_query(" SELECT * FROM `{$table}` WHERE {$where} ORDER BY wt_id DESC LIMIT {$limit} ", false);
 
         if ($result) {
             while ($row = sql_fetch_array($result)) {
@@ -133,7 +169,7 @@ if (!function_exists('lc_wallet_request_charge')) {
 }
 
 if (!function_exists('lc_wallet_merchant_summary')) {
-    function lc_wallet_merchant_summary($mt_id)
+    function lc_wallet_merchant_summary($mt_id, array $filters = array())
     {
         if (!lc_db_installed()) {
             return array(
@@ -142,20 +178,25 @@ if (!function_exists('lc_wallet_merchant_summary')) {
                 'monthlySpend'      => 0,
                 'monthlyAdminDeduct'=> 0,
                 'availableBalance'  => 0,
+                'dateFrom'          => date('Y-m-01'),
+                'dateTo'            => date('Y-m-d'),
             );
         }
 
         $mt_id = (int) $mt_id;
         $balance = lc_wallet_get_balance($mt_id);
         $table = lc_table('wallet_transactions');
-        $month_start = date('Y-m-01');
+        $period = lc_wallet_normalize_period($filters);
+        $from_dt = lc_sql_escape($period['fromDt']);
+        $to_dt = lc_sql_escape($period['toDt']);
 
         $charge_row = lc_sql_fetch(" SELECT COALESCE(SUM(wt_amount), 0) AS total
             FROM `{$table}`
             WHERE mt_id = '{$mt_id}'
               AND wt_type = 'charge'
               AND wt_status = 'completed'
-              AND wt_created_at >= '{$month_start}' ");
+              AND wt_created_at >= '{$from_dt}'
+              AND wt_created_at <= '{$to_dt}' ");
 
         // 광고 사용액: DB 전환(conversion) 차감만. 관리자 수동 차감(admin_adjust)은 별도 집계.
         $spend_row = lc_sql_fetch(" SELECT COALESCE(SUM(ABS(wt_amount)), 0) AS total
@@ -164,7 +205,8 @@ if (!function_exists('lc_wallet_merchant_summary')) {
               AND wt_type = 'deduct'
               AND wt_status = 'completed'
               AND wt_ref_type = 'conversion'
-              AND wt_created_at >= '{$month_start}' ");
+              AND wt_created_at >= '{$from_dt}'
+              AND wt_created_at <= '{$to_dt}' ");
 
         $admin_deduct_row = lc_sql_fetch(" SELECT COALESCE(SUM(ABS(wt_amount)), 0) AS total
             FROM `{$table}`
@@ -172,7 +214,8 @@ if (!function_exists('lc_wallet_merchant_summary')) {
               AND wt_type = 'deduct'
               AND wt_status = 'completed'
               AND wt_ref_type = 'admin_adjust'
-              AND wt_created_at >= '{$month_start}' ");
+              AND wt_created_at >= '{$from_dt}'
+              AND wt_created_at <= '{$to_dt}' ");
 
         return array(
             'balance'           => $balance,
@@ -180,15 +223,18 @@ if (!function_exists('lc_wallet_merchant_summary')) {
             'monthlySpend'      => (int) ($spend_row['total'] ?? 0),
             'monthlyAdminDeduct'=> (int) ($admin_deduct_row['total'] ?? 0),
             'availableBalance'  => $balance,
+            'dateFrom'          => $period['from'],
+            'dateTo'            => $period['to'],
         );
     }
 }
 
 if (!function_exists('lc_wallet_list_for_api')) {
-    function lc_wallet_list_for_api($mt_id)
+    function lc_wallet_list_for_api($mt_id, array $filters = array())
     {
         if (lc_db_installed()) {
-            return array_map('lc_wallet_transaction_to_api', lc_wallet_list_for_merchant($mt_id));
+            $limit = isset($filters['limit']) ? (int) $filters['limit'] : 200;
+            return array_map('lc_wallet_transaction_to_api', lc_wallet_list_for_merchant($mt_id, $limit, $filters));
         }
 
         if (!function_exists('lc_sample_merchant_wallet_history')) {

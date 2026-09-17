@@ -10,17 +10,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     $mt_id = is_array($merchant) ? (int) $merchant['mt_id'] : 0;
+    $filters = array(
+        'dateFrom' => isset($_GET['date_from']) ? trim((string) $_GET['date_from']) : (isset($_GET['dateFrom']) ? trim((string) $_GET['dateFrom']) : ''),
+        'dateTo'   => isset($_GET['date_to']) ? trim((string) $_GET['date_to']) : (isset($_GET['dateTo']) ? trim((string) $_GET['dateTo']) : ''),
+        'limit'    => 500,
+    );
+
+    $summary = $mt_id > 0
+        ? lc_wallet_merchant_summary($mt_id, $filters)
+        : array(
+            'balance'           => 0,
+            'monthlyCharge'     => 0,
+            'monthlySpend'      => 0,
+            'monthlyAdminDeduct'=> 0,
+            'availableBalance'  => 0,
+            'dateFrom'          => date('Y-m-01'),
+            'dateTo'            => date('Y-m-d'),
+        );
 
     lc_api_success(array(
         'balance'          => $mt_id > 0 ? lc_wallet_get_balance($mt_id) : 0,
         'balanceFormatted' => number_format($mt_id > 0 ? lc_wallet_get_balance($mt_id) : 0),
-        'summary'          => $mt_id > 0 ? lc_wallet_merchant_summary($mt_id) : array(
-            'balance'          => 0,
-            'monthlyCharge'    => 0,
-            'monthlySpend'     => 0,
-            'availableBalance' => 0,
-        ),
-        'items'            => lc_wallet_list_for_api($mt_id),
+        'summary'          => $summary,
+        'items'            => lc_wallet_list_for_api($mt_id, $filters),
         'dbReady'          => lc_db_installed(),
     ));
 }

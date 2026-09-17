@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdvertiserLayout } from '../../layouts/AdvertiserLayout';
 import { SummaryCard, StatusBadge } from '../../components/advertiser/AdvertiserShared';
-import { Wallet, CreditCard, ArrowRight, History, Download, Filter, AlertTriangle } from 'lucide-react';
+import { Wallet, CreditCard, ArrowRight, History, Download, Filter, Calendar } from 'lucide-react';
 import { fetchMerchantWallet, MerchantWalletTransaction, requestMerchantCharge } from '../../lib/api';
 
 const TypeBadge = ({ type }: { type: string }) => {
@@ -21,7 +21,54 @@ const TypeBadge = ({ type }: { type: string }) => {
   );
 };
 
+type PeriodPreset = 'this_month' | 'last_month' | '7d' | '30d' | 'custom';
+
+const PERIOD_PRESETS: Array<{ id: PeriodPreset; label: string }> = [
+  { id: 'this_month', label: '이번 달' },
+  { id: 'last_month', label: '지난 달' },
+  { id: '7d', label: '최근 7일' },
+  { id: '30d', label: '최근 30일' },
+  { id: 'custom', label: '직접 선택' },
+];
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+function formatDate(d: Date) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function rangeForPreset(preset: PeriodPreset): { from: string; to: string } {
+  const today = new Date();
+  const to = formatDate(today);
+
+  if (preset === 'this_month') {
+    return { from: `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-01`, to };
+  }
+  if (preset === 'last_month') {
+    const firstThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastPrev = new Date(firstThisMonth.getTime() - 86400000);
+    const firstPrev = new Date(lastPrev.getFullYear(), lastPrev.getMonth(), 1);
+    return { from: formatDate(firstPrev), to: formatDate(lastPrev) };
+  }
+  if (preset === '7d') {
+    const from = new Date(today);
+    from.setDate(from.getDate() - 6);
+    return { from: formatDate(from), to };
+  }
+  if (preset === '30d') {
+    const from = new Date(today);
+    from.setDate(from.getDate() - 29);
+    return { from: formatDate(from), to };
+  }
+
+  const monthStart = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-01`;
+  return { from: monthStart, to };
+}
+
 export function AdvertiserBilling() {
+  const initialRange = rangeForPreset('this_month');
   const [chargeAmount, setChargeAmount] = useState<number | ''>('');
   const [chargeMemo, setChargeMemo] = useState('');
   const [activeTab, setActiveTab] = useState('전체');
@@ -32,32 +79,76 @@ export function AdvertiserBilling() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [periodPreset, setPeriodPreset] = useState<PeriodPreset>('this_month');
+  const [dateFrom, setDateFrom] = useState(initialRange.from);
+  const [dateTo, setDateTo] = useState(initialRange.to);
 
   const tabs = ['전체', '충전', '차감', '환급'];
 
-  const loadWallet = async () => {
+  const loadWallet = useCallback(async (from: string, to: string) => {
     setLoading(true);
     setError('');
     try {
-      const data = await fetchMerchantWallet();
+      const data = await fetchMerchantWallet({ dateFrom: from, dateTo: to });
       setHistory(data.items);
       setBalance(data.balance);
       setSummary(data.summary);
+      if (data.summary.dateFrom) setDateFrom(data.summary.dateFrom);
+      if (data.summary.dateTo) setDateTo(data.summary.dateTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : '광고비 내역을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadWallet();
+    void loadWallet(dateFrom, dateTo);
+    // 초기 로드만 — 이후는 프리셋/조회 버튼에서 호출
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredHistory = useMemo(
     () => (activeTab === '전체' ? history : history.filter((item) => item.type === activeTab)),
     [activeTab, history],
   );
+
+  const periodLabel = useMemo(() => {
+    if (periodPreset === 'this_month') return '이번 달';
+    if (periodPreset === 'last_month') return '지난 달';
+    if (periodPreset === '7d') return '최근 7일';
+    if (periodPreset === '30d') return '최근 30일';
+    return '선택 기간';
+  }, [periodPreset]);
+
+  const rangeLabel = `${dateFrom} ~ ${dateTo}`;
+
+  const applyPreset = (preset: PeriodPreset) => {
+    setPeriodPreset(preset);
+    if (preset === 'custom') return;
+    const range = rangeForPreset(preset);
+    setDateFrom(range.from);
+    setDateTo(range.to);
+    void loadWallet(range.from, range.to);
+  };
+
+  const applyCustomRange = () => {
+    if (!dateFrom || !dateTo) {
+      setError('조회 기간을 선택해주세요.');
+      return;
+    }
+    let from = dateFrom;
+    let to = dateTo;
+    if (from > to) {
+      const tmp = from;
+      from = to;
+      to = tmp;
+      setDateFrom(from);
+      setDateTo(to);
+    }
+    setPeriodPreset('custom');
+    void loadWallet(from, to);
+  };
 
   const handleQuickAmount = (amount: number) => {
     setChargeAmount(amount);
@@ -80,7 +171,7 @@ export function AdvertiserBilling() {
       setMessage(result.message);
       setChargeAmount('');
       setChargeMemo('');
-      await loadWallet();
+      await loadWallet(dateFrom, dateTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : '충전 신청에 실패했습니다.');
     } finally {
@@ -97,14 +188,68 @@ export function AdvertiserBilling() {
 
   const adminDeduct = summary.monthlyAdminDeduct ?? 0;
   // 순증감: 충전 − DB사용 − 관리자수동차감 (잔액 변동과 맞춤)
-  const monthlyNet = summary.monthlyCharge - summary.monthlySpend - adminDeduct;
+  const periodNet = summary.monthlyCharge - summary.monthlySpend - adminDeduct;
 
   return (
     <AdvertiserLayout activeMenu="billing" title="광고비 충전/내역">
-      <div className="flex flex-col mb-8 -mt-2">
+      <div className="flex flex-col mb-6 -mt-2">
         <p className="text-slate-500">
           광고비 잔액과 충전, 차감, 환급 내역을 확인하세요. 사용액은 DB 승인 차감만 포함합니다.
         </p>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm mb-6">
+        <div className="flex items-center gap-2 mb-4 text-slate-700 font-medium">
+          <Filter size={18} className="text-cyan-500" />
+          기간 필터
+          <span className="text-xs font-normal text-slate-400 ml-2 flex items-center gap-1">
+            <Calendar size={12} /> {rangeLabel}
+          </span>
+        </div>
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 flex-wrap">
+          <div className="flex rounded-xl border border-slate-200 overflow-hidden flex-wrap">
+            {PERIOD_PRESETS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => applyPreset(option.id)}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  periodPreset === option.id ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setPeriodPreset('custom');
+                setDateFrom(e.target.value);
+              }}
+              className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white"
+            />
+            <span className="text-slate-400 text-sm">~</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setPeriodPreset('custom');
+                setDateTo(e.target.value);
+              }}
+              className="px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white"
+            />
+            <button
+              type="button"
+              onClick={applyCustomRange}
+              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-bold transition-colors"
+            >
+              조회
+            </button>
+          </div>
+        </div>
       </div>
 
       {(error || message) && (
@@ -115,12 +260,12 @@ export function AdvertiserBilling() {
 
       <div className={`grid grid-cols-2 md:grid-cols-3 ${adminDeduct > 0 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-4 mb-8`}>
         <SummaryCard title="현재 광고비 잔액" value={balance.toLocaleString()} suffix="원" highlight />
-        <SummaryCard title="이번 달 충전액" value={summary.monthlyCharge.toLocaleString()} suffix="원" />
-        <SummaryCard title="이번 달 사용액" value={summary.monthlySpend.toLocaleString()} suffix="원" caption="DB 승인 차감" />
+        <SummaryCard title={`${periodLabel} 충전액`} value={summary.monthlyCharge.toLocaleString()} suffix="원" />
+        <SummaryCard title={`${periodLabel} 사용액`} value={summary.monthlySpend.toLocaleString()} suffix="원" caption="DB 승인 차감" />
         {adminDeduct > 0 ? (
           <SummaryCard title="관리자 수동 차감" value={adminDeduct.toLocaleString()} suffix="원" color="purple" caption="사용액과 별도" />
         ) : null}
-        <SummaryCard title="이번 달 순증감" value={monthlyNet.toLocaleString()} suffix="원" dark />
+        <SummaryCard title={`${periodLabel} 순증감`} value={periodNet.toLocaleString()} suffix="원" dark />
         <SummaryCard title="거래 건수" value={history.length.toLocaleString()} suffix="건" />
       </div>
 
@@ -214,16 +359,19 @@ export function AdvertiserBilling() {
             <div className="p-2 bg-slate-800 rounded-xl">
               <Wallet size={24} className="text-cyan-400" />
             </div>
-            <h2 className="text-lg font-bold text-white">이번 달 광고비 현황</h2>
+            <div>
+              <h2 className="text-lg font-bold text-white">{periodLabel} 광고비 현황</h2>
+              <p className="text-xs text-slate-400 mt-0.5">{rangeLabel}</p>
+            </div>
           </div>
 
           <div className="space-y-6 flex-1 relative z-10">
             <div>
-              <div className="text-slate-400 text-sm mb-1">이번 달 충전액</div>
+              <div className="text-slate-400 text-sm mb-1">{periodLabel} 충전액</div>
               <div className="text-xl font-medium text-white">+{summary.monthlyCharge.toLocaleString()}원</div>
             </div>
             <div>
-              <div className="text-slate-400 text-sm mb-1">이번 달 사용액 (DB)</div>
+              <div className="text-slate-400 text-sm mb-1">{periodLabel} 사용액 (DB)</div>
               <div className="text-xl font-medium text-rose-400">-{summary.monthlySpend.toLocaleString()}원</div>
             </div>
             {adminDeduct > 0 ? (
@@ -234,10 +382,10 @@ export function AdvertiserBilling() {
             ) : null}
             <div>
               <div className="text-slate-400 text-sm mb-1">
-                이번 달 순증감 {adminDeduct > 0 ? '(충전 − 사용 − 수동차감)' : '(충전 − 사용)'}
+                {periodLabel} 순증감 {adminDeduct > 0 ? '(충전 − 사용 − 수동차감)' : '(충전 − 사용)'}
               </div>
-              <div className={`text-xl font-medium ${monthlyNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {monthlyNet >= 0 ? '+' : ''}{monthlyNet.toLocaleString()}원
+              <div className={`text-xl font-medium ${periodNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {periodNet >= 0 ? '+' : ''}{periodNet.toLocaleString()}원
               </div>
             </div>
           </div>
@@ -260,13 +408,13 @@ export function AdvertiserBilling() {
             <div className="p-2 bg-slate-100 rounded-lg text-slate-700">
               <History size={20} />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">광고비 내역</h2>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">광고비 내역</h2>
+              <p className="text-xs text-slate-400 mt-0.5">{rangeLabel}</p>
+            </div>
           </div>
           
           <div className="flex gap-2">
-            <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-2">
-              <Filter size={16} /> 필터
-            </button>
             <button className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-2">
               <Download size={16} /> 엑셀 다운로드
             </button>
@@ -329,7 +477,7 @@ export function AdvertiserBilling() {
               {!loading && filteredHistory.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                    내역이 없습니다.
+                    선택한 기간에 내역이 없습니다.
                   </td>
                 </tr>
               )}
@@ -357,56 +505,25 @@ export function AdvertiserBilling() {
               <div className="bg-slate-50 p-3 rounded-xl flex justify-between items-center mt-1">
                 <div className="flex flex-col">
                   <span className="text-xs text-slate-500 mb-0.5">잔액</span>
-                  <span className="text-sm font-medium text-slate-700">{item.balance.toLocaleString()}원</span>
+                  <span className="font-medium text-slate-900">{item.balance.toLocaleString()}원</span>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-xs text-slate-500 mb-0.5">변동금액</span>
+                  <span className="text-xs text-slate-500 mb-0.5">금액</span>
                   <span className={`font-bold ${item.amount > 0 ? 'text-emerald-600' : item.amount < 0 ? 'text-red-600' : 'text-slate-500'}`}>
                     {item.amount > 0 ? '+' : ''}{item.amount.toLocaleString()}원
                   </span>
                 </div>
               </div>
-              <div className="mt-1">
+              <div className="flex justify-end">
                 <StatusBadge status={statusLabel(item.status)} />
               </div>
             </div>
           ))}
-          {filteredHistory.length === 0 && (
-            <div className="p-8 text-center text-slate-500 text-sm">
-              내역이 없습니다.
-            </div>
+          {!loading && filteredHistory.length === 0 && (
+            <div className="p-8 text-center text-slate-500 text-sm">선택한 기간에 내역이 없습니다.</div>
           )}
         </div>
       </div>
-
-      {/* Info Box */}
-      <div className="bg-slate-900 rounded-2xl p-6 md:p-8 text-white shadow-lg">
-        <div className="flex items-start gap-4">
-          <AlertTriangle className="w-6 h-6 text-cyan-400 shrink-0 mt-0.5" />
-          <div>
-            <h3 className="text-lg font-bold mb-4">광고비 운영 안내</h3>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3 text-sm text-slate-300">
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span>
-                <span>디비가 접수되면 광고비가 먼저 <strong>가차감</strong>됩니다.</span>
-              </li>
-              <li className="flex items-start gap-3 text-sm text-slate-300">
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0"></span>
-                <span>승인 완료 시 광고비가 <strong>확정 차감</strong> 처리됩니다.</span>
-              </li>
-              <li className="flex items-start gap-3 text-sm text-slate-300">
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                <span>취소/무효 처리된 디비는 가차감되었던 광고비가 다시 <strong>환급</strong>됩니다.</span>
-              </li>
-              <li className="flex items-start gap-3 text-sm text-slate-300">
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-red-400 shrink-0"></span>
-                <span>광고비 잔액이 부족해지면 진행 중인 캠페인이 <strong>일시중지</strong>될 수 있으니 잔액을 여유있게 유지해주세요.</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
     </AdvertiserLayout>
   );
 }

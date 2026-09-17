@@ -1480,6 +1480,11 @@ export type MerchantWalletTransaction = {
   memo: string;
 };
 
+export type MerchantWalletFilters = {
+  dateFrom?: string;
+  dateTo?: string;
+};
+
 export type MerchantWalletResponse = {
   balance: number;
   balanceFormatted: string;
@@ -1489,13 +1494,18 @@ export type MerchantWalletResponse = {
     monthlySpend: number;
     monthlyAdminDeduct?: number;
     availableBalance: number;
+    dateFrom?: string;
+    dateTo?: string;
   };
   items: MerchantWalletTransaction[];
   dbReady: boolean;
 };
 
-export function fetchMerchantWallet() {
-  return merchantApiGet<MerchantWalletResponse>('wallet.php');
+export function fetchMerchantWallet(filters?: MerchantWalletFilters) {
+  return merchantApiGet<MerchantWalletResponse>('wallet.php', {
+    date_from: filters?.dateFrom ?? '',
+    date_to: filters?.dateTo ?? '',
+  });
 }
 
 export function requestMerchantCharge(payload: { amount: number; memo?: string }) {
