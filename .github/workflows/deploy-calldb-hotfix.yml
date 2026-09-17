@@ -20,6 +20,7 @@ on:
       - 'builder/linkconnect_source/src/pages/advertiser/Dashboard.tsx'
       - 'builder/linkconnect_source/src/pages/advertiser/AdvertiserBilling.tsx'
       - 'plugin/linkconnect/inc/wallet.php'
+      - 'plugin/linkconnect/merchant/api/wallet.php'
       - 'builder/linkconnect_source/src/components/partner/StatusBadgeLocal.tsx'
       - 'builder/linkconnect_source/src/components/advertiser/StatusBadgeLocal.tsx'
       - 'builder/linkconnect_source/src/App.tsx'
@@ -90,6 +91,7 @@ jobs:
             "plugin/linkconnect/inc/settings.php"
             "plugin/linkconnect/inc/conversion.php"
             "plugin/linkconnect/inc/wallet.php"
+            "plugin/linkconnect/merchant/api/wallet.php"
             "plugin/linkconnect/partner/api/conversions.php"
             "plugin/linkconnect/merchant/api/conversions.php"
             "plugin/linkconnect/inc/admin.php"
