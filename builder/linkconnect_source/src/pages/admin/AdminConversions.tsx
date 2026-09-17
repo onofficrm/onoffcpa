@@ -149,12 +149,12 @@ export function AdminConversions() {
               <tr>
                 <th className="px-4 py-3 text-left">DB ID</th>
                 <th className="px-4 py-3 text-left">접수일</th>
+                <th className="px-4 py-3 text-left">광고주</th>
+                <th className="px-4 py-3 text-left">상품</th>
                 <th className="px-4 py-3 text-left">고객</th>
                 <th className="px-4 py-3 text-left">연락처</th>
                 <th className="px-4 py-3 text-left">파트너</th>
                 <th className="px-4 py-3 text-left">유입경로</th>
-                <th className="px-4 py-3 text-left">광고주</th>
-                <th className="px-4 py-3 text-left">상품</th>
                 <th className="px-4 py-3 text-left">상태</th>
                 <th className="px-4 py-3 text-right">단가</th>
               </tr>
@@ -180,6 +180,8 @@ export function AdminConversions() {
                       <span className={row.isCallLogOnly ? 'text-violet-700 font-bold' : ''}>{row.id}</span>
                     </td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{row.date}</td>
+                      <td className="px-4 py-3 text-slate-700">{row.advertiser}</td>
+                      <td className="px-4 py-3 text-slate-700">{row.campaign}</td>
                       <td className="px-4 py-3">
                       <button
                         type="button"
@@ -200,8 +202,6 @@ export function AdminConversions() {
                       <td className="px-4 py-3">
                         <ConversionInflowCell data={row} showAbuse />
                       </td>
-                      <td className="px-4 py-3 text-slate-700">{row.advertiser}</td>
-                      <td className="px-4 py-3 text-slate-700">{row.campaign}</td>
                       <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
                       <td className="px-4 py-3 text-right tabular-nums text-cyan-600 font-semibold">
                         {row.price > 0 ? `${row.price.toLocaleString()}원` : '-'}
