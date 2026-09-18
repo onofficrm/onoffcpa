@@ -57,6 +57,10 @@ on:
       - 'builder/linkconnect_source/src/pages/partner/PartnerCall.tsx'
       - 'builder/linkconnect_source/src/pages/advertiser/AdvertiserCall.tsx'
       - 'builder/linkconnect_source/src/lib/api.ts'
+      - 'builder/linkconnect_source/src/pages/admin/AdminContracts.tsx'
+      - 'builder/linkconnect_source/src/components/contract/ContractDocumentViewer.tsx'
+      - 'plugin/linkconnect/admin/api/contracts.php'
+      - 'plugin/linkconnect/inc/merchant_contract_admin.php'
       - '.github/workflows/deploy-calldb-hotfix.yml'
   workflow_dispatch:
 
@@ -95,6 +99,8 @@ jobs:
             "plugin/linkconnect/partner/api/conversions.php"
             "plugin/linkconnect/merchant/api/conversions.php"
             "plugin/linkconnect/inc/admin.php"
+            "plugin/linkconnect/admin/api/contracts.php"
+            "plugin/linkconnect/inc/merchant_contract_admin.php"
             "plugin/linkconnect/admin/api/conversions.php"
             "plugin/linkconnect/inc/settlement.php"
             "plugin/linkconnect/partner/api/apply.php"

@@ -116,6 +116,26 @@ if ($method === 'POST') {
     $mc_id = isset($body['mcId']) ? (int) $body['mcId'] : 0;
     $reason = isset($body['reason']) ? (string) $body['reason'] : '';
 
+    if ($action === 'update_document') {
+        if ($mc_id <= 0) {
+            lc_api_error('계약 ID가 필요합니다.', 'INVALID_REQUEST', 400);
+        }
+        if (!function_exists('lc_merchant_contract_admin_update_document')) {
+            lc_api_error('계약서 수정 기능을 사용할 수 없습니다.', 'NOT_AVAILABLE', 500);
+        }
+        $result = lc_merchant_contract_admin_update_document(
+            $mc_id,
+            isset($body['html']) ? (string) $body['html'] : ''
+        );
+        if (empty($result['ok'])) {
+            lc_api_error($result['message'], 'UPDATE_FAILED', 400);
+        }
+        lc_api_success(array(
+            'message' => $result['message'],
+            'detail'  => lc_merchant_contract_admin_detail_for_api($mc_id),
+        ));
+    }
+
     if ($action === 'add_addendum') {
         if ($mc_id <= 0) {
             lc_api_error('계약 ID가 필요합니다.', 'INVALID_REQUEST', 400);

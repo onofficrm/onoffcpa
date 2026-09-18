@@ -11,6 +11,7 @@ import {
   fetchAdminContracts,
   seedAdminDemoContract,
   updateAdminContractStatus,
+  updateAdminContractDocument,
   voidAdminContractAddendum,
   type AdminContractDetail,
   type AdminContractListItem,
@@ -64,6 +65,7 @@ export function AdminContracts() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [documentSaving, setDocumentSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [seedMessage, setSeedMessage] = useState('');
   const [applyingCustom, setApplyingCustom] = useState(false);
@@ -190,6 +192,36 @@ export function AdminContracts() {
       setError(err instanceof Error ? err.message : '상태 변경에 실패했습니다.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveDocument = async (html: string) => {
+    if (!selectedId) {
+      return;
+    }
+    const signed = detail?.contract.status === 'signed';
+    if (
+      !window.confirm(
+        signed
+          ? '승인 완료된 계약서 본문을 수정합니다. 저장된 문서가 바뀝니다. 계속할까요?'
+          : '계약서 본문을 저장할까요? 특약은 별도로 유지됩니다.',
+      )
+    ) {
+      throw new Error('cancelled');
+    }
+    setDocumentSaving(true);
+    setError('');
+    try {
+      const result = await updateAdminContractDocument({ mcId: selectedId, html });
+      setDetail(result.detail);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'cancelled') {
+        throw err;
+      }
+      setError(err instanceof Error ? err.message : '계약서 저장에 실패했습니다.');
+      throw err;
+    } finally {
+      setDocumentSaving(false);
     }
   };
 
@@ -517,6 +549,7 @@ export function AdminContracts() {
                 {detailTab === 'document' ? (
                   <ContractDocumentViewer
                     html={detail.contract.contractHtml}
+                    editHtml={detail.documentSourceHtml || detail.contract.contractHtml}
                     title="CPA 광고 제휴 계약서"
                     contractCode={detail.contract.contractCode}
                     signedAt={detail.contract.signedAt}
@@ -524,6 +557,9 @@ export function AdminContracts() {
                     documentPreviewUrl={detail.documentPreviewUrl}
                     documentPdfUrl={['review_pending', 'rejected', 'signed'].includes(detail.contract.status) ? detail.documentPdfUrl : undefined}
                     maxHeight="75vh"
+                    editable
+                    saving={documentSaving}
+                    onSaveHtml={handleSaveDocument}
                   />
                 ) : (
                 <>

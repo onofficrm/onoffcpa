@@ -272,6 +272,85 @@ if (!function_exists('lc_merchant_contract_admin_update_status')) {
     }
 }
 
+if (!function_exists('lc_merchant_contract_sanitize_document_html')) {
+    function lc_merchant_contract_sanitize_document_html($html)
+    {
+        $html = trim((string) $html);
+        if ($html === '') {
+            return '';
+        }
+
+        $html = preg_replace('#<(script|iframe|object|embed|form|link|meta|style)\b[^>]*>.*?</\1>#is', '', $html);
+        $html = preg_replace('#<(script|iframe|object|embed|form|link|meta|style)\b[^>]*/?>#is', '', (string) $html);
+        $html = preg_replace('/\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', (string) $html);
+        $html = preg_replace('/javascript\s*:/i', '', (string) $html);
+        $html = preg_replace('#<section\b[^>]*class="[^"]*lc-contract-addendum[^"]*"[^>]*>.*?</section>#is', '', (string) $html);
+
+        return trim((string) $html);
+    }
+}
+
+if (!function_exists('lc_merchant_contract_admin_update_document')) {
+    /**
+     * @return array{ok:bool,message:string}
+     */
+    function lc_merchant_contract_admin_update_document($mc_id, $html)
+    {
+        $mc_id = (int) $mc_id;
+        $html = lc_merchant_contract_sanitize_document_html($html);
+
+        if ($mc_id <= 0) {
+            return array('ok' => false, 'message' => '계약 ID가 올바르지 않습니다.');
+        }
+        if ($html === '') {
+            return array('ok' => false, 'message' => '계약서 내용이 비어 있습니다.');
+        }
+        if (strlen($html) > 500000) {
+            return array('ok' => false, 'message' => '계약서 내용이 너무 깁니다.');
+        }
+
+        $contract = lc_merchant_contract_get_by_id($mc_id);
+        if (!is_array($contract)) {
+            return array('ok' => false, 'message' => '계약서를 찾을 수 없습니다.');
+        }
+
+        $table = lc_merchant_contract_table();
+        $update = lc_sql_query(" UPDATE `{$table}`
+            SET mc_contract_snapshot = '" . lc_sql_escape($html) . "',
+                mc_updated_at = NOW()
+            WHERE mc_id = '{$mc_id}' ", false);
+        if ($update === false) {
+            return array('ok' => false, 'message' => '계약서 저장에 실패했습니다.');
+        }
+
+        if (function_exists('lc_merchant_contract_access_cache_clear')) {
+            lc_merchant_contract_access_cache_clear((int) ($contract['mc_mt_id'] ?? 0));
+        }
+
+        $status = (string) ($contract['mc_status'] ?? '');
+        if (function_exists('lc_merchant_contract_status_log_write')) {
+            lc_merchant_contract_status_log_write(array(
+                'mc_id'      => $mc_id,
+                'mt_id'      => (int) ($contract['mc_mt_id'] ?? 0),
+                'old_status' => $status,
+                'new_status' => $status,
+                'reason'     => '관리자가 계약서 본문을 수정했습니다.',
+            ));
+        }
+        if (function_exists('lc_admin_log_write')) {
+            lc_admin_log_write(
+                'contract_document',
+                'merchant_contract',
+                $mc_id,
+                '계약서 본문 수정',
+                array('mtId' => (int) ($contract['mc_mt_id'] ?? 0))
+            );
+        }
+
+        return array('ok' => true, 'message' => '계약서 본문을 저장했습니다.');
+    }
+}
+
 if (!function_exists('lc_merchant_contract_current_company_for_compare')) {
     /**
      * @return array<string,string>
@@ -532,9 +611,10 @@ if (!function_exists('lc_merchant_contract_admin_detail_for_api')) {
         $addenda = function_exists('lc_merchant_contract_addendum_list_for_api')
             ? lc_merchant_contract_addendum_list_for_api($mc_id, true)
             : array();
-        if (!empty($read['contractHtml']) && function_exists('lc_merchant_contract_append_addenda_to_html')) {
+        $document_source_html = (string) ($read['contractHtml'] ?? '');
+        if ($document_source_html !== '' && function_exists('lc_merchant_contract_append_addenda_to_html')) {
             $read['contractHtml'] = lc_merchant_contract_append_addenda_to_html(
-                (string) $read['contractHtml'],
+                $document_source_html,
                 $mc_id
             );
         }
@@ -562,6 +642,7 @@ if (!function_exists('lc_merchant_contract_admin_detail_for_api')) {
             'addenda'        => $addenda,
             'statusLogs'     => lc_merchant_contract_status_log_list($mc_id),
             'signLogs'       => lc_merchant_contract_sign_logs_for_api($mc_id),
+            'documentSourceHtml' => $document_source_html,
             'documentPreviewUrl' => LC_PLUGIN_URL . '/admin/contract-document.php?mcId=' . (int) $mc_id,
             'documentPdfUrl'     => LC_PLUGIN_URL . '/admin/contract-download.php?mcId=' . (int) $mc_id,
             'signatureUrl'       => LC_PLUGIN_URL . '/admin/contract-signature.php?mcId=' . (int) $mc_id,
