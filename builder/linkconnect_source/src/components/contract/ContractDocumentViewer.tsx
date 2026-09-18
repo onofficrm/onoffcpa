@@ -69,7 +69,22 @@ function DocumentPaper({
           {signatureUrl ? (
             <div>
               <p className="font-semibold text-slate-700 mb-2">전자서명</p>
-              <img src={signatureUrl} alt="계약 서명" />
+              <img
+                src={signatureUrl}
+                alt="계약 서명"
+                className="contract-document-viewer__signature-img"
+                onError={(event) => {
+                  const img = event.currentTarget;
+                  img.style.display = 'none';
+                  const fallback = img.nextElementSibling;
+                  if (fallback instanceof HTMLElement) {
+                    fallback.hidden = false;
+                  }
+                }}
+              />
+              <p className="text-xs text-slate-500 mt-1" hidden>
+                서명 이미지를 불러오지 못했습니다.
+              </p>
             </div>
           ) : null}
         </footer>

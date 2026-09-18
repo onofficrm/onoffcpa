@@ -622,6 +622,23 @@ if (!function_exists('lc_merchant_contract_admin_detail_for_api')) {
             ? lc_merchant_contract_addendum_can_add($contract, 'admin')
             : false;
 
+        $signature_path = (string) ($contract['mc_signature_file_path'] ?? '');
+        $signature_data_url = ($signature_path !== '' && function_exists('lc_merchant_contract_signature_data_url'))
+            ? lc_merchant_contract_signature_data_url($signature_path)
+            : '';
+        $signature_url = '';
+        if ($signature_data_url !== '') {
+            // SPA img는 인증·경로 이슈가 없도록 data URL을 우선 사용한다.
+            $signature_url = $signature_data_url;
+        } elseif ($signature_path !== '') {
+            $resolved = function_exists('lc_merchant_contract_resolve_signature_absolute')
+                ? lc_merchant_contract_resolve_signature_absolute($signature_path)
+                : '';
+            if ($resolved !== '') {
+                $signature_url = LC_PLUGIN_URL . '/admin/contract-signature.php?mcId=' . (int) $mc_id;
+            }
+        }
+
         return array(
             'contract'       => $read,
             'listItem'       => array_merge(
@@ -645,7 +662,8 @@ if (!function_exists('lc_merchant_contract_admin_detail_for_api')) {
             'documentSourceHtml' => $document_source_html,
             'documentPreviewUrl' => LC_PLUGIN_URL . '/admin/contract-document.php?mcId=' . (int) $mc_id,
             'documentPdfUrl'     => LC_PLUGIN_URL . '/admin/contract-download.php?mcId=' . (int) $mc_id,
-            'signatureUrl'       => LC_PLUGIN_URL . '/admin/contract-signature.php?mcId=' . (int) $mc_id,
+            'signatureUrl'       => $signature_url,
+            'signatureDataUrl'   => $signature_data_url,
         );
     }
 }
@@ -725,8 +743,10 @@ if (!function_exists('lc_merchant_contract_admin_serve_file')) {
             if ($path === '') {
                 return array('ok' => false, 'message' => '서명 파일이 없습니다.');
             }
-            $absolute = strpos($path, '/') === 0 ? $path : (LC_PLUGIN_PATH . '/' . ltrim($path, '/'));
-            if (!is_file($absolute)) {
+            $absolute = function_exists('lc_merchant_contract_resolve_signature_absolute')
+                ? lc_merchant_contract_resolve_signature_absolute($path)
+                : (strpos($path, '/') === 0 ? $path : (LC_PLUGIN_PATH . '/' . ltrim($path, '/')));
+            if ($absolute === '' || !is_file($absolute)) {
                 return array('ok' => false, 'message' => '서명 파일을 찾을 수 없습니다.');
             }
 

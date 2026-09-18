@@ -122,6 +122,13 @@
   padding: 0.5rem;
 }
 
+.contract-document-viewer__signature-img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
 .contract-document-viewer--fullscreen {
   position: fixed;
   inset: 0;

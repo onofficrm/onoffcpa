@@ -553,7 +553,7 @@ export function AdminContracts() {
                     title="CPA 광고 제휴 계약서"
                     contractCode={detail.contract.contractCode}
                     signedAt={detail.contract.signedAt}
-                    signatureUrl={detail.signatureUrl}
+                    signatureUrl={detail.signatureDataUrl || detail.signatureUrl}
                     documentPreviewUrl={detail.documentPreviewUrl}
                     documentPdfUrl={['review_pending', 'rejected', 'signed'].includes(detail.contract.status) ? detail.documentPdfUrl : undefined}
                     maxHeight="75vh"
@@ -656,10 +656,14 @@ export function AdminContracts() {
                   </section>
                 )}
 
-                {detail.signatureUrl ? (
+                {(detail.signatureDataUrl || detail.signatureUrl) ? (
                   <section>
                     <h3 className="font-bold text-slate-900 mb-2">서명 이미지</h3>
-                    <img src={detail.signatureUrl} alt="서명" className="max-h-28 border rounded-lg bg-white p-2" />
+                    <img
+                      src={detail.signatureDataUrl || detail.signatureUrl}
+                      alt="서명"
+                      className="max-h-28 border rounded-lg bg-white p-2"
+                    />
                   </section>
                 ) : null}
 

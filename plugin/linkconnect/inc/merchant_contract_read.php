@@ -293,7 +293,19 @@ if (!function_exists('lc_merchant_contract_read_to_api')) {
         $signature_path = (string) ($contract['mc_signature_file_path'] ?? '');
         $signature_url = '';
         if ($signature_path !== '') {
-            $signature_url = LC_PLUGIN_URL . '/merchant/contract-signature.php?version=' . $version_q;
+            $signature_data = function_exists('lc_merchant_contract_signature_data_url')
+                ? lc_merchant_contract_signature_data_url($signature_path)
+                : '';
+            if ($signature_data !== '') {
+                $signature_url = $signature_data;
+            } else {
+                $resolved = function_exists('lc_merchant_contract_resolve_signature_absolute')
+                    ? lc_merchant_contract_resolve_signature_absolute($signature_path)
+                    : '';
+                if ($resolved !== '') {
+                    $signature_url = LC_PLUGIN_URL . '/merchant/contract-signature.php?version=' . $version_q;
+                }
+            }
         }
 
         return array(

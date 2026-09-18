@@ -61,6 +61,9 @@ on:
       - 'builder/linkconnect_source/src/components/contract/ContractDocumentViewer.tsx'
       - 'plugin/linkconnect/admin/api/contracts.php'
       - 'plugin/linkconnect/inc/merchant_contract_admin.php'
+      - 'plugin/linkconnect/merchant/contract-signature.php'
+      - 'plugin/linkconnect/inc/merchant_contract_read.php'
+      - 'plugin/linkconnect/inc/merchant_contract.php'
       - '.github/workflows/deploy-calldb-hotfix.yml'
   workflow_dispatch:
 
@@ -101,6 +104,9 @@ jobs:
             "plugin/linkconnect/inc/admin.php"
             "plugin/linkconnect/admin/api/contracts.php"
             "plugin/linkconnect/inc/merchant_contract_admin.php"
+            "plugin/linkconnect/merchant/contract-signature.php"
+            "plugin/linkconnect/inc/merchant_contract_read.php"
+            "plugin/linkconnect/inc/merchant_contract.php"
             "plugin/linkconnect/admin/api/conversions.php"
             "plugin/linkconnect/inc/settlement.php"
             "plugin/linkconnect/partner/api/apply.php"

@@ -640,6 +640,83 @@ if (!function_exists('lc_merchant_contract_signature_dir')) {
     }
 }
 
+if (!function_exists('lc_merchant_contract_resolve_signature_absolute')) {
+    /**
+     * 서명 파일 절대경로 해석 (플러그인 data / 외부 storage / 절대경로).
+     */
+    function lc_merchant_contract_resolve_signature_absolute($path)
+    {
+        $path = trim(str_replace('\\', '/', (string) $path));
+        if ($path === '' || strpos($path, '..') !== false) {
+            return '';
+        }
+
+        if (strpos($path, '/') === 0 && is_file($path)) {
+            return $path;
+        }
+
+        $plugin = rtrim((string) LC_PLUGIN_PATH, '/') . '/' . ltrim($path, '/');
+        if (is_file($plugin)) {
+            return $plugin;
+        }
+
+        if (function_exists('lc_merchant_contract_absolute_storage_path')) {
+            $storage = lc_merchant_contract_absolute_storage_path($path);
+            if ($storage !== '' && is_file($storage)) {
+                return $storage;
+            }
+        }
+
+        // 예전 절대경로가 상대처럼 저장된 경우 basename만으로 data 폴더 재탐색
+        $base = basename($path);
+        if ($base !== '' && $base !== $path) {
+            $fallback = rtrim((string) LC_PLUGIN_PATH, '/') . '/data/contract_signatures/' . $base;
+            if (is_file($fallback)) {
+                return $fallback;
+            }
+        }
+
+        return '';
+    }
+}
+
+if (!function_exists('lc_merchant_contract_signature_data_url')) {
+    /**
+     * SPA에서 인증 쿠키 없이 바로 표시할 수 있는 data URL.
+     */
+    function lc_merchant_contract_signature_data_url($path)
+    {
+        $absolute = lc_merchant_contract_resolve_signature_absolute($path);
+        if ($absolute === '') {
+            return '';
+        }
+
+        $binary = @file_get_contents($absolute);
+        if ($binary === false || $binary === '') {
+            return '';
+        }
+
+        // 과도한 페이로드 방지 (서명 PNG 상한과 동일)
+        if (strlen($binary) > 512000) {
+            return '';
+        }
+
+        $mime = 'image/png';
+        if (function_exists('finfo_open')) {
+            $finfo = @finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo) {
+                $detected = @finfo_file($finfo, $absolute);
+                @finfo_close($finfo);
+                if (is_string($detected) && strpos($detected, 'image/') === 0) {
+                    $mime = $detected;
+                }
+            }
+        }
+
+        return 'data:' . $mime . ';base64,' . base64_encode($binary);
+    }
+}
+
 if (!function_exists('lc_merchant_contract_signature_filename')) {
     function lc_merchant_contract_signature_filename($mt_id)
     {

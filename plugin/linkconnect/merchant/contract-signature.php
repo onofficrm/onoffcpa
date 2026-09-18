@@ -39,8 +39,10 @@ if ($path === '') {
     exit('서명 파일이 없습니다.');
 }
 
-$absolute = strpos($path, '/') === 0 ? $path : (LC_PLUGIN_PATH . '/' . ltrim($path, '/'));
-if (!is_file($absolute)) {
+$absolute = function_exists('lc_merchant_contract_resolve_signature_absolute')
+    ? lc_merchant_contract_resolve_signature_absolute($path)
+    : (strpos($path, '/') === 0 ? $path : (LC_PLUGIN_PATH . '/' . ltrim($path, '/')));
+if ($absolute === '' || !is_file($absolute)) {
     header('HTTP/1.1 404 Not Found');
     exit('서명 파일을 찾을 수 없습니다.');
 }
