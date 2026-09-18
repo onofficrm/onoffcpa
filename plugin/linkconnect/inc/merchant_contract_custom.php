@@ -592,18 +592,20 @@ if (!function_exists('lc_merchant_contract_custom_ensure_adv0008')) {
 
         $mt_id = (int) $resolved['mt_id'];
         $existing = lc_merchant_contract_get($mt_id);
-        if (
-            !$force
-            && is_array($existing)
-            && lc_merchant_contract_custom_snapshot_matches((string) ($existing['mc_contract_snapshot'] ?? ''))
-        ) {
-            return array(
-                'ok'      => true,
-                'message' => '이미 적용됨',
-                'skipped' => true,
-                'mcId'    => (int) ($existing['mc_id'] ?? 0),
-                'applied' => false,
-            );
+        $existing_html = is_array($existing) ? trim((string) ($existing['mc_contract_snapshot'] ?? '')) : '';
+        if (!$force && is_array($existing) && $existing_html !== '') {
+            $already_custom = lc_merchant_contract_custom_snapshot_matches($existing_html);
+            $locked = function_exists('lc_merchant_contract_document_is_locked')
+                && lc_merchant_contract_document_is_locked($existing);
+            if ($already_custom || $locked) {
+                return array(
+                    'ok'      => true,
+                    'message' => $locked && !$already_custom ? '관리자 수정본 유지' : '이미 적용됨',
+                    'skipped' => true,
+                    'mcId'    => (int) ($existing['mc_id'] ?? 0),
+                    'applied' => false,
+                );
+            }
         }
 
         $result = lc_merchant_contract_admin_apply_custom_document(array(

@@ -314,9 +314,19 @@ if (!function_exists('lc_merchant_contract_admin_update_document')) {
             return array('ok' => false, 'message' => '계약서를 찾을 수 없습니다.');
         }
 
+        $company_snapshot = lc_merchant_contract_decode_snapshot($contract['mc_company_snapshot'] ?? '');
+        if (!is_array($company_snapshot)) {
+            $company_snapshot = function_exists('lc_merchant_contract_build_company_snapshot')
+                ? lc_merchant_contract_build_company_snapshot((int) ($contract['mc_mt_id'] ?? 0))
+                : array();
+        }
+        $company_snapshot['admin_document_edited'] = true;
+        $company_snapshot['admin_document_edited_at'] = date('c');
+
         $table = lc_merchant_contract_table();
         $update = lc_sql_query(" UPDATE `{$table}`
             SET mc_contract_snapshot = '" . lc_sql_escape($html) . "',
+                mc_company_snapshot = '" . lc_sql_escape(lc_merchant_contract_encode_snapshot($company_snapshot)) . "',
                 mc_updated_at = NOW()
             WHERE mc_id = '{$mc_id}' ", false);
         if ($update === false) {

@@ -768,6 +768,107 @@ if (!function_exists('lc_merchant_contract_save_signature_png')) {
     }
 }
 
+if (!function_exists('lc_merchant_contract_document_meta_keys')) {
+    /**
+     * @return list<string>
+     */
+    function lc_merchant_contract_document_meta_keys()
+    {
+        return array(
+            'admin_document_edited',
+            'admin_document_edited_at',
+            'custom_document_key',
+            'custom_document_label',
+            'custom_document_docx',
+        );
+    }
+}
+
+if (!function_exists('lc_merchant_contract_merge_document_meta')) {
+    /**
+     * @param array<string,mixed> $target
+     * @param array<string,mixed>|null $source
+     * @return array<string,mixed>
+     */
+    function lc_merchant_contract_merge_document_meta(array $target, $source)
+    {
+        if (!is_array($source)) {
+            return $target;
+        }
+        foreach (lc_merchant_contract_document_meta_keys() as $key) {
+            if (array_key_exists($key, $source)) {
+                $target[$key] = $source[$key];
+            }
+        }
+
+        return $target;
+    }
+}
+
+if (!function_exists('lc_merchant_contract_document_is_locked')) {
+    /**
+     * 관리자/커스텀 계약서 본문이 있으면 광고주 draft·sign 시 덮어쓰지 않음.
+     *
+     * @param array<string,mixed>|null $contract
+     */
+    function lc_merchant_contract_document_is_locked($contract)
+    {
+        if (!is_array($contract)) {
+            return false;
+        }
+
+        $company = lc_merchant_contract_decode_snapshot($contract['mc_company_snapshot'] ?? '');
+        if (is_array($company)) {
+            if (!empty($company['admin_document_edited']) || !empty($company['custom_document_key'])) {
+                return true;
+            }
+        }
+
+        $mc_id = (int) ($contract['mc_id'] ?? 0);
+        if ($mc_id > 0 && function_exists('lc_merchant_contract_status_log_table') && function_exists('lc_db_table_exists')) {
+            $table = lc_merchant_contract_status_log_table();
+            if (lc_db_table_exists($table)) {
+                $row = lc_sql_fetch(
+                    " SELECT mcsl_id FROM `{$table}`
+                      WHERE mc_id = '{$mc_id}'
+                        AND mcsl_reason LIKE '%계약서 본문을 수정%'
+                      LIMIT 1 "
+                );
+                if (is_array($row)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('lc_merchant_contract_resolve_body_html')) {
+    /**
+     * 저장된 본문(스냅샷)을 우선하고, 없거나 잠금이 아니면 템플릿을 렌더.
+     *
+     * @param array<string,mixed>|null $contract
+     * @param array<string,string> $party_a
+     * @param array<string,mixed> $terms_extras
+     * @param bool $prefer_snapshot  true면 잠금 여부와 관계없이 비어 있지 않은 스냅샷 사용
+     */
+    function lc_merchant_contract_resolve_body_html($contract, array $party_a, array $terms_extras, $prefer_snapshot = false)
+    {
+        $existing = is_array($contract) ? trim((string) ($contract['mc_contract_snapshot'] ?? '')) : '';
+        $locked = $prefer_snapshot || lc_merchant_contract_document_is_locked($contract);
+        if ($existing !== '' && $locked) {
+            return $existing;
+        }
+
+        if (!function_exists('lc_merchant_contract_render_html')) {
+            return $existing;
+        }
+
+        return (string) lc_merchant_contract_render_html($party_a, $terms_extras);
+    }
+}
+
 if (!function_exists('lc_merchant_contract_build_company_snapshot_from_form')) {
     /**
      * @return array<string,mixed>
@@ -875,9 +976,8 @@ if (!function_exists('lc_merchant_contract_save_draft')) {
             'dbUnitPrice'     => $db_unit_price,
             'minPrecharge'    => $min_precharge,
         );
-        $contract_html = function_exists('lc_merchant_contract_render_html')
-            ? lc_merchant_contract_render_html($party_a, $terms_extras)
-            : '';
+        // 관리자/커스텀 본문이 있으면 템플릿 재생성으로 덮어쓰지 않음
+        $contract_html = lc_merchant_contract_resolve_body_html($contract, $party_a, $terms_extras, false);
 
         $agreement_snapshot = array(
             'step'               => $step,
@@ -896,7 +996,11 @@ if (!function_exists('lc_merchant_contract_save_draft')) {
             'minPrecharge'       => $min_precharge,
         );
 
-        $company_snapshot = lc_merchant_contract_build_company_snapshot_from_form($mt_id, $form);
+        $prev_company = lc_merchant_contract_decode_snapshot($contract['mc_company_snapshot'] ?? '');
+        $company_snapshot = lc_merchant_contract_merge_document_meta(
+            lc_merchant_contract_build_company_snapshot_from_form($mt_id, $form),
+            is_array($prev_company) ? $prev_company : null
+        );
         $table = lc_merchant_contract_table();
         $status = lc_sql_escape(LC_MERCHANT_CONTRACT_STATUS_IN_PROGRESS);
 
@@ -1049,20 +1153,20 @@ if (!function_exists('lc_merchant_contract_view_to_api')) {
             'minPrecharge'    => $defaults['minPrecharge'] ?? 0,
         );
 
-        $contract_html = function_exists('lc_merchant_contract_render_html')
-            ? lc_merchant_contract_render_html(array(
+        $can_write = lc_merchant_contract_can_write($mt_id);
+        // 저장된 본문(관리자 수정·커스텀 포함)이 있으면 광고주 화면에도 그대로 표시
+        $contract_html = lc_merchant_contract_resolve_body_html(
+            $contract,
+            array(
                 'company_name'        => $party_a['companyName'],
                 'representative_name' => $party_a['representativeName'],
                 'business_number'     => $party_a['businessNumber'],
                 'company_address'     => $party_a['companyAddress'],
                 'company_phone'       => $party_a['companyPhone'],
-            ), $terms_extras)
-            : '';
-
-        $can_write = lc_merchant_contract_can_write($mt_id);
-        if (!$can_write && is_array($contract) && (string) ($contract['mc_contract_snapshot'] ?? '') !== '') {
-            $contract_html = (string) $contract['mc_contract_snapshot'];
-        }
+            ),
+            $terms_extras,
+            true
+        );
 
         return array(
             'contractVersion' => lc_merchant_contract_current_version(),
@@ -1399,7 +1503,13 @@ if (!function_exists('lc_merchant_contract_sign')) {
             'company_address'     => $form['companyAddress'],
             'company_phone'       => $form['companyPhone'],
         );
-        $company_snapshot = lc_merchant_contract_build_company_snapshot_from_form($mt_id, $form);
+        $prev_company = is_array($current)
+            ? lc_merchant_contract_decode_snapshot($current['mc_company_snapshot'] ?? '')
+            : null;
+        $company_snapshot = lc_merchant_contract_merge_document_meta(
+            lc_merchant_contract_build_company_snapshot_from_form($mt_id, $form),
+            is_array($prev_company) ? $prev_company : null
+        );
         $terms_extras = array(
             'negotiatedTerms' => $negotiated_terms,
             'specialClauses'  => $special_clauses,
@@ -1407,9 +1517,13 @@ if (!function_exists('lc_merchant_contract_sign')) {
             'dbUnitPrice'     => $db_unit_price,
             'minPrecharge'    => $min_precharge,
         );
-        $contract_html = function_exists('lc_merchant_contract_render_html')
-            ? lc_merchant_contract_render_html($party_a, $terms_extras)
-            : '';
+        // 광고주가 본 본문(관리자 수정본 포함)을 그대로 서명·PDF에 사용
+        $contract_html = lc_merchant_contract_resolve_body_html(
+            is_array($current) ? $current : null,
+            $party_a,
+            $terms_extras,
+            true
+        );
         $agreement_snapshot = array(
             'agreements' => array(
                 'readAll'      => !empty($agreements['readAll']),
