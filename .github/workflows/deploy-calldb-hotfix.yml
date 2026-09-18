@@ -61,6 +61,7 @@ on:
       - 'builder/linkconnect_source/src/components/contract/ContractDocumentViewer.tsx'
       - 'plugin/linkconnect/admin/api/contracts.php'
       - 'plugin/linkconnect/inc/merchant_contract_admin.php'
+      - 'plugin/linkconnect/inc/merchant_contract_custom.php'
       - 'plugin/linkconnect/merchant/contract-signature.php'
       - 'plugin/linkconnect/inc/merchant_contract_read.php'
       - 'plugin/linkconnect/inc/merchant_contract.php'
@@ -104,6 +105,7 @@ jobs:
             "plugin/linkconnect/inc/admin.php"
             "plugin/linkconnect/admin/api/contracts.php"
             "plugin/linkconnect/inc/merchant_contract_admin.php"
+            "plugin/linkconnect/inc/merchant_contract_custom.php"
             "plugin/linkconnect/merchant/contract-signature.php"
             "plugin/linkconnect/inc/merchant_contract_read.php"
             "plugin/linkconnect/inc/merchant_contract.php"
